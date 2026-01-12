@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Nibandha"
+version = "1.0.0"
+description = "Universal logger and storage module for Amsha, Pravaha, and beyond."
+readme = "README.md"
+dependencies = [
+      "pydantic == 2.11.9"
+]
+
+
+
+[tool.setuptools]
+package-dir = { "" = "src/nikhil" }
+
+[tool.setuptools.packages.find]
+where = ["src/nikhil"]
