@@ -166,8 +166,8 @@ class TestTimestampedLogs:
         assert nb.current_log_file is not None
         assert nb.current_log_file.exists()
         assert ".log" in nb.current_log_file.name
-        # Verify timestamp format (e.g., 2026-01-14_05-00-00.log)
-        assert len(nb.current_log_file.stem) == 19  # YYYY-MM-DD_HH-MM-SS
+        # Verify timestamp format (e.g., 2026-01-15.log)
+        assert len(nb.current_log_file.stem) == 10  # YYYY-MM-DD
 
 
 class TestRotationTriggers:
@@ -272,7 +272,7 @@ class TestArchiveCleanup:
         archive_dir.mkdir(parents=True, exist_ok=True)
         
         # Create old archive file
-        old_archive = archive_dir / "2025-01-01_00-00-00.log"
+        old_archive = archive_dir / "2025-01-01.log"
         old_archive.write_text("Old log content")
         
         # Set modification time to 30 days ago
@@ -301,7 +301,7 @@ class TestArchiveCleanup:
         archive_dir.mkdir(parents=True, exist_ok=True)
         
         # Create recent archive file
-        recent_archive = archive_dir / "2026-01-13_00-00-00.log"
+        recent_archive = archive_dir / "2026-01-13.log"
         recent_archive.write_text("Recent log content")
         
         deleted = nb.cleanup_old_archives()

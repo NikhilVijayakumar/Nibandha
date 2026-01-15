@@ -22,9 +22,10 @@ class LogRotationConfig(BaseModel):
     max_size_mb: int = 10
     rotation_interval_hours: int = 24
     archive_retention_days: int = 30
+    backup_count: int = 1  # Number of backup files to keep in archive (in addition to time-based retention)
     log_data_dir: str = "logs/data"
     archive_dir: str = "logs/archive"
-    timestamp_format: str = "%Y-%m-%d_%H-%M-%S"
+    timestamp_format: str = "%Y-%m-%d"
 
 
 class Nibandha:
@@ -98,11 +99,15 @@ class Nibandha:
         retention = input("Archive retention in days [30]: ").strip()
         retention_days = int(retention) if retention else 30
         
+        backup = input("Number of backup files to keep in archive [1]: ").strip()
+        backup_count = int(backup) if backup else 1
+        
         config = LogRotationConfig(
             enabled=True,
             max_size_mb=max_size_mb,
             rotation_interval_hours=interval_hours,
-            archive_retention_days=retention_days
+            archive_retention_days=retention_days,
+            backup_count=backup_count
         )
         
         # Cache config
@@ -130,19 +135,29 @@ class Nibandha:
             # Legacy single file
             log_file = self.app_root / "logs" / f"{self.config.name}.log"
         
-        # Setup logging
-        handler = logging.FileHandler(log_file)
-        handler.setFormatter(logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s'))
-        
-        logging.basicConfig(
-            level=self.config.log_level,
-            format='%(asctime)s | %(name)s | %(levelname)s | %(message)s',
-            handlers=[
-                handler,
-                logging.StreamHandler()
-            ]
-        )
+        # Get the named logger FIRST
         self.logger = logging.getLogger(self.config.name)
+        self.logger.setLevel(self.config.log_level)
+        
+        # Create and attach file handler directly to named logger
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(
+            logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+        )
+        
+        # Create and attach console handler directly to named logger
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(
+            logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+        )
+        
+        # Add handlers to the NAMED logger, not ROOT
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
+        
+        # Prevent propagation to root logger to avoid duplicate logs
+        self.logger.propagate = False
+        
         self.logger.info(f"Nibandha initialized at {self.app_root}")
         
         if self.rotation_config and self.rotation_config.enabled:
@@ -206,23 +221,40 @@ class Nibandha:
         self.logger.info(f"Log rotated. Archived: {archive_path.name}, New log: {new_log.name}")
 
     def cleanup_old_archives(self) -> int:
-        """Delete archives older than configured retention period. Returns count of deleted files."""
+        """Delete archives based on backup_count and retention period. Returns count of deleted files."""
         if not self.rotation_config or not self.rotation_config.enabled:
             return 0
-        
-        cutoff = datetime.now() - timedelta(days=self.rotation_config.archive_retention_days)
-        deleted_count = 0
         
         archive_dir = self.app_root / self.rotation_config.archive_dir
         if not archive_dir.exists():
             return 0
         
+        deleted_count = 0
+        
+        # Get all log files sorted by modification time (newest first)
+        log_files = sorted(
+            archive_dir.glob("*.log"),
+            key=lambda f: f.stat().st_mtime,
+            reverse=True
+        )
+        
+        # Apply backup_count limit (keep only the N most recent backups)
+        if len(log_files) > self.rotation_config.backup_count:
+            for log_file in log_files[self.rotation_config.backup_count:]:
+                log_file.unlink()
+                deleted_count += 1
+                self.logger.info(f"Deleted old archive (backup limit): {log_file.name}")
+        
+        # Also apply time-based retention (delete files older than retention period)
+        cutoff = datetime.now() - timedelta(days=self.rotation_config.archive_retention_days)
         for log_file in archive_dir.glob("*.log"):
+            if not log_file.exists():  # May have been deleted by backup_count limit
+                continue
             file_mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
             if file_mtime < cutoff:
                 log_file.unlink()
                 deleted_count += 1
-                self.logger.info(f"Deleted old archive: {log_file.name} (age: {(datetime.now() - file_mtime).days} days)")
+                self.logger.info(f"Deleted old archive (age: {(datetime.now() - file_mtime).days} days): {log_file.name}")
         
         if deleted_count > 0:
             self.logger.info(f"Cleanup complete: {deleted_count} old archives deleted")
