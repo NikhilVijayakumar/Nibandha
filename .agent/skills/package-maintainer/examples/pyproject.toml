@@ -1,0 +1,56 @@
+[build-system]
+# Standard build backend for modern Python packaging
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nikhil-nibandha"
+version = "0.1.0"
+description = "A Clean Architecture library following Android/Kotlin standards."
+readme = "README.md"
+authors = [{ name = "Nikhil", email = "nikhil@example.com" }]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+requires-python = ">=3.10"
+
+# Core Library Dependencies
+dependencies = [
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# Extra dependencies for developers
+dev = [
+    "pytest>=7.0.0",
+    "pytest-mock",
+    "build",
+    "twine"
+]
+
+[tool.setuptools]
+# Explicitly defining the package root to support Absolute Imports
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+# Ensures 'nikhil.nibandha' is the only package found
+where = ["src"]
+include = ["nikhil*"]
+
+[tool.pytest.ini_options]
+# Configuration for the Test-Scaffolder suite
+testpaths = ["tests"]
+python_files = "test_*.py"
+# Enforce importlib mode to prevent relative import side-effects during testing
+addopts = "--import-mode=importlib --strict-markers"
+
+[tool.mypy]
+# Strict type checking configuration
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

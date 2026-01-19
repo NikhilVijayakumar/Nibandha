@@ -20,3 +20,9 @@ When reviewing or writing code for Nibandha, audit for these specific Python "Go
 
 ## 4. Default Mutable Arguments
 - **Constraint:** Never use a list or dict as a default value in a function signature (e.g., `def task(tags=[])`). Use `None` and initialize inside the function.
+
+## 5. Audit Loop
+Before any code is committed to `src/`, the Security Agent must:
+1. **Run Static Analysis:** Execute `scripts/scan_vulnerabilities.py`.
+2. **Context Manager Check:** Verify all I/O operations are wrapped in `with` blocks.
+3. **Pydantic Validation:** Ensure sensitive settings (API keys, paths) use Pydantic `SecretStr` or `DirectoryPath` types to prevent accidental logging or invalid pathing.

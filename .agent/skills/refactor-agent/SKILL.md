@@ -21,3 +21,9 @@ Use this skill when a Quality Report indicates a 🔴 FAIL or ⚠️ WARN status
 2. Locate the source code mentioned.
 3. Propose the "Clean Architecture" solution (e.g., "Extracting logic to a UseCase").
 4. Execute the change only after user confirmation.
+
+## 4. Refactor Verification Loop
+Before declaring a refactor "Successful," the agent must:
+1. **Structural Audit:** Run `scripts/verify_atomic_structure.py` to ensure the new files are atomic.
+2. **Quality Audit:** Re-run the specific tool that failed (e.g., `ruff` or `mypy`) and confirm the score is now 🟢 PASS.
+3. **Traceability Audit:** Ensure the original Blueprint IDs are preserved in the new files.

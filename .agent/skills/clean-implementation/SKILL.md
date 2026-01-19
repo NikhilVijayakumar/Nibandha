@@ -39,8 +39,6 @@ To protect the library's integrity and simplify client usage:
     - The `.build()` method must validate the final state and return the **immutable** instance.
 - **Internal (Factory):** Use Factories to instantiate infrastructure components based on the injected Pydantic settings.
 
-
-
 ## 5. Automation & Non-Interactivity
 - **No Hardcoding:** Always use `self.settings.field` instead of hardcoded literals or constants.
 - **No Interactive Setup:** Strictly forbid `input()` or CLI prompts. The library must work headlessly via configuration files or environment variables.
@@ -59,3 +57,9 @@ When generating code:
 - **Check pyproject.toml:** Determine the base package name.
 - **Strict Absolute Imports:** Ensure all `import` and `from ... import` statements use the full path from the package root. 
 - **Example:** Even if two files are in the same folder, use `from nikhil.nibandha.domain.models.x import X` instead of `from .x import X`.
+
+## 8. Automation Gatekeepers
+Before finalizing any implementation, run:
+1. `scripts/verify_structure.py`
+2. `scripts/verify_imports.py`
+3. `scripts/verify_non_interactive.py`
