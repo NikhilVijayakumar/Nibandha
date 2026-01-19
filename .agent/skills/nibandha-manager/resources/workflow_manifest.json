@@ -1,0 +1,21 @@
+{
+  "tdd_workflow": {
+    "stages": [
+      {
+        "id": "doc-architect",
+        "action": "Create Blueprint",
+        "skip_if_exists": ["docs/modules/{module}/README.md"]
+      },
+      {
+        "id": "test-scaffolder",
+        "action": "Create Failing Tests",
+        "skip_if_exists": ["tests/{module}/test_integration.py"]
+      },
+      {
+        "id": "clean-implementation",
+        "action": "Build Logic & Logging",
+        "skip_if_exists": ["src/{module}/core.py"]
+      }
+    ]
+  }
+}

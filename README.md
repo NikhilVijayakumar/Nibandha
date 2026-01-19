@@ -9,8 +9,33 @@ The name comes from the Sanskrit word for "binding" or "record-keeping," reflect
 * **Unified Root:** All data is centralized under a single `.Nibandha/` directory.
 * **App Isolation:** Each application (Amsha, Pravaha, Akashvani) receives its own dedicated namespace and folder structure.
 * **Protocol-Based:** Lean design that works with any Python project by adhering to a simple configuration contract.
-* **Standardized Logging:** Automatically configures rolling file logs and console output for every registered app.
-* **Future-Ready:** Built-in hooks for data versioning and cloud synchronization (MinIO/S3).
+* **Standardized Logging:** Automatically configures named loggers with file and console handlers.
+* **Log Rotation & Archival:** Size-based and time-based rotation with automatic cleanup.
+* **Quality Reporting:** Built-in comprehensive quality reports (unit, E2E, dependencies, complexity).
+* **Zero-Config Default:** Works out-of-the-box with sensible defaults.
+* **Fully Customizable:** Every aspect can be overridden via config files or programmatic API.
+
+---
+
+## 🎯 Design Principles
+
+1. **Zero-Config Default**: Works out-of-the-box with sensible defaults - minimal code to get started
+2. **Fully Customizable**: Every aspect can be overridden by clients when needed
+3. **Protocol-Based**: Lean design following simple configuration contracts
+4. **Application-Centric**: Each app controls its own folder structure and settings
+5. **Production-Ready**: Built for reliability with comprehensive error handling
+
+### Benefits
+
+**For Developers:**
+- ✅ Quick Integration - Minimal code to get started
+- ✅ Predictable Structure - Standard directory layout
+- ✅ Full Control - Override anything when needed
+
+**For Operations:**
+- ✅ Centralized Logs - All apps in one `.Nibandha/` directory
+- ✅ Automatic Rotation - Prevents disk space issues
+- ✅ Easy Backup - Single directory to backup/sync
 
 ---
 
@@ -201,12 +226,108 @@ timestamp_format: "%Y-%m-%d_%H-%M-%S"
 
 ---
 
+## 📊 Quality Reporting
+
+Nibandha includes a comprehensive reporting module that generates professional quality reports for your project.
+
+### Installation
+
+Install Nibandha with reporting extras:
+
+```bash
+pip install nibandha[reporting]
+```
+
+### Quick Start
+
+Generate all reports with minimal configuration:
+
+```python
+from nibandha.reporting import ReportGenerator
+
+# Initialize generator
+generator = ReportGenerator(
+    output_dir=".Nibandha/Report",
+    docs_dir="docs/test"
+)
+
+# Generate ALL reports (unit, E2E, quality, dependencies)
+generator.generate_all()
+```
+
+### Custom Configuration
+
+Customize paths and specify targets:
+
+```python
+from nibandha.reporting import ReportGenerator
+
+generator = ReportGenerator(
+    output_dir="/path/to/custom/output",
+    docs_dir="docs/test",
+    template_dir="/path/to/custom/templates"  # Optional
+)
+
+# Specify targets for each report type
+generator.generate_all(
+    unit_target="tests/unit",           # Path to unit tests
+    e2e_target="tests/e2e",             # Path to E2E tests  
+    package_target="src/your/package"   # Package to analyze
+)
+```
+
+### Using the Script
+
+You can also use the provided script:
+
+```bash
+python scripts/generate_unified_report.py
+```
+
+### Reports Generated
+
+After running `generate_all()`, you'll find these reports in your `output_dir`:
+
+1. **`overview.md`** - Combined overview with all metrics
+2. **`unit_report.md`** - Unit test results with coverage
+3. **`e2e_report.md`** - E2E scenario results
+4. **`type_safety_report.md`** - MyPy static type checking
+5. **`complexity_report.md`** - Code complexity metrics
+6. **`architecture_report.md`** - Import structure compliance
+7. **`quality_overview.md`** - Overall quality summary
+8. **`module_dependency_report.md`** - Internal module dependencies
+9. **`package_dependency_report.md`** - PyPI package analysis
+
+All reports include visualizations (charts) and are saved as Markdown files.
+
+For detailed documentation, see [docs/modules/reporting.md](docs/modules/reporting.md).
+
+---
+
 ## 🔧 Configuration
 
 Nibandha can be configured globally using environment variables via a `.env` file:
 
 * `NIBANDHA_ROOT`: Change the root directory name (Default: `.Nibandha`)
 * `LOG_LEVEL`: Set global logging level (DEBUG, INFO, ERROR)
+
+---
+
+## 📚 Documentation
+
+For comprehensive guides and detailed documentation, see:
+
+- **[Module Documentation](docs/modules/README.md)** - Complete module reference
+  - [Overview](docs/modules/overview.md) - Architecture and core principles
+  - [Unified Root](docs/modules/unified-root.md) - Workspace structure details
+  - [Logging Module](docs/modules/logging.md) - Logger internals and configuration
+  - [Log Rotation](docs/modules/log-rotation.md) - Rotation setup and troubleshooting
+  - [Reporting Module](docs/modules/reporting.md) - Quality reporting system
+  - [Configuration](docs/modules/configuration.md) - Config system reference
+  - [Client Integration](docs/modules/client-integration.md) - Integration examples
+
+- **[Testing Strategy](docs/test/testing_strategy.md)** - Testing conventions and standards
+- **[Test Scenarios](docs/test/)** - Detailed test scenario documentation
 
 ---
 

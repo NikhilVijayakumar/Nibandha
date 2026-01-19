@@ -1,0 +1,11 @@
+[importlinter]
+root_package = nibandha
+include_external_packages = True
+
+[importlinter:contract:1]
+name = Nibandha Core Independence
+type = forbidden
+source_modules =
+    nibandha
+forbidden_modules =
+    pytest

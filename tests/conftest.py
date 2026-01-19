@@ -2,6 +2,7 @@ import pytest
 from pathlib import Path
 import tempfile
 import shutil
+import logging
 from nibandha.core import Nibandha, AppConfig, LogRotationConfig
 
 
@@ -34,3 +35,13 @@ def rotation_config_enabled():
 def rotation_config_disabled():
     """Disabled rotation config"""
     return LogRotationConfig(enabled=False)
+
+
+@pytest.fixture(autouse=True)
+def cleanup_logger(sample_app_config):
+    """Cleanup logger handlers after each test"""
+    yield
+    logger = logging.getLogger(sample_app_config.name)
+    for handler in logger.handlers[:]:
+        handler.close()
+        logger.removeHandler(handler)
