@@ -135,8 +135,18 @@ class Nibandha:
         
         if self.rotation_config and self.rotation_config.enabled:
             self.logger.info(f"Log rotation enabled: {self.current_log_file.name}")
+            
+            # Perform automatic daily archival and cleanup
+            archived_count = self.rotation_manager.archive_old_logs_from_data()
+            if archived_count > 0:
+                self.logger.info(f"Startup archival: {archived_count} old log(s) moved to archive")
+            
+            cleanup_count = self.rotation_manager.cleanup_old_archives()
+            if cleanup_count > 0:
+                self.logger.info(f"Startup cleanup: {cleanup_count} archive(s) deleted")
 
         return self
+
 
     def should_rotate(self) -> bool:
         """Check if rotation is needed."""

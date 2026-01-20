@@ -123,20 +123,31 @@ class RotationManager:
                 handler.close()
                 self.logger.removeHandler(handler)
         
-        # Move current log to archive
+        # Move current log to archive with date-based folder structure
         # Small delay to ensure file handles are released (Windows compatibility)
         time.sleep(0.2)
         
-        archive_dir = self.app_root / self.config.archive_dir
-        archive_dir.mkdir(parents=True, exist_ok=True)
+        # Extract date from current log filename
+        base_name = self.current_log_file.name.split('.log')[0]
+        try:
+            file_date = datetime.strptime(base_name, self.config.timestamp_format)
+            date_str = file_date.strftime(self.config.timestamp_format)
+        except ValueError:
+            # Fallback to current date if parsing fails
+            date_str = datetime.now().strftime(self.config.timestamp_format)
+            self.logger.warning(f"Could not parse date from {self.current_log_file.name}, using current date for archive")
+        
+        # Create date-based archive directory
+        archive_date_dir = self.app_root / self.config.archive_dir / date_str
+        archive_date_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Destination path in date folder
+        archive_path = archive_date_dir / self.current_log_file.name
         
         # Handle filename collisions (e.g., multiple rotations per day)
-        base_name = self.current_log_file.name
-        archive_path = archive_dir / base_name
-        
         counter = 1
         while archive_path.exists():
-            archive_path = archive_dir / f"{base_name}.{counter}"
+            archive_path = archive_date_dir / f"{self.current_log_file.name}.{counter}"
             counter += 1
         
         # Retry loop for Windows file locking
@@ -165,10 +176,72 @@ class RotationManager:
         handler.setFormatter(logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s'))
         self.logger.addHandler(handler)
         
-        self.logger.info(f"Log rotated. Archived: {archive_path.name}, New log: {new_log.name}")
+        self.logger.info(f"Log rotated. Archived: {archive_date_dir.name}/{archive_path.name}, New log: {new_log.name}")
+
+
+    def archive_old_logs_from_data(self) -> int:
+        """Move all non-current logs from data/ to archive/{date}/ folders. Returns count of archived files."""
+        if not self.config or not self.config.enabled:
+            return 0
+        
+        data_dir = self.app_root / self.config.log_data_dir
+        if not data_dir.exists():
+            return 0
+        
+        # Get today's date for comparison
+        today = datetime.now().date()
+        today_str = today.strftime(self.config.timestamp_format)
+        
+        archived_count = 0
+        
+        # Find all .log files in data directory
+        for log_file in data_dir.glob("*.log*"):
+            if not log_file.is_file():
+                continue
+            
+            # Extract date from filename
+            # Assuming filename format: {date}.log or {date}.log.1, etc.
+            base_name = log_file.name.split('.log')[0]
+            
+            # Try to parse the date from filename
+            try:
+                file_date = datetime.strptime(base_name, self.config.timestamp_format).date()
+            except ValueError:
+                # If parsing fails, skip this file (might be a different format)
+                self.logger.warning(f"Could not parse date from log file: {log_file.name}, skipping archival")
+                continue
+            
+            # Only archive files that are NOT from today
+            if file_date < today:
+                # Create date-based archive folder
+                date_str = file_date.strftime(self.config.timestamp_format)
+                archive_date_dir = self.app_root / self.config.archive_dir / date_str
+                archive_date_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Destination path
+                archive_path = archive_date_dir / log_file.name
+                
+                # Handle name collision (shouldn't happen in date folders, but be safe)
+                counter = 1
+                while archive_path.exists():
+                    archive_path = archive_date_dir / f"{log_file.name}.{counter}"
+                    counter += 1
+                
+                # Move file to archive
+                try:
+                    shutil.move(str(log_file), str(archive_path))
+                    archived_count += 1
+                    self.logger.info(f"Archived old log: {log_file.name} -> {archive_date_dir.name}/{archive_path.name}")
+                except Exception as e:
+                    self.logger.error(f"Failed to archive {log_file.name}: {e}")
+        
+        if archived_count > 0:
+            self.logger.info(f"Daily archival complete: {archived_count} old log(s) moved to archive")
+        
+        return archived_count
 
     def cleanup_old_archives(self) -> int:
-        """Delete archives based on backup_count and retention period. Returns count of deleted files."""
+        """Delete archives based on retention period and backup count. Returns count of deleted files/folders."""
         if not self.config or not self.config.enabled:
             return 0
         
@@ -178,33 +251,82 @@ class RotationManager:
         
         deleted_count = 0
         
-        # Get all log files sorted by modification time (newest first)
-        # Match .log and .log.1, .log.2 etc
-        log_files = sorted(
-            archive_dir.glob("*.log*"),
-            key=lambda f: f.stat().st_mtime,
-            reverse=True
-        )
+        # 1. Apply time-based retention: delete entire date folders older than retention period
+        cutoff_date = datetime.now().date() - timedelta(days=self.config.archive_retention_days)
         
-        # Apply backup_count limit (keep only the N most recent backups)
-        if len(log_files) > self.config.backup_count:
-            for log_file in log_files[self.config.backup_count:]:
-                log_file.unlink()
-                deleted_count += 1
-                self.logger.info(f"Deleted old archive (backup limit): {log_file.name}")
-        
-        # Also apply time-based retention (delete files older than retention period)
-        cutoff = datetime.now() - timedelta(days=self.config.archive_retention_days)
-        for log_file in archive_dir.glob("*.log*"):
-            if not log_file.exists():  # May have been deleted by backup_count limit
+        for date_folder in archive_dir.iterdir():
+            if not date_folder.is_dir():
                 continue
-            file_mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
-            if file_mtime < cutoff:
-                log_file.unlink()
-                deleted_count += 1
-                self.logger.info(f"Deleted old archive (age: {(datetime.now() - file_mtime).days} days): {log_file.name}")
+            
+            # Try to parse the folder name as a date
+            try:
+                folder_date = datetime.strptime(date_folder.name, self.config.timestamp_format).date()
+            except ValueError:
+                # Not a date folder, might be legacy flat files - handle separately
+                self.logger.warning(f"Non-date folder in archive: {date_folder.name}, skipping")
+                continue
+            
+            # Delete folders older than retention period
+            if folder_date < cutoff_date:
+                try:
+                    # Count files before deletion
+                    file_count = len(list(date_folder.glob("*.log*")))
+                    shutil.rmtree(date_folder)
+                    deleted_count += file_count
+                    days_old = (datetime.now().date() - folder_date).days
+                    self.logger.info(f"Deleted old archive folder (age: {days_old} days): {date_folder.name}/ ({file_count} file(s))")
+                except Exception as e:
+                    self.logger.error(f"Failed to delete archive folder {date_folder.name}: {e}")
+            else:
+                # 2. For folders within retention period, apply backup_count limit per folder
+                log_files = sorted(
+                    date_folder.glob("*.log*"),
+                    key=lambda f: f.stat().st_mtime,
+                    reverse=True
+                )
+                
+                if len(log_files) > self.config.backup_count:
+                    for log_file in log_files[self.config.backup_count:]:
+                        try:
+                            log_file.unlink()
+                            deleted_count += 1
+                            self.logger.info(f"Deleted old archive (backup limit in {date_folder.name}/): {log_file.name}")
+                        except Exception as e:
+                            self.logger.error(f"Failed to delete {log_file}: {e}")
+        
+        # 3. Handle legacy flat files in archive root (backward compatibility)
+        # These are files NOT in date folders - apply simple backup_count
+        flat_files = [f for f in archive_dir.glob("*.log*") if f.is_file()]
+        if flat_files:
+            self.logger.info(f"Found {len(flat_files)} legacy flat archive files")
+            flat_files_sorted = sorted(flat_files, key=lambda f: f.stat().st_mtime, reverse=True)
+            
+            # Apply backup_count to flat files
+            if len(flat_files_sorted) > self.config.backup_count:
+                for log_file in flat_files_sorted[self.config.backup_count:]:
+                    try:
+                        log_file.unlink()
+                        deleted_count += 1
+                        self.logger.info(f"Deleted old legacy archive (backup limit): {log_file.name}")
+                    except Exception as e:
+                        self.logger.error(f"Failed to delete {log_file}: {e}")
+            
+            # Also apply time-based retention to flat files
+            cutoff_datetime = datetime.now() - timedelta(days=self.config.archive_retention_days)
+            for log_file in archive_dir.glob("*.log*"):
+                if not log_file.is_file() or not log_file.exists():
+                    continue
+                file_mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
+                if file_mtime < cutoff_datetime:
+                    try:
+                        log_file.unlink()
+                        deleted_count += 1
+                        days_old = (datetime.now() - file_mtime).days
+                        self.logger.info(f"Deleted old legacy archive (age: {days_old} days): {log_file.name}")
+                    except Exception as e:
+                        self.logger.error(f"Failed to delete {log_file}: {e}")
         
         if deleted_count > 0:
-            self.logger.info(f"Cleanup complete: {deleted_count} old archives deleted")
+            self.logger.info(f"Cleanup complete: {deleted_count} old archive(s) deleted")
         
         return deleted_count
