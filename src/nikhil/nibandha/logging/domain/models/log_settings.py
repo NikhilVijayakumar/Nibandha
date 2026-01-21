@@ -1,0 +1,17 @@
+from pathlib import Path
+from typing import Optional, Literal
+from pydantic import BaseModel, ConfigDict, Field
+
+class LogSettings(BaseModel):
+    """
+    Configuration for the Nibandha Logger.
+    Immutable settings to prevent runtime tampering.
+    """
+    model_config = ConfigDict(frozen=True)
+
+    app_name: str = Field(..., description="Identity of the application logging (e.g., 'Amsha')")
+    log_dir: Path = Field(..., description="Absolute path to the log directory")
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field("INFO", description="Logging level")
+    console_output: bool = Field(True, description="Whether to output logs to stdout")
+    rotation_size_mb: int = Field(10, description="Max size in MB before rotation")
+    backup_count: int = Field(5, description="Number of backup files to keep")

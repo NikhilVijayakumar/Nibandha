@@ -1,0 +1,16 @@
+from typing import Protocol, Any, List, runtime_checkable
+
+@runtime_checkable
+class LoggerProtocol(Protocol):
+    """Protocol for loggers to decouple from specific logging implementations."""
+    
+    def debug(self, msg: str, ids: List[str] = [], *args: Any, **kwargs: Any) -> None: ...
+    
+    def info(self, msg: str, ids: List[str] = [], *args: Any, **kwargs: Any) -> None: ...
+    
+    def warning(self, msg: str, ids: List[str] = [], *args: Any, **kwargs: Any) -> None: ...
+    
+    def error(self, msg: str, ids: List[str] = [], *args: Any, **kwargs: Any) -> None: ...
+    
+    def critical(self, msg: str, ids: List[str] = [], *args: Any, **kwargs: Any) -> None: ...
+

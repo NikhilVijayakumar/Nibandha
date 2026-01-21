@@ -1,21 +1,32 @@
 # Logging Module Unit Test Scenarios
 
 ## Overview
-The Logging module ensures correct handler attachment, log levels, and separation of logs between different applications.
+The Logging module (`nibandha.logging`) provides structured, traceable logging.
 
 ## Scope
-- Handler types (File, Stream).
-- Handler attachment to specific loggers (not Root).
-- Log propagation settings.
-- Log file content verification.
+- `LogSettings` & `LogRotationConfig` validation.
+- `NibandhaLogger` handler attachment and propagation.
+- `RotationManager` archival logic.
 
 ## Scenarios
 
-| ID | Scenario | Description | Type |
-| :--- | :--- | :--- | :--- |
-| **LOG-001** | **Handler Attachment** | Verify handlers are attached to the named logger (`<AppName>`) and not the root logger. | Positive |
-| **LOG-002** | **Propagation Check** | Verify `propagate` is set to `False` to prevent log doubling. | Positive |
-| **LOG-003** | **Content Verification** | Verify logs are written to the correct file in `logs/data`. | Positive |
-| **LOG-004** | **Child Logger** | Verify child loggers (e.g., `AppName.module`) inherit handlers/write to the same file. | Positive |
-| **LOG-005** | **Timestamp Default** | Verify default timestamp format is daily (`%Y-%m-%d`). | Positive |
-| **LOG-006** | **Daily Consolidation** | Verify logs consolidate into the same file if restarted within the same rotation period. | Positive |
+### Positive Cases
+| ID | Scenario | Description |
+| :--- | :--- | :--- |
+| **LOG-POS-001** | **Standard Logging** | Verify info/debug logs appear in file with correct format and Trace IDs (if provided). |
+| **LOG-POS-002** | **Handler Isolation** | Verify `nibandha` logs do not propagate to root logger (avoid double logging). |
+| **LOG-POS-003** | **Rotation Trigger** | Verify `should_rotate()` returns True when file size exceeds limit (mocked). |
+| **LOG-POS-004** | **Archival** | Verify `archive_old_logs()` moves files from data to archive dir. |
+
+### Negative Cases
+| ID | Scenario | Description |
+| :--- | :--- | :--- |
+| **LOG-NEG-001** | **Invalid Rotation Config** | Initialize `RotationManager` with missing/invalid config. Verify safe fallback. |
+| **LOG-NEG-002** | **Directory Not Writable** | Simulate read-only `log_dir`. Verify logger handles `PermissionError` (e.g., emits to stderr or suppresses). |
+
+### Corner Cases
+| ID | Scenario | Description |
+| :--- | :--- | :--- |
+| **LOG-CNR-001** | **Massive IDs** | Pass a list of 1000+ IDs to `log.info(..., ids=[...])`. Verify performance/formatting resilience. |
+| **LOG-CNR-002** | **Non-String Messages** | Log an object or `None` as message. Verify formatter handles `str(msg)` conversion safely. |
+| **LOG-CNR-003** | **Rapid Rotation** | Simulate rapid log growth requiring multiple rotations in one second. Verify timestamp/sequence handling. |

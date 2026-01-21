@@ -4,8 +4,6 @@ import sys
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Tuple
-from nibandha.core import Nibandha
-
 # Use nibandha logger (assuming configured)
 # For library utils, we might just print if logging isn't guaranteed, 
 # but client requested "log than print". We'll try to get a logger.

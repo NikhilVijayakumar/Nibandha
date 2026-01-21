@@ -1,7 +1,7 @@
 import logging
 import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 from ...unit.application import unit_reporter
 from ...e2e.application import e2e_reporter
 from ...quality.application import quality_reporter
@@ -14,36 +14,54 @@ from ..data.data_builders import SummaryDataBuilder
 
 logger = logging.getLogger("nibandha.reporting")
 
+from ..domain.config import ReportingConfig
+from nibandha.configuration.domain.models.app_config import AppConfig
+
 class ReportGenerator:
     def __init__(
         self, 
-        output_dir: str = ".Nibandha/Report",
+        output_dir: Optional[str] = None,
         template_dir: Optional[str] = None,
         docs_dir: str = "docs/test",
+        config: Optional[Union[AppConfig, ReportingConfig]] = None,
         visualization_provider: Optional[Any] = None
     ):
         """
         Initialize the ReportGenerator.
         
         Args:
-            output_dir: Directory where reports will be saved.
-            template_dir: Directory containing report templates. Falls back to package defaults.
-            docs_dir: Directory containing test documentation scenarios.
+            output_dir: Legacy. Directory where reports will be saved.
+            template_dir: Legacy. Directory containing report templates.
+            docs_dir: Legacy. Directory containing test scenarios.
+            config: Optional AppConfig or ReportingConfig object (Preferred).
             visualization_provider: Optional custom visualization provider.
         """
-        self.output_dir = Path(output_dir).resolve()
-        
         self.default_templates_dir = Path(__file__).parent.parent.parent / "templates"
         
-        if template_dir:
-            self.templates_dir = Path(template_dir).resolve()
-            # If user provides custom dir, we use default as fallback
-            self.template_engine = TemplateEngine(self.templates_dir, defaults_dir=self.default_templates_dir)
+        # 1. Resolve Configuration
+        if config:
+            if isinstance(config, AppConfig):
+                # Map AppConfig to paths
+                raw_out = config.report_dir or ".Nibandha/Report"
+                self.output_dir = Path(raw_out).resolve()
+                self.docs_dir = Path("docs/test").resolve() # AppConfig doesn't have docs_dir yet, verify?
+                self.templates_dir = self.default_templates_dir
+            elif isinstance(config, ReportingConfig):
+                self.output_dir = config.output_dir
+                self.docs_dir = config.docs_dir
+                self.templates_dir = config.template_dir or self.default_templates_dir
         else:
-            self.templates_dir = self.default_templates_dir
-            self.template_engine = TemplateEngine(self.templates_dir)
-            
-        self.docs_dir = Path(docs_dir).resolve()
+            # Legacy / Manual Fallback
+            out = output_dir or ".Nibandha/Report"
+            self.output_dir = Path(out).resolve()
+            self.docs_dir = Path(docs_dir).resolve()
+            self.templates_dir = Path(template_dir).resolve() if template_dir else self.default_templates_dir
+
+        # 2. Setup Template Engine
+        if self.templates_dir != self.default_templates_dir:
+             self.template_engine = TemplateEngine(self.templates_dir, defaults_dir=self.default_templates_dir)
+        else:
+             self.template_engine = TemplateEngine(self.templates_dir)
         
         # Initialize Shared Services
         self.viz_provider = visualization_provider or DefaultVisualizationProvider()

@@ -3,7 +3,9 @@ from pathlib import Path
 import tempfile
 import shutil
 import logging
-from nibandha.core import Nibandha, AppConfig, LogRotationConfig
+from nibandha import Nibandha
+from nibandha.configuration.domain.models.app_config import AppConfig
+from nibandha.logging.domain.models.rotation_config import LogRotationConfig
 
 
 @pytest.fixture
