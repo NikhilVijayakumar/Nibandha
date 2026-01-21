@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Nibandha"
-version = "1.0.3"
+version = "1.0.4"
 description = "Universal logger and storage module for Amsha, Pravaha, and beyond."
 readme = "README.md"
 dependencies = [
