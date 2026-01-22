@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import List
 from nibandha.configuration.domain.models.app_config import AppConfig
-from nibandha.logging.domain.models.rotation_config import LogRotationConfig
+from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
 from ..domain.models.root_context import RootContext
 from ..domain.protocols.root_binder import RootBinderProtocol
 

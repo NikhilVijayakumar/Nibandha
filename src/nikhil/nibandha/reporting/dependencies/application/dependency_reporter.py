@@ -53,18 +53,39 @@ class DependencyReporter:
         # Grade
         grade = Grader.calculate_dependency_grade(len(circular))
         
+        # Calculate Statuses
+        avg_deps = round(sum(len(deps) for deps in dependencies.values()) / len(dependencies), 2) if dependencies else 0
+        overall_status = "Healthy" if not circular and len(isolated) == 0 else "Needs Attention"
+        circ_status = "🔴 Critical" if circular else "🟢 None"
+        iso_status = "🟡 Warning" if isolated else "🟢 None"
+
         mapping = {
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
+            "overall_status": overall_status,
             "display_grade": grade,
             "grade_color": Grader.get_grade_color(grade),
-            "module_count": len(dependencies),
-            "dep_count": sum(len(deps) for deps in dependencies.values()),
-            "circular_count": len(circular),
-            "circular_list": circ_text,
-            "most_imported_rows": imp_rows,
-            "most_dependent_rows": dep_rows,
-            "isolated_modules": iso_list,
-            "isolated_count": len(isolated)
+            
+            # Executive Summary
+            "total_modules": len(dependencies),
+            "total_deps": sum(len(deps) for deps in dependencies.values()),
+            "circular_deps": len(circular),
+            "circular_status": circ_status,
+            "isolated": len(isolated),
+            "isolated_status": iso_status,
+            "avg_deps": avg_deps,
+            
+            # Tables
+            "top_imported": imp_rows if imp_rows else "| None | - | - |",
+            "top_importers": dep_rows if dep_rows else "| None | - | - |",
+            
+            # Lists
+            "circular_deps_list": circ_text,
+            "isolated_modules_list": iso_list,
+            "detailed_dependency_list": "\n".join([f"- **{m}**: {', '.join(d)}" for m, d in dependencies.items()]),
+            
+            # Placeholders for unimplemented sections
+            "high_priority_items": "None generated.",
+            "recommendations": "None generated."
         }
         
         try:

@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 from nibandha.configuration.domain.models.app_config import AppConfig
-from nibandha.reporting.shared.domain.config import ReportingConfig
+from nibandha.configuration.domain.models.reporting_config import ReportingConfig
 from nibandha.reporting.shared.application.generator import ReportGenerator
 
 def test_generator_init_legacy():

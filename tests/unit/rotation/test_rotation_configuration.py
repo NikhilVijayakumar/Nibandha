@@ -3,8 +3,9 @@ import pytest
 import yaml
 import json
 from pathlib import Path
-from nibandha.core import Nibandha, LogRotationConfig
-from nibandha.core.rotation.infrastructure.manager import RotationManager
+from nibandha import Nibandha
+from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
+from nibandha.logging.infrastructure.rotation_manager import RotationManager
 import logging
 
 class TestRotationConfiguration:

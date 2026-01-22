@@ -1,13 +1,12 @@
 import shutil
-import yaml
-import json
 import logging
 import time
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timedelta
 
-from ..domain.models.rotation_config import LogRotationConfig
+from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
+from nibandha.configuration.infrastructure.file_loader import FileConfigLoader
 from ..domain.protocols.logger import LoggerProtocol
 
 class RotationManager:
@@ -18,6 +17,7 @@ class RotationManager:
         self.app_root = app_root
         self.logger = logger
         self.config: Optional[LogRotationConfig] = None
+        self.loader = FileConfigLoader()
         
         # State tracking
         self.current_log_file: Optional[Path] = None
@@ -25,13 +25,12 @@ class RotationManager:
 
     def load_config(self) -> Optional[LogRotationConfig]:
         """Load rotation config from .Nibandha/config/rotation_config.{yaml,json}"""
-        for ext, loader in [('yaml', yaml.safe_load), ('yml', yaml.safe_load), ('json', json.load)]:
+        # Try YAML first, then JSON
+        for ext in ['yaml', 'yml', 'json']:
             config_file = self.config_dir / f"rotation_config.{ext}"
             if config_file.exists():
                 try:
-                    with open(config_file, 'r') as f:
-                        data = loader(f)
-                    self.config = LogRotationConfig(**data)
+                    self.config = self.loader.load(config_file, LogRotationConfig)
                     return self.config
                 except Exception as e:
                     self.logger.warning(f"Failed to load {config_file}: {e}")
@@ -41,9 +40,11 @@ class RotationManager:
         """Save config to YAML file"""
         self.config_dir.mkdir(parents=True, exist_ok=True)
         config_file = self.config_dir / "rotation_config.yaml"
-        with open(config_file, 'w') as f:
-            yaml.dump(config.dict(), f, default_flow_style=False)
-        self.config = config
+        try:
+            self.loader.save(config_file, config)
+            self.config = config
+        except Exception as e:
+            self.logger.error(f"Failed to save config to {config_file}: {e}")
 
     def prompt_and_cache_config(self) -> LogRotationConfig:
         """Prompt user for rotation config and cache it"""

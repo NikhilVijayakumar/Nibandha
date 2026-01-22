@@ -3,8 +3,10 @@ import pytest
 import logging
 from pathlib import Path
 from unittest.mock import patch
-from nibandha.core import Nibandha, AppConfig, LogRotationConfig
-from nibandha.core.rotation.infrastructure.manager import RotationManager
+from nibandha import Nibandha
+from nibandha.configuration.domain.models.app_config import AppConfig
+from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
+from nibandha.logging.infrastructure.rotation_manager import RotationManager
 
 class TestLoggingInitialization:
     """Happy Path: Test handler initialization and basic logging flow."""

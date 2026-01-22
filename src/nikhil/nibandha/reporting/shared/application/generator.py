@@ -14,7 +14,7 @@ from ..data.data_builders import SummaryDataBuilder
 
 logger = logging.getLogger("nibandha.reporting")
 
-from ..domain.config import ReportingConfig
+from nibandha.configuration.domain.models.reporting_config import ReportingConfig
 from nibandha.configuration.domain.models.app_config import AppConfig
 
 class ReportGenerator:

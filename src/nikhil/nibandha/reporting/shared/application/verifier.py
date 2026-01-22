@@ -4,9 +4,9 @@ import traceback
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from nibandha.core.configuration.domain.config import AppConfig
-from nibandha.core.bootstrap.application.app import Nibandha
-from nibandha.core.rotation.domain.config import LogRotationConfig
+from nibandha.configuration.domain.models.app_config import AppConfig
+from nibandha import Nibandha
+from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
 from nibandha.reporting.shared.application.generator import ReportGenerator
 
 logger = logging.getLogger("nibandha.reporting.verifier")

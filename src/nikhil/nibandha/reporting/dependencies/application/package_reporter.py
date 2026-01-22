@@ -40,18 +40,70 @@ class PackageReporter:
         if not outdated_rows: outdated_rows = "| - | - | - | - |"
         if not unused_rows: unused_rows = "None detected."
         
+        # Filter lists for details
+        all_outdated = analysis.get("outdated_packages", [])
+        major_list = [p for p in all_outdated if p["update_type"] == "MAJOR"]
+        minor_list = [p for p in all_outdated if p["update_type"] == "MINOR"]
+        patch_list = [p for p in all_outdated if p["update_type"] == "PATCH"]
+
+        # Calculate Health Score (using pre-calculated counts)
+        score = 100
+        score -= (analysis["major_updates"] * 20)
+        score -= (analysis["minor_updates"] * 5)
+        # score -= security_issues * 30 (Not implemented yet)
+        score = max(0, score)
+        
+        overall = "Healthy" if score > 80 else ("Needs Attention" if score > 50 else "Critical")
+        
+        # Build Table
+        full_table = outdated_rows 
+        
+        # Full List
+        full_list = "\n".join([f"- {name} ({ver})" for name, ver in analysis.get('installed_packages', {}).items()])
+
         mapping = {
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
+            "overall_status": overall,
+            
+            # Summary Metrics
             "installed_count": analysis["installed_count"],
             "declared_count": analysis["declared_count"],
-            "up_to_date_count": analysis["up_to_date_count"],
-            "outdated_count": analysis["outdated_count"],
-            "unused_count": analysis["unused_count"],
+            "up_to_date": analysis["up_to_date_count"],
+            
+            "outdated": analysis["outdated_count"],
+            "outdated_status": "🟢" if analysis["outdated_count"] == 0 else "🟡",
+            
             "major_updates": analysis["major_updates"],
+            "major_status": "🟢" if analysis["major_updates"] == 0 else "🔴",
+            
             "minor_updates": analysis["minor_updates"],
             "patch_updates": analysis["patch_updates"],
-            "outdated_table": outdated_rows,
-            "unused_list": unused_rows
+            "unused": analysis["unused_count"],
+            
+            # Score
+            "health_score": score,
+            "points_current": 0,
+            "points_minor": analysis["minor_updates"] * 5,
+            "points_major": analysis["major_updates"] * 20,
+            "points_security": 0,
+            
+            # Details
+            "package_table": outdated_rows if outdated_rows != "| - | - | - | - |" else "| All packages up to date | - | - | - | - | - |",
+            
+            "major_updates_detail": "\n".join([f"- {p['name']}: {p['version']} -> {p['latest_version']}" for p in major_list]) or "None",
+            "security_advisories": "No advisories detected.",
+            
+            "minor_updates_detail": "\n".join([f"- {p['name']}: {p['version']} -> {p['latest_version']}" for p in minor_list]) or "None",
+            "patch_updates_detail": "\n".join([f"- {p['name']}: {p['version']} -> {p['latest_version']}" for p in patch_list]) or "None",
+            
+            "unused_deps_detail": unused_rows,
+            "dev_vs_prod_breakdown": "Analysis not available.",
+            
+            "immediate_actions": "Review major updates." if major_list else "None.",
+            "short_term_actions": "Review unused dependencies.",
+            "long_term_actions": "Monitor for new updates.",
+            
+            "full_package_list": full_list
         }
         
         try:

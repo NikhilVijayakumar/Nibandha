@@ -5,7 +5,7 @@ import shutil
 import logging
 from nibandha import Nibandha
 from nibandha.configuration.domain.models.app_config import AppConfig
-from nibandha.logging.domain.models.rotation_config import LogRotationConfig
+from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
 
 
 @pytest.fixture

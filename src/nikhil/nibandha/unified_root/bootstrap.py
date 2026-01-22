@@ -4,7 +4,7 @@ import logging
 from typing import Optional
 
 from nibandha.configuration.domain.models.app_config import AppConfig
-from nibandha.logging.domain.models.rotation_config import LogRotationConfig
+from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
 from nibandha.logging.infrastructure.rotation_manager import RotationManager
 from nibandha.logging.infrastructure.logger_factory import setup_logger
 
@@ -40,6 +40,18 @@ class Nibandha:
     @property
     def app_root(self) -> Path:
         return self.context.app_root if self.context else self.root / self.config.name
+
+    @property
+    def config_dir(self) -> Path:
+        if self.context:
+            return self.context.config_dir
+        # Default fallback logic matching bind()
+        root = Path(self.root_name)
+        return Path(self.config.config_dir) if self.config.config_dir else (root / "config")
+        
+    @property
+    def log_base(self) -> Path:
+        return self.context.log_base if self.context else (self.app_root / "logs")  # Fallback?
 
     def bind(self, interactive_setup: bool = False):
         """Creates the structure and binds the logger."""

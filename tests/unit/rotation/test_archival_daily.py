@@ -4,8 +4,10 @@ import shutil
 import time
 from pathlib import Path
 from datetime import datetime, timedelta
-from nibandha.core import Nibandha, AppConfig, LogRotationConfig
-from nibandha.core.rotation.infrastructure.manager import RotationManager
+from nibandha import Nibandha
+from nibandha.configuration.domain.models.app_config import AppConfig
+from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
+from nibandha.logging.infrastructure.rotation_manager import RotationManager
 import logging
 
 class TestDailyArchival:
@@ -18,7 +20,9 @@ class TestDailyArchival:
         # Setup rotation config
         rot_config = LogRotationConfig(
             enabled=True,
-            timestamp_format="%Y-%m-%d"
+            timestamp_format="%Y-%m-%d",
+            log_data_dir="data",
+            archive_dir="archive"
         )
         nb.config_dir.mkdir(parents=True, exist_ok=True)
         rm = RotationManager(nb.config_dir, nb.app_root, logging.getLogger("test"))
@@ -28,7 +32,7 @@ class TestDailyArchival:
         nb.bind()
         
         # Create fake old log files in data/
-        data_dir = nb._log_base / "data"
+        data_dir = nb.log_base / "data"
         today = datetime.now().date()
         
         # Create logs from different days
@@ -53,7 +57,7 @@ class TestDailyArchival:
         assert archived_count == 3
         
         # Check archive structure
-        archive_dir = nb._log_base / "archive"
+        archive_dir = nb.log_base / "archive"
         for date in dates:
             date_str = date.strftime('%Y-%m-%d')
             date_folder = archive_dir / date_str
@@ -80,7 +84,7 @@ class TestDailyArchival:
         nb.bind()
         
         # Create archive folders with different dates
-        archive_dir = nb._log_base / "archive"
+        archive_dir = nb.log_base / "archive"
         today = datetime.now().date()
         
         dates = [
@@ -126,7 +130,7 @@ class TestDailyArchival:
         nb.bind()
         
         # Create a date folder with multiple log files
-        archive_dir = nb._log_base / "archive"
+        archive_dir = nb.log_base / "archive"
         yesterday = datetime.now().date() - timedelta(days=1)
         date_str = yesterday.strftime('%Y-%m-%d')
         date_folder = archive_dir / date_str
@@ -168,7 +172,7 @@ class TestDailyArchival:
         nb1.bind()
         
         # Manually create old logs in data/
-        data_dir = nb1._log_base / "data"
+        data_dir = nb1.log_base / "data"
         today = datetime.now().date()
         old_date = today - timedelta(days=2)
         old_log = data_dir / f"{old_date.strftime('%Y-%m-%d')}.log"
@@ -180,7 +184,7 @@ class TestDailyArchival:
         
         # Verify old log was archived
         assert not old_log.exists()
-        archive_dir = nb2._log_base / "archive"
+        archive_dir = nb2.log_base / "archive"
         archived_log = archive_dir / old_date.strftime('%Y-%m-%d') / f"{old_date.strftime('%Y-%m-%d')}.log"
         assert archived_log.exists()
     
@@ -196,7 +200,7 @@ class TestDailyArchival:
         nb.bind()
         
         # Create files with invalid date formats
-        data_dir = nb._log_base / "data"
+        data_dir = nb.log_base / "data"
         invalid_file = data_dir / "invalid_name.log"
         invalid_file.write_text("Invalid log")
         

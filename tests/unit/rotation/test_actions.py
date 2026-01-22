@@ -4,8 +4,9 @@ import time
 from pathlib import Path
 from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
-from nibandha.core import Nibandha, LogRotationConfig
-from nibandha.core.rotation.infrastructure.manager import RotationManager
+from nibandha import Nibandha
+from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
+from nibandha.logging.infrastructure.rotation_manager import RotationManager
 import logging
 
 class TestRotationActions:
@@ -50,7 +51,7 @@ class TestRotationActions:
         # Patch where RotationManager imports datetime
         # Mock datetime to ensure rotation creates new timestamp
         # Patch where RotationManager imports datetime
-        with patch('nibandha.core.rotation.infrastructure.manager.datetime') as mock_dt:
+        with patch('nibandha.logging.infrastructure.rotation_manager.datetime') as mock_dt:
             # First call (current default)
             base_time = datetime(2035, 1, 1, 12, 0, 0)
             mock_dt.now.return_value = base_time

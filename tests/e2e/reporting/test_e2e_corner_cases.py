@@ -30,8 +30,8 @@ def test_rpt_e2e_006_empty_test_results(reporting_output):
     except Exception as e:
         pytest.fail(f"Reporters crashed on empty input: {e}")
         
-    assert (data_dir / "unit_report.md").exists()
-    assert (data_dir / "e2e_report.md").exists()
+    assert (reporting_output / "details" / "unit_report.md").exists()
+    assert (reporting_output / "details" / "e2e_report.md").exists()
 
 def test_rpt_e2e_008_corrupt_data(reporting_output):
     """RPT-E2E-008: Verify graceful handling of corrupt data."""

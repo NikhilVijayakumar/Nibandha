@@ -1,0 +1,9 @@
+app:
+  name: "VerificationApp"
+  log_level: "DEBUG"
+  custom_folders:
+    - "data"
+    - "temp"
+
+reporting:
+  docs_dir: "docs"
