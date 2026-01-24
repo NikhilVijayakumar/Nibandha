@@ -157,9 +157,16 @@ class QualityReporter:
             "type_violations": total_errors
         }
         
-        for key in ["api", "auth", "bot", "config", "llm", "logging", "storage", "workflow"]:
-             mapping[f"{key}_status"] = "⚪ N/A"
-             mapping[f"{key}_errors"] = "-"
+        # Generate dynamic module table based on actual errors
+        module_table = "| Module | Status | Errors |\n| :--- | :---: | :---: |\n"
+        if errors_by_module:
+            for module, error_count in sorted(errors_by_module.items(), key=lambda x: x[1], reverse=True):
+                status = "🟢" if error_count == 0 else "🔴"
+                module_table += f"| **{module}** | {status} | {error_count} |\n"
+        else:
+            module_table += "| **All Modules** | 🟢 | 0 |\n"
+        
+        mapping["module_table"] = module_table
 
         # 3. Render
         self.template_engine.render("type_safety_report_template.md", mapping, self.details_dir / "type_safety_report.md")
@@ -193,11 +200,16 @@ class QualityReporter:
              "cplx_violations": total
         }
 
-        for key in ["api", "auth", "bot", "config", "llm", "logging", "storage", "workflow"]:
-             mapping[f"{key}_status"] = "⚪"
-             mapping[f"{key}_avg"] = "-"
-             mapping[f"{key}_max"] = "-"
-             mapping[f"{key}_violations"] = "-"
+        # Generate dynamic module table based on actual violations
+        module_table = "| Module | Status | Avg Complexity | Max Complexity | Violations (>10) |\n| :--- | :---: | :---: | :---: | :---: |\n"
+        if violations:
+            for module, viol_count in sorted(violations.items(), key=lambda x: x[1], reverse=True):
+                status = "🟢" if viol_count == 0 else "🔴"
+                module_table += f"| **{module}** | {status} | - | - | {viol_count} |\n"
+        else:
+            module_table += "| **All Modules** | 🟢 | - | - | 0 |\n"
+        
+        mapping["module_table"] = module_table
 
         # 3. Render
         self.template_engine.render("complexity_report_template.md", mapping, self.details_dir / "complexity_report.md")

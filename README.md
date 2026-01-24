@@ -41,23 +41,67 @@ The name comes from the Sanskrit word for "binding" or "record-keeping," reflect
 
 ## 📂 The Workspace Structure
 
+Nibandha creates a **unified root** (`.Nibandha/`) that organizes all applications and libraries, regardless of dependency hierarchy.
+
+### Single Application Example
+
 When you initialize Nibandha, it creates a standardized hierarchy:
 
 ```text
 .Nibandha/
-├── Amsha/                  # AI Agent Workspace
-│   ├── logs/               # amsha.log
-│   └── output/
-│       ├── final/
-│       └── intermediate/
-├── Pravaha/                # API & Workflow Workspace
-│   ├── logs/               # pravaha.log
-│   ├── workflow/
-│   └── config/
-└── [OtherApp]/             # Universal support for any new project
-    └── logs/
-
+└── YourApp/                # Your application workspace
+    ├── logs/               # Application logs (always present)
+    ├── custom_folder_1/    # Your custom folders (via AppConfig.custom_folders)
+    ├── custom_folder_2/
+    └── Report/             # Quality reports (optional, for source code projects)
 ```
+
+### Multi-App Architecture
+
+When your application uses multiple Nibandha-based libraries, **each gets its own isolated workspace**:
+
+```text
+.Nibandha/
+├── YourMainApp/            # Your application (owns source code)
+│   ├── logs/               # YourMainApp logs
+│   ├── data/               # Your custom folders
+│   └── Report/             # ✅ Reports analyzing YourMainApp source
+├── LibraryA/               # First dependency (imported library)
+│   └── logs/               # ✅ LibraryA logs (for debugging)
+├── LibraryB/               # Second dependency (imported library)
+│   └── logs/               # ✅ LibraryB logs (for debugging)
+└── Nibandha/               # Nibandha itself (when used as library)
+    └── logs/               # ✅ Nibandha logs (for debugging)
+```
+
+**Example:** An "Akashvani" app using "Amsha" and "Pravaha" libraries (both built with Nibandha):
+
+```text
+.Nibandha/
+├── Akashvani/              # Main app analyzing voice data
+│   ├── logs/
+│   ├── voice/recordings/
+│   ├── transcripts/
+│   └── Report/             # ✅ Akashvani quality reports
+├── Amsha/                  # AI Agent library (imported)
+│   └── logs/               # ✅ Amsha library logs
+├── Pravaha/                # Workflow library (imported)
+│   └── logs/               # ✅ Pravaha library logs
+└── Nibandha/               # Logging library (imported)
+    └── logs/               # ✅ Nibandha library logs
+```
+
+**Key Principles:**
+
+- ✅ **Logs Everywhere**: Every app/library creates logs (for runtime debugging)
+- ✅ **Reports Where You Own Source**: Only generate reports for code you can fix
+- ✅ **Custom Folders Per App**: Each app defines its structure via `custom_folders`
+- ✅ **Unified Root**: All under `.Nibandha/` regardless of dependency depth
+
+> **Why no reports for libraries?**  
+> Quality reports help you improve *your* code. You can't fix issues in imported libraries, 
+> so generating reports for them would be useless. To see a library's quality reports, 
+> run them in that library's own source project.
 
 ---
 
@@ -240,19 +284,20 @@ pip install nibandha[reporting]
 
 ### Quick Start
 
-Generate all reports with minimal configuration:
+Generate reports integrated with your Nibandha app:
 
 ```python
+from nibandha import Nibandha, AppConfig
 from nibandha.reporting import ReportGenerator
 
-# Initialize generator
-generator = ReportGenerator(
-    output_dir=".Nibandha/Report",
-    docs_dir="docs/test"
-)
+# Initialize your Nibandha app
+nb = Nibandha(AppConfig(name="MyApp")).bind()
 
-# Generate ALL reports (unit, E2E, quality, dependencies)
-generator.generate_all()
+# Generate reports in app's unified root
+generator = ReportGenerator(output_dir=str(nb.app_root / "Report"))
+generator.generate_all(
+    package_target="src/myapp"  # Analyze YOUR source code
+)
 ```
 
 ### Custom Configuration
@@ -260,10 +305,15 @@ generator.generate_all()
 Customize paths and specify targets:
 
 ```python
+from nibandha import Nibandha, AppConfig
 from nibandha.reporting import ReportGenerator
 
+# Initialize app
+nb = Nibandha(AppConfig(name="MyApp")).bind()
+
+# Custom generator setup
 generator = ReportGenerator(
-    output_dir="/path/to/custom/output",
+    output_dir=str(nb.app_root / "Report"),
     docs_dir="docs/test",
     template_dir="/path/to/custom/templates"  # Optional
 )
@@ -272,7 +322,7 @@ generator = ReportGenerator(
 generator.generate_all(
     unit_target="tests/unit",           # Path to unit tests
     e2e_target="tests/e2e",             # Path to E2E tests  
-    package_target="src/your/package"   # Package to analyze
+    package_target="src/myapp"          # Your package to analyze
 )
 ```
 

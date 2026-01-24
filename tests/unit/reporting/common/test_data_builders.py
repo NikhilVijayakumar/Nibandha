@@ -32,9 +32,9 @@ def test_unit_builder_metrics(unit_builder):
 
 def test_e2e_builder_metrics(e2e_builder):
     results = {
-        "scenarios": [
-            {"name": "s1", "status": "pass"},
-            {"name": "s2", "status": "fail"}
+        "tests": [
+            {"nodeid": "s1", "outcome": "passed"},
+            {"nodeid": "s2", "outcome": "failed"}
         ]
     }
     

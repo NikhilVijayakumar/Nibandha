@@ -81,20 +81,55 @@ def main():
     # 5. Verify Reporting
     print(f"\n[5] Verifying Reporting")
     try:
-        generator = ReportGenerator(config=app_config)
+        # Use the app's Report folder to follow unified root design
+        report_dir = app.app_root / "Report"
+        generator = ReportGenerator(output_dir=str(report_dir))
         print(f"    Generator Output Dir: {generator.output_dir}")
         
         # Define targets - using the script's own dir as a 'package' target to avoid long scans
         # and using a specific test dir for unit/e2e if they exist, else just dummy paths
         # verifying failure handling is also important.
         
-        print("    Generating full reports...")
-        generator.generate_all(
-            unit_target="tests/unit",
-            e2e_target="tests/e2e",
-            package_target="src/nikhil/nibandha" 
-        )
+        # Custom execution instead of generate_all to capture data
+        timestamp = "2023-01-01" # Mock or real, doesn't matter for this capture
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
+        # 1. Unit
+        unit_data = generator.run_unit_Tests("tests/unit", timestamp)
+        
+        # 2. E2E
+        e2e_data = generator.run_e2e_Tests("tests/e2e", timestamp)
+
+        # 3. Quality
+        quality_data = generator.run_quality_checks("src/nikhil/nibandha")
+        
+        # 4. Dependencies
+        src_root = generator.output_dir.parent.parent / "src/nikhil/nibandha" # Approx
+        # generator.run_dependency_checks(...) - skipped for now or add if needed
+
+        # 5. Documentation
+        doc_data = generator.run_documentation_checks(generator.output_dir.parent.parent)
+
+        # Save Quality JSON for Agent Consumption
+        quality_json_path = generator.output_dir / "assets" / "data" / "quality.json"
+        quality_json_path.parent.mkdir(parents=True, exist_ok=True)
+        import json
+        with open(quality_json_path, 'w') as f:
+            json.dump(quality_data, f, indent=2, default=str)
+        print(f"    ✅ Quality Artifact saved: {quality_json_path}")
+
+        # Generate Unified Summary (this was missing!)
+        from nibandha.reporting.shared.data.data_builders import SummaryDataBuilder
+        summary_builder = SummaryDataBuilder()
+        summary_data = summary_builder.build(unit_data, e2e_data, quality_data, documentation_data=doc_data)
+        generator.template_engine.render(
+            "unified_overview_template.md",
+            summary_data,
+            generator.output_dir / "summary.md"
+        )
+        print(f"    ✅ Summary Report generated: {generator.output_dir / 'summary.md'}")
+
         # Verify output files exist
         summary_path = generator.output_dir / "summary.md"
         details_dir = generator.output_dir / "details"

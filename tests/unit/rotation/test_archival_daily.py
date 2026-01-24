@@ -99,8 +99,14 @@ class TestDailyArchival:
             date_folder = archive_dir / date_str
             date_folder.mkdir(parents=True, exist_ok=True)
             (date_folder / f"{date_str}.log").write_text(f"Archive from {date}")
+            (date_folder / f"{date_str}.log").write_text(f"Archive from {date}")
+            # Ensure different mtimes for reliable sorting in cleanup
+            time.sleep(0.01)
         
         # Run cleanup
+        print(f"DEBUG: archive_dir={archive_dir}, exists={archive_dir.exists()}")
+        print(f"DEBUG: app_root in nb.rm={nb.rotation_manager.app_root}")
+        
         deleted_count = nb.cleanup_old_archives()
         
         # Verify old folders deleted
@@ -175,6 +181,8 @@ class TestDailyArchival:
         data_dir = nb1.log_base / "data"
         today = datetime.now().date()
         old_date = today - timedelta(days=2)
+        if not data_dir.exists():
+            data_dir.mkdir(parents=True)
         old_log = data_dir / f"{old_date.strftime('%Y-%m-%d')}.log"
         old_log.write_text("Old log")
         
@@ -201,6 +209,8 @@ class TestDailyArchival:
         
         # Create files with invalid date formats
         data_dir = nb.log_base / "data"
+        if not data_dir.exists():
+            data_dir.mkdir(parents=True)
         invalid_file = data_dir / "invalid_name.log"
         invalid_file.write_text("Invalid log")
         

@@ -40,4 +40,4 @@ package-dir = { "" = "src/nikhil" }
 where = ["src/nikhil"]
 
 [tool.setuptools.package-data]
-nibandha = ["reporting/templates/*.md"]
+nibandha = ["reporting/templates/*.md", "py.typed"]

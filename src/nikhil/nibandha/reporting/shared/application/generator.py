@@ -57,6 +57,9 @@ class ReportGenerator:
             self.docs_dir = Path(docs_dir).resolve()
             self.templates_dir = Path(template_dir).resolve() if template_dir else self.default_templates_dir
 
+        # Store config for later use
+        self.config = config
+
         # 2. Setup Template Engine
         if self.templates_dir != self.default_templates_dir:
              self.template_engine = TemplateEngine(self.templates_dir, defaults_dir=self.default_templates_dir)
@@ -155,8 +158,43 @@ class ReportGenerator:
         self.quality_reporter.generate(results)
         return results
         
-    def run_dependency_checks(self, source_root: Path, project_root: Path, package_roots: list):
-        """Run dependency modules."""
         logger.info(f"Running dependency checks on source: {source_root}")
         self.dep_reporter.generate(source_root, package_roots)
         self.pkg_reporter.generate(project_root)
+
+    def run_documentation_checks(self, project_root: Path) -> Dict:
+        """Run documentation coverage checks."""
+        logger.info(f"Running documentation checks on root: {project_root}")
+        
+        # Lazy init to avoid circular import or early init if not needed
+        # But we need to init in __init__? The config has doc_paths.
+        # Let's Init here or in __init__.
+        # If I init in __init__, I need to update __init__ args to check config for doc_paths.
+        
+        # Check config
+        doc_paths = {
+            "functional": Path("docs/modules"), 
+            "technical": Path("docs/technical"), 
+            "test": Path("docs/test")
+        }
+        # If config is passed, try to get doc_paths (it's in ReportingConfig now)
+        # But current `self.config` isn't stored, only `self.output_dir`.
+        # I should have stored self.config.
+        # Let's create the reporter here using default or config if accessible.
+        
+        from ...documentation.application import documentation_reporter
+        reporter = documentation_reporter.DocumentationReporter(
+            self.output_dir, self.templates_dir, doc_paths,
+            self.template_engine, self.viz_provider
+        )
+        data = reporter.generate(project_root)
+        
+        # Save JSON
+        json_path = self.output_dir / "assets" / "data" / "documentation.json"
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        import json
+        with open(json_path, 'w') as f:
+            json.dump(data, f, indent=2, default=str)
+        logger.info(f"Documentation data saved to {json_path}")
+        
+        return data

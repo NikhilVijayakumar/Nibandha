@@ -154,3 +154,54 @@ class DefaultVisualizationProvider:
             logger.error(f"Error generating architecture charts: {e}")
             
         return charts
+        return charts
+
+    def generate_documentation_charts(
+        self, 
+        data: Dict[str, Any], 
+        output_dir: Path
+    ) -> Dict[str, str]:
+        """Generate documentation charts."""
+        output_dir.mkdir(parents=True, exist_ok=True)
+        # Separate images folder? The caller usually provides images_dir.
+        # Check usage in other methods: they use output_dir passed in.
+        charts = {}
+        
+        try:
+            # Prepare Data for Visualizer
+            # 1. Global Coverage (Documented vs Missing count across all modules)
+            # data has sections: functional, technical, test. Each has 'stats': {documented: x, missing: y}
+            # Let's aggregate for the pie chart
+            total_doc = 0
+            total_miss = 0
+            for key in ["functional", "technical", "test"]:
+                stats = data.get(key, {}).get("stats", {})
+                total_doc += stats.get("documented", 0)
+                total_miss += stats.get("missing", 0)
+                
+            cov_stats = {"Documented": total_doc, "Missing": total_miss}
+            cov_path = output_dir / "doc_coverage.png"
+            
+            # 2. Drift Data (Flatten module drifts)
+            # data[type]['drift_map'] = {mod: days}
+            all_drifts = {}
+            for key in ["functional", "technical", "test"]:
+                dmap = data.get(key, {}).get("drift_map", {})
+                for mod, days in dmap.items():
+                    # Prefix with type to avoid collision? e.g. "Auth (Func)"
+                    # Or just take max? Let's prefix
+                    label = f"{mod} ({key[0].upper()})"
+                    if days != -1: # -1 means no doc
+                        all_drifts[label] = days
+            
+            drift_path = output_dir / "doc_drift.png"
+            
+            visualizer.plot_documentation_stats(cov_stats, all_drifts, cov_path, drift_path)
+            
+            if cov_path.exists(): charts["doc_coverage"] = str(cov_path)
+            if drift_path.exists(): charts["doc_drift"] = str(drift_path)
+            
+        except Exception as e:
+            logger.error(f"Error generating documentation charts: {e}")
+            
+        return charts

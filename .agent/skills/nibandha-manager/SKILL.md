@@ -41,6 +41,7 @@ Enforce the sequence where verification infrastructure precedes implementation:
 2. **Stage 1: Doc-Architect:** Design Platform-Agnostic Blueprint with `XX-UT-00X` traceability IDs.
 3. **Stage 2: Test-Scaffolder:** Generate **failing** test stubs in `tests/` mapping to Blueprint IDs.
 4. **Stage 3: Clean-Implementation:** Build logic in `src/{root}/{module}/`. Enforce Pydantic, Absolute Imports, and Blueprint ID Logging.
+5. **Stage 4: Verification-Manager:** Verify system health via `scripts/verify_system.py` and report analysis.
 
 ## 3. State-Aware Execution (Idempotency)
 

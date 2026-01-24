@@ -61,8 +61,17 @@ def test_error_handling(provider, mock_viz_impl, tmp_path):
     # If plotting raises exception, it should be caught and logged
     mock_viz_impl.plot_module_outcomes.side_effect = Exception("Boom")
     
-    data = {"outcomes_by_module": {"A": 1}}
-    charts = provider.generate_unit_test_charts(data, tmp_path)
+    # We need to ensure the logger doesn't try to actually write to a file via a mocked handler that might fail
+    # but the error we saw was FileNotFoundError in the *Logging System* itself attempting to write the error log
+    # because the log file didn't exist in the temp dir.
+    # The simplest fix is to mock the logger used in the provider to avoid real file I/O during this test.
+    
+    with patch("nibandha.reporting.shared.infrastructure.visualizers.default_visualizer.logger") as mock_logger:
+         data = {"outcomes_by_module": {"A": 1}}
+         charts = provider.generate_unit_test_charts(data, tmp_path)
+         
+         # Verify error was logged
+         mock_logger.error.assert_called()
     
     # process might continue or return partial
     # Here outcomes fails, but others are empty, so likely returns {}

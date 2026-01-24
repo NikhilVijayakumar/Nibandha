@@ -92,9 +92,9 @@ class E2EDataBuilder:
     """Builds E2E report data."""
     def build(self, results: Dict[str, Any], timestamp: str) -> Dict[str, Any]:
         logger.debug("Building E2E Test Data")
-        scenarios = results.get("scenarios", [])
+        scenarios = results.get("tests", []) # pytest-json-report key is 'tests'
         total = len(scenarios)
-        passed = sum(1 for s in scenarios if s.get("status") == "pass")
+        passed = sum(1 for s in scenarios if s.get("outcome") == "passed")
         failed = total - passed
         
         pass_rate = (passed / total * 100) if total > 0 else 0.0
@@ -125,7 +125,7 @@ class QualityDataBuilder:
 
 class SummaryDataBuilder:
     """Aggregates all data for summary report."""
-    def build(self, unit_data: Dict, e2e_data: Dict, quality_data: Dict, project_name="Nibandha") -> Dict[str, Any]:
+    def build(self, unit_data: Dict, e2e_data: Dict, quality_data: Dict, documentation_data: Dict = None, project_name="Nibandha") -> Dict[str, Any]:
         """
         Build data dictionary for unified overview report.
         Expects enriched data from other builders.
@@ -221,5 +221,37 @@ class SummaryDataBuilder:
             "arch_status": "🟢 PASS" if arch_status == "PASS" else "🔴 FAIL",
             "arch_message": "Clean" if arch_status == "PASS" else "Violations Detected",
             
-            "action_items": "\n".join(actions) if actions else "- No urgent actions required."
+            "action_items": "\n".join(actions) if actions else "- No urgent actions required.",
+            
+            # Documentation defaults (will be overwritten if data provided)
+            "doc_coverage": "N/A",
+            "doc_status": "⚪ Not Run",  
+            "func_doc_pct": "N/A",
+            "tech_doc_pct": "N/A",
+            "test_doc_pct": "N/A"
         }
+        
+        # Add documentation data if provided
+        if documentation_data:
+            func_stats = documentation_data.get("functional", {}).get("stats", {})
+            tech_stats = documentation_data.get("technical", {}).get("stats", {})
+            test_stats = documentation_data.get("test", {}).get("stats", {})
+            
+            func_total = func_stats.get("documented", 0) + func_stats.get("missing", 0)
+            func_pct = (func_stats.get("documented", 0) / func_total * 100) if func_total > 0 else 0
+            
+            tech_total = tech_stats.get("documented", 0) + tech_stats.get("missing", 0)
+            tech_pct = (tech_stats.get("documented", 0) / tech_total * 100) if tech_total > 0 else 0
+            
+            test_total = test_stats.get("documented", 0) + test_stats.get("missing", 0)
+            test_pct = (test_stats.get("documented", 0) / test_total * 100) if test_total > 0 else 0
+            
+            avg_doc_coverage = (func_pct + tech_pct + test_pct) / 3
+            
+            result["doc_coverage"] = f"{avg_doc_coverage:.1f}"
+            result["doc_status"] = "🟢 GOOD" if avg_doc_coverage > 80 else "🟡 NEEDS IMPROVEMENT"
+            result["func_doc_pct"] = f"{func_pct:.1f}"
+            result["tech_doc_pct"] = f"{tech_pct:.1f}"
+            result["test_doc_pct"] = f"{test_pct:.1f}"
+        
+        return result

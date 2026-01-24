@@ -340,3 +340,50 @@ def plot_dependency_matrix(dependencies, output_path: Path):
     plt.tight_layout()
     plt.savefig(output_path, dpi=100)
     plt.close()
+
+def plot_documentation_stats(coverage_stats, drift_stats, output_path: Path, output_path_drift: Path):
+    """
+    Generate charts for documentation.
+    """
+    if not _check_dependencies(): return
+    setup_style()
+    
+    # 1. Coverage Pie
+    if coverage_stats:
+        labels = list(coverage_stats.keys())
+        sizes = list(coverage_stats.values())
+        if sum(sizes) > 0:
+            plt.figure(figsize=(8, 8))
+            colors = ["#2ecc71", "#e74c3c", "#95a5a6"]
+            plt.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
+            plt.title("Documentation Coverage (All Modules)", fontsize=14, fontweight='bold')
+            plt.tight_layout()
+            plt.savefig(output_path, dpi=100)
+            plt.close()
+            logger.debug(f"Saved plot: {output_path}")
+
+    # 2. Drift Histogram
+    if drift_stats:
+        df = pd.DataFrame(list(drift_stats.items()), columns=["Module", "DriftDays"])
+        plt.figure(figsize=(10, 6))
+        
+        colors = []
+        for d in df["DriftDays"]:
+            if d < 30: colors.append("#2ecc71")
+            elif d < 90: colors.append("#f1c40f")
+            else: colors.append("#e74c3c")
+            
+        sns.barplot(data=df, x="Module", y="DriftDays", palette=colors)
+        plt.title("Documentation Drift (Days since last update)", fontsize=14, fontweight='bold')
+        plt.xlabel("Module")
+        plt.ylabel("Days")
+        plt.xticks(rotation=45, ha="right")
+        
+        plt.axhline(y=30, color='green', linestyle='--', alpha=0.5, label='Fresh (<30d)')
+        plt.axhline(y=90, color='red', linestyle='--', alpha=0.5, label='Stale (>90d)')
+        plt.legend()
+        
+        plt.tight_layout()
+        plt.savefig(output_path_drift, dpi=100)
+        plt.close()
+        logger.debug(f"Saved plot: {output_path_drift}")

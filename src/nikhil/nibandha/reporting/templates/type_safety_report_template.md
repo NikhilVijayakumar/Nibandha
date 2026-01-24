@@ -26,16 +26,7 @@
 
 ## 🛡️ Type Coverage by Module
 
-| Module | Status | Errors |
-| :--- | :---: | :---: |
-| **Api** | {api_status} | {api_errors} |
-| **Auth** | {auth_status} | {auth_errors} |
-| **Bot** | {bot_status} | {bot_errors} |
-| **Config** | {config_status} | {config_errors} |
-| **Llm** | {llm_status} | {llm_errors} |
-| **Pravaha_logging** | {logging_status} | {logging_errors} |
-| **Storage** | {storage_status} | {storage_errors} |
-| **Workflow** | {workflow_status} | {workflow_errors} |
+{module_table}
 
 ---
 

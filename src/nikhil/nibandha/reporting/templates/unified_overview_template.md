@@ -29,7 +29,7 @@
 
 ![Unit Outcomes](assets/images/unit_outcomes.png)
 
-ðŸ“„ [Detailed Unit Test Report](details/unit_report.md)
+ðŸ"„ [Detailed Unit Test Report](details/unit_report.md)
 
 ---
 
@@ -40,7 +40,7 @@
 
 ![E2E Status](assets/images/e2e_status.png)
 
-ðŸ“„ [Detailed E2E Report](details/e2e_report.md)
+ðŸ"„ [Detailed E2E Report](details/e2e_report.md)
 
 ---
 
@@ -52,7 +52,7 @@
 
 ![Type Errors](assets/images/quality/type_errors_by_module.png)
 
-ðŸ“„ [Detailed Type Safety Report](details/type_safety_report.md)
+ðŸ"„ [Detailed Type Safety Report](details/type_safety_report.md)
 
 ---
 
@@ -62,7 +62,7 @@
 
 ![Complexity](assets/images/quality/complexity_distribution.png)
 
-ðŸ“„ [Detailed Complexity Report](details/complexity_report.md)
+ðŸ"„ [Detailed Complexity Report](details/complexity_report.md)
 
 ---
 
@@ -71,7 +71,19 @@
 
 ![Architecture](assets/images/quality/architecture_status.png)
 
-ðŸ“„ [Detailed Architecture Report](details/architecture_report.md)
+ðŸ"„ [Detailed Architecture Report](details/architecture_report.md)
+
+---
+
+### Documentation Coverage
+- **Functional**: {func_doc_pct}%
+- **Technical**: {tech_doc_pct}%  
+- **Test Scenarios**: {test_doc_pct}%
+- **Average**: {doc_coverage}%
+
+![Documentation](assets/images/documentation/doc_coverage.png)
+
+ðŸ"„ [Detailed Documentation Report](details/documentation_report.md)
 
 ---
 
