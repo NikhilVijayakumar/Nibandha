@@ -187,7 +187,7 @@ class SummaryDataBuilder:
         ]
         unified_grade = Grader.calculate_overall_grade(grade_list)
 
-        return {
+        result = {
             "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "overall_status": overall,
             "display_grade": unified_grade,
@@ -254,4 +254,29 @@ class SummaryDataBuilder:
             result["tech_doc_pct"] = f"{tech_pct:.1f}"
             result["test_doc_pct"] = f"{test_pct:.1f}"
         
+        # Add dependency data if provided
+        if dependency_data:
+            result["dep_status"] = dependency_data.get("status", "⚪ Not Run")
+            result["dep_total_modules"] = dependency_data.get("total_modules", 0)
+            result["dep_total_deps"] = dependency_data.get("total_dependencies", 0)
+            result["dep_circular"] = dependency_data.get("circular_count", 0)
+        else:
+            result["dep_status"] = "⚪ Not Run"
+            result["dep_total_modules"] = "N/A"
+            result["dep_total_deps"] = "N/A"
+            result["dep_circular"] = "N/A"
+        
+        # Add package data if provided
+        if package_data:
+            result["pkg_status"] = package_data.get("status", "⚪ Not Run")
+            result["pkg_total"] = package_data.get("total_packages", 0)
+            result["pkg_outdated"] = package_data.get("outdated_count", 0)
+            result["pkg_health_score"] = package_data.get("health_score", 0)
+        else:
+            result["pkg_status"] = "⚪ Not Run"
+            result["pkg_total"] = "N/A"
+            result["pkg_outdated"] = "N/A"
+            result["pkg_health_score"] = "N/A"
+        
         return result
+

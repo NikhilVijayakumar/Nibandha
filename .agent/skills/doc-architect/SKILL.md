@@ -1,47 +1,66 @@
 ---
 name: doc-architect
-description: FOUNDATIONAL. Designs platform-agnostic blueprints and verification plans.
+description: FOUNDATIONAL. Designs platform-agnostic blueprints, comprehensive documentation plans (Functional, Technical, Test), and coverage strategies.
 priority: critical
 ---
 # Doc-Architect Workflow
 
-You are the System Architect. Your goal is to define "What" a system does and "How" it is proven, without locking the design into a specific programming language.
+You are the System Architect. Your goal is to define "What" a system does and "How" it is proven, ensuring complete documentation coverage and high testability before code is written.
 
 ## 1. Architectural Discovery
 - **Identify Components ($N$):** Determine the number of logical sub-modules required based on `examples/architectural_decisions.md`.
 - **Define Boundaries:** Ensure Logic is separated from Side-Effects (IO/Network).
 
-## 2. Platform-Agnostic Blueprinting
-- **Functional Specification:** Describe the role and behavior of each component in plain language.
-- **Data Schema (The Contract):** Instead of code, define the **Data Requirements**:
-    - **Fields:** Name, Type (String, Integer, Boolean), and Necessity (Required/Optional).
-    - **Constraints:** Define rules (e.g., "Must be non-negative," "Must be immutable").
-- **ID Traceability:** Assign IDs using the `[PREFIX]-[UT/E2E]-[00X]` format for all scenarios.
+## 2. Documentation Strategy (The Trinity)
+You must mandate the creation of three types of documentation for every module, aligning with the `DocumentationReporter`:
 
-## 3. Scenario Design (Gold Standard)
+### A. Functional Documentation (`docs/modules/{module}/functional/`)
+- **Audience:** Users / Product Owners
+- **Content:**
+    - **Overview:** What problem does this module solve?
+    - **Capabilities:** High-level features.
+    - **Usage:** Plain English description of how to use it.
+- **Output:** `README.md` in the functional folder.
+
+### B. Technical Documentation (`docs/modules/{module}/technical/`)
+- **Audience:** Developers / Maintainers
+- **Content:**
+    - **Design Decisions:** Why was this approach chosen?
+    - **Data Flow:** How data moves through the component.
+    - **Contracts:** Schema definitions and interface diagrams.
+- **Output:** Architecture notes (e.g., `design.md`, `contracts.md`).
+
+### C. Test Documentation (`docs/modules/{module}/test/`)
+- **Audience:** QA / Automation Engineers
+- **Content:**
+    - **Unit Scenarios:** Isolated logic sets (`unit_test_scenarios.md`).
+    - **E2E Scenarios:** Integrated workflows (`e2e_test_scenarios.md`).
+- **IDs:** Assign strict IDs (`[PREFIX]-[UT/E2E]-[00X]`).
+
+## 3. Coverage & Verification Plan
+Define how the implementation will achieve "Gold Standard" coverage:
+- **Unit Coverage Target:** Aim for >90% branch coverage on domain logic.
+- **E2E Coverage Target:** Cover all critical user journeys defined in Functional Docs.
+- **Drift Prevention:** Mandate that docs must be updated *before* code changes.
+
+## 4. Platform-Agnostic Blueprinting
+- **Data Schema:** Define **Data Requirements** (Fields, Types, Constraints) instead of code.
+- **State Machines:** Define valid states and transitions if applicable.
+
+## 5. Scenario Design (Gold Standard)
 Populate `docs/test/` using the adaptive template. Every component must include:
 - **Happy Path:** Standard successful operations.
 - **Corner Cases:** Boundary values (Zero, Max, Empty).
 - **Security & Integrity:** Path sanitization, permission checks, and data shielding.
 
-## 4. Automation & Scaffolding
-- **Action:** Run `scripts/scaffold_docs.py`.
-- **Validation:** Ensure the resulting `docs/` folder structure perfectly mirrors the identified $N$ components and the integration point.
+## 6. Automation & Scaffolding
+- **Action:** Run `scripts/scaffold_docs.py` (if available) or create structure manually.
+- **Validation:** Ensure `docs/` folder structure perfectly mirrors the module structure and contains all three documentation types.
 
-## 5. Implementation Handover
-The documentation is complete when a developer (human or AI) can implement the feature in **any language** (Python, Kotlin, TS) just by reading the functional specs and test scenarios.
+## 7. Implementation Handover
+The documentation is complete when a developer can implement the feature in **any language** just by reading the specs, and the code will automatically pass the `DocumentationReporter` checks.
 
-
-## 6. Audit Mode (Maintenance)
-**Trigger:** `Nibandha Document Audit`
-- **Action:** Run `scripts/nibandha_document_audit.py`.
-- **Output:** Present the "Documentation Debt" table to the user.
-
-## 7. Discovery Mode (Legacy Adoption)
-**Trigger:** `Document [Module]`
-- **Action:** Initiate the "Reverse-Architecture" protocol.
-- **Steps:**
-    1. **Code Harvest:** Extract Pydantic models and logic gates from `src/{module}`.
-    2. **Agnostic Translation:** Convert Python types to language-neutral schemas.
-    3. **ID Injection:** Create the `[PREFIX]-UT-00X` mapping based on existing code paths.
-    4. **Artifact Creation:** Populate `docs/modules/` and `docs/test/`.
+## 8. Audit Mode (Maintenance)
+**Trigger:** `Project Document Audit`
+- **Action:** Check for "Drift" (Time difference between code and doc updates).
+- **Goal:** Keep Technical and Test docs in sync with the codebase (Green grade in `DocumentationReport`).

@@ -3,7 +3,11 @@ import shutil
 import sys
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..domain.protocols.module_discovery import ModuleDiscoveryProtocol
+
 # Use nibandha logger (assuming configured)
 # For library utils, we might just print if logging isn't guaranteed, 
 # but client requested "log than print". We'll try to get a logger.
@@ -41,13 +45,39 @@ def get_module_doc(docs_dir: Path, module_name: str, report_type: str = "unit") 
             return "*Error reading documentation.*"
     return "*No documentation found for this module.*"
 
-def get_all_modules() -> List[str]:
-    """Dynamically find top-level modules in nibandha package."""
-    # utils.py is in src/nikhil/nibandha/reporting/
+def get_all_modules(
+    source_root: Path = None,
+    discovery: "ModuleDiscoveryProtocol" = None
+) -> List[str]:
+    """
+    Discover modules using provided protocol or default logic.
+    
+    Args:
+        source_root: Optional root directory override (defaults to nibandha package root)
+        discovery: Optional discovery protocol instance for custom module detection
+        
+    Returns:
+        Sorted list of module names
+        
+    Example:
+        >>> # Use default discovery for nibandha
+        >>> modules = get_all_modules()
+        >>> 
+        >>> # Use custom discovery protocol
+        >>> from ..infrastructure.standard_module_discovery import StandardModuleDiscovery
+        >>> discovery = StandardModuleDiscovery()
+        >>> modules = get_all_modules(Path("src/myproject"), discovery)
+    """
+    # If custom discovery is provided, use it
+    if discovery:
+        root = source_root or Path(__file__).parent.parent.parent.parent
+        return discovery.discover_modules(root)
+    
+    # Fallback to default hardcoded behavior for backward compatibility
     try:
-        # shared -> infrastructure -> utils.py
+        # utils.py is in src/nikhil/nibandha/reporting/shared/infrastructure
         # nibandha is 4 parents up (nibandha/reporting/shared/infrastructure)
-        nibandha_dir = Path(__file__).parent.parent.parent.parent
+        nibandha_dir = source_root or Path(__file__).parent.parent.parent.parent
         modules = []
         for item in nibandha_dir.iterdir():
             if item.is_dir() and not item.name.startswith("__") and item.name != "reporting":

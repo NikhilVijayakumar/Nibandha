@@ -1,0 +1,186 @@
+/* 
+ * Default Professional Report Styling
+ * Optimized for both web viewing AND DOCX conversion via pandoc
+ * Uses only pandoc-compatible CSS properties
+ */
+
+/* Basic document structure */
+body {
+    font-family: Calibri, Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #000000;
+    margin: 2cm;
+}
+
+.document {
+    max-width: none;
+}
+
+/* Headings - Maps to Word heading styles */
+h1 {
+    font-size: 24pt;
+    font-weight: bold;
+    color: #2563eb;
+    margin-top: 24pt;
+    margin-bottom: 12pt;
+    border-bottom: 2pt solid #2563eb;
+    padding-bottom: 6pt;
+}
+
+h2 {
+    font-size: 18pt;
+    font-weight: bold;
+    color: #2563eb;
+    margin-top: 18pt;
+    margin-bottom: 9pt;
+    border-bottom: 1pt solid #cccccc;
+    padding-bottom: 4pt;
+}
+
+h3 {
+    font-size: 14pt;
+    font-weight: bold;
+    color: #1a5490;
+    margin-top: 14pt;
+    margin-bottom: 7pt;
+}
+
+h4 {
+    font-size: 12pt;
+    font-weight: bold;
+    margin-top: 12pt;
+    margin-bottom: 6pt;
+}
+
+/* Paragraphs */
+p {
+    margin-top: 6pt;
+    margin-bottom: 6pt;
+    text-align: left;
+}
+
+/* Lists */
+ul,
+ol {
+    margin-top: 6pt;
+    margin-bottom: 6pt;
+}
+
+li {
+    margin-top: 3pt;
+    margin-bottom: 3pt;
+}
+
+/* Tables - Pandoc handles these well */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 12pt;
+    margin-bottom: 12pt;
+}
+
+th {
+    background-color: #2563eb;
+    color: #ffffff;
+    font-weight: bold;
+    padding: 8pt;
+    border: 1pt solid #000000;
+    text-align: left;
+}
+
+td {
+    padding: 6pt 8pt;
+    border: 1pt solid #cccccc;
+    text-align: left;
+}
+
+/* Alternate row colors for readability */
+tr:nth-child(even) {
+    background-color: #f9fafb;
+}
+
+/* Code blocks - Pandoc converts these to Word code style */
+code {
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 10pt;
+    background-color: #f5f5f5;
+    padding: 2pt 4pt;
+}
+
+pre {
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 9pt;
+    background-color: #f5f5f5;
+    padding: 12pt;
+    border: 1pt solid #cccccc;
+    margin-top: 12pt;
+    margin-bottom: 12pt;
+    white-space: pre-wrap;
+}
+
+pre code {
+    background-color: transparent;
+    padding: 0;
+}
+
+/* Links */
+a {
+    color: #2563eb;
+    text-decoration: underline;
+}
+
+/* Images - Keep simple for DOCX */
+img {
+    max-width: 100%;
+    height: auto;
+    margin-top: 12pt;
+    margin-bottom: 12pt;
+}
+
+/* Horizontal rules */
+hr {
+    border: none;
+    border-top: 1pt solid #cccccc;
+    margin-top: 18pt;
+    margin-bottom: 18pt;
+}
+
+/* Blockquotes */
+blockquote {
+    margin-left: 20pt;
+    padding-left: 12pt;
+    border-left: 3pt solid #2563eb;
+    color: #333333;
+    font-style: italic;
+}
+
+/* Status indicators - Use simple colors that convert well */
+.success,
+span[style*="color:green"],
+span[style*="color:#10b981"] {
+    color: #10b981;
+    font-weight: bold;
+}
+
+.warning,
+span[style*="color:orange"],
+span[style*="color:#f59e0b"] {
+    color: #f59e0b;
+    font-weight: bold;
+}
+
+.error,
+span[style*="color:red"],
+span[style*="color:#ef4444"] {
+    color: #ef4444;
+    font-weight: bold;
+}
+
+/* Avoid using these in final output as they don't convert well:
+   - border-radius
+   - box-shadow
+   - flexbox/grid
+   - transform
+   - complex selectors
+*/

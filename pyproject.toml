@@ -29,7 +29,16 @@ reporting = [
     "pandas",
     "jinja2",
     "pytest-json-report",
-    "import-linter"
+    "import-linter",
+    "markdown2",
+    "pygments",
+    "pypandoc"
+]
+
+export = [
+    "markdown2",
+    "pygments",
+    "pypandoc"
 ]
 
 

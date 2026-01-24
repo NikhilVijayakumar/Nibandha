@@ -16,7 +16,7 @@ class PackageReporter:
         self.report_dir = output_dir / "details"
         self.report_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate(self, project_root: Path):
+    def generate(self, project_root: Path) -> Dict:
         """Generates package dependency report."""
         logger.info(f"Analyzing packages in {project_root}...")
         
@@ -24,6 +24,30 @@ class PackageReporter:
         analysis = scanner.analyze()
         
         self._generate_report(analysis)
+        
+        # Calculate summary stats
+        # Health Score logic duplicated from _generate_report to ensure consistency
+        # Or better: make _generate_report return the score. 
+        # But simpler to just recalc for now or use analysis data if available.
+        # _generate_report logic:
+        # score = 100
+        # score -= (analysis["major_updates"] * 20)
+        # score -= (analysis["minor_updates"] * 5)
+        # score = max(0, score)
+        
+        score = 100
+        score -= (analysis.get("major_updates", 0) * 20)
+        score -= (analysis.get("minor_updates", 0) * 5)
+        score = max(0, score)
+        
+        status = "PASS" if score > 80 else "FAIL"
+        
+        return {
+            "status": status,
+            "total_packages": analysis.get("installed_count", 0),
+            "outdated_count": analysis.get("outdated_count", 0),
+            "health_score": score
+        }
 
     def _generate_report(self, analysis):
         tmpl = self._load_template("package_dependency_template.md")

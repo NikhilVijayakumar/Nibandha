@@ -1,11 +1,14 @@
 import logging
 import datetime
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, TYPE_CHECKING
 from ...shared.domain.grading import Grader
 from ...shared.rendering.template_engine import TemplateEngine
 from ...shared.domain.protocols.visualization_protocol import VisualizationProvider
 from ...shared.infrastructure import utils
+
+if TYPE_CHECKING:
+    from ...shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
 
 logger = logging.getLogger("nibandha.reporting.documentation")
 
@@ -16,7 +19,9 @@ class DocumentationReporter:
         templates_dir: Path,
         doc_paths: Dict[str, Path],
         template_engine: TemplateEngine = None,
-        viz_provider: VisualizationProvider = None
+        viz_provider: VisualizationProvider = None,
+        module_discovery: "ModuleDiscoveryProtocol" = None,
+        source_root: Path = None
     ):
         self.output_dir = output_dir
         self.templates_dir = templates_dir
@@ -32,12 +37,14 @@ class DocumentationReporter:
 
         self.template_engine = template_engine or TemplateEngine(templates_dir)
         self.viz_provider = viz_provider
+        self.module_discovery = module_discovery
+        self.source_root = source_root
         
     def generate(self, project_root: Path):
         """Generates the documentation report."""
         logger.info("Generating Documentation Report...")
         
-        modules = utils.get_all_modules()
+        modules = utils.get_all_modules(self.source_root, self.module_discovery)
         
         # 1. Gather Data
         func_data = self._check_functional(project_root, modules)
@@ -104,37 +111,55 @@ class DocumentationReporter:
 
     def _render_charts_section(self, charts):
         md = ""
-        if "doc_coverage" in charts:
-            # We need responsive path or absolute? Existing reports use relative to output dir often.
-            # But here let's use the path string relative to details dir if possible, or just absolute for now.
-            # The template engine usually handles paths if set up right, but here we passed absolute paths.
-            # Let's just assume the user reads markdown locally.
+        if charts and "doc_coverage" in charts:
             rel_cov = Path(charts['doc_coverage']).name
-            rel_drift = Path(charts['doc_drift']).name
-            # In 'details/', the images are in '../assets/images/documentation/'
             img_base = "../assets/images/documentation"
-            md += f"![Coverage]({img_base}/{rel_cov})\n"
-            md += f"![Drift]({img_base}/{rel_drift})\n"
+            
+            # Figure 1: Coverage
+            md += f"![**Figure 1:** Documentation coverage distribution]({img_base}/{rel_cov})\n\n"
+            
+            # Figure 2: Drift (if exists)
+            if "doc_drift" in charts:
+                rel_drift = Path(charts['doc_drift']).name
+                md += f"![**Figure 2:** Documentation drift analysis]({img_base}/{rel_drift})\n"
         return md
 
     def _build_doc_table(self, data):
+        """Build documentation table with grades per module."""
         rows = ""
         for mod, info in data["modules"].items():
             status = "✅ Found" if info["exists"] else "❌ Missing"
             drift = info["drift"] if info["exists"] else "-"
             if isinstance(drift, int) and drift > 90:
                  drift = f"⚠️ {drift}"
-            rows += f"| {mod} | {status} | {drift} |\n"
+            
+            # Calculate grade based on existence (100% if exists, 0% if missing)
+            coverage = 100 if info["exists"] else 0
+            grade = Grader.calculate_unit_grade(coverage, 100)  # Reuse unit grading
+            grade_color = "red" if grade in ["D", "F"] else ("orange" if grade == "C" else "green")
+            grade_display = f"<span style=\"color:{grade_color}\">{grade}</span>"
+            
+            rows += f"| {mod} | {status} | {drift} | {grade_display} |\n"
         return rows
 
     def _build_test_table(self, data):
+        """Build test documentation table with grades per module."""
         rows = ""
         for mod, info in data["modules"].items():
             unit = "✅" if info["unit_exists"] else "❌"
             e2e = "✅" if info["e2e_exists"] else "❌"
             drift = info["max_drift"]
             if drift == -1: drift = "-"
-            rows += f"| {mod} | {unit} | {e2e} | {drift} |\n"
+            
+            # Calculate grade based on test doc coverage
+            coverage = 0
+            if info["unit_exists"]: coverage += 50
+            if info["e2e_exists"]: coverage += 50
+            grade = Grader.calculate_unit_grade(coverage, 100)
+            grade_color = "red" if grade in ["D", "F"] else ("orange" if grade == "C" else "green")
+            grade_display = f"<span style=\"color:{grade_color}\">{grade}</span>"
+            
+            rows += f"| {mod} | {unit} | {e2e} | {drift} | {grade_display} |\n"
         return rows
         
     def _build_missing_section(self, data):
@@ -152,21 +177,59 @@ class DocumentationReporter:
         return ", ".join(missing)
 
     def _check_functional(self, root, modules):
-        # docs/modules/{mod}/README.md
-        base = root / self.doc_paths["functional"]
-        return self._scan_generic(root, modules, base, "README.md", is_dir=True)
+        # NEW: docs/modules/{mod}/functional/README.md
+        results = {}
+        documented = 0
+        missing = 0
+        drift_map = {}
+        
+        for mod in modules:
+            code_ts = self._get_code_timestamp(root, mod)
+            
+            # New path: docs/modules/{module}/functional/README.md
+            mod_func_dir = root / "docs" / "modules" / mod.lower() / "functional"
+            func_path = mod_func_dir / "README.md"
+            
+            exists = func_path.exists()
+            if exists: documented += 1
+            else: missing += 1
+            
+            doc_ts = func_path.stat().st_mtime if exists else 0
+            drift = self._calc_drift_days(doc_ts, code_ts) if doc_ts > 0 else -1
+            
+            results[mod] = {"exists": exists, "drift": drift}
+            drift_map[mod] = drift
+        
+        return {"stats": {"documented": documented, "missing": missing}, "modules": results, "drift_map": drift_map}
 
     def _check_technical(self, root, modules):
-        # docs/technical/{mod}.md
-        base = root / self.doc_paths["technical"]
-        return self._scan_generic(root, modules, base, ".md", is_dir=False)
+        # NEW: docs/modules/{mod}/technical/*.md
+        results = {}
+        documented = 0
+        missing = 0
+        drift_map = {}
+        
+        for mod in modules:
+            code_ts = self._get_code_timestamp(root, mod)
+            
+            # New path: docs/modules/{module}/technical/
+            mod_tech_dir = root / "docs" / "modules" / mod.lower() / "technical"
+            
+            # Check if any .md files exist in technical directory
+            exists = mod_tech_dir.exists() and any(mod_tech_dir.glob("*.md"))
+            if exists: documented += 1
+            else: missing += 1
+            
+            doc_ts = self._get_dir_timestamp(mod_tech_dir) if exists else 0
+            drift = self._calc_drift_days(doc_ts, code_ts) if doc_ts > 0 else -1
+            
+            results[mod] = {"exists": exists, "drift": drift}
+            drift_map[mod] = drift
+        
+        return {"stats": {"documented": documented, "missing": missing}, "modules": results, "drift_map": drift_map}
 
     def _check_test(self, root, modules):
-        # docs/test/unit/{mod}/... and docs/test/e2e/{mod}/...
-        # Just check if ANY file exists there
-        unit_base = root / self.doc_paths["test"] / "unit"
-        e2e_base = root / self.doc_paths["test"] / "e2e"
-        
+        # NEW: docs/modules/{mod}/test/unit_scenarios.md and e2e_scenarios.md
         results = {}
         documented = 0
         missing = 0
@@ -176,22 +239,33 @@ class DocumentationReporter:
             # Code Timestamp
             code_ts = self._get_code_timestamp(root, mod)
             
-            # Unit
-            unit_path = unit_base / mod.lower()
-            unit_exists = unit_path.exists() and any(unit_path.iterdir())
-            unit_ts = self._get_dir_timestamp(unit_path) if unit_exists else 0
+            # New path: docs/modules/{module}/test/
+            mod_test_dir = root / "docs" / "modules" / mod.lower() / "test"
             
-            # E2E
-            e2e_path = e2e_base / mod.lower()
-            e2e_exists = e2e_path.exists() and any(e2e_path.iterdir())
-            e2e_ts = self._get_dir_timestamp(e2e_path) if e2e_exists else 0
+            # Check for various test scenario files
+            unit_path = mod_test_dir / "unit_test_scenarios.md"
+            e2e_path = mod_test_dir / "e2e_test_scenarios.md"
+            
+            # Also check for old naming (unit_scenarios.md)
+            unit_path_alt = mod_test_dir / "unit_scenarios.md"
+            e2e_path_alt = mod_test_dir / "e2e_scenarios.md"
+            
+            unit_exists = unit_path.exists() or unit_path_alt.exists()
+            e2e_exists = e2e_path.exists() or e2e_path_alt.exists()
+            
+            unit_ts = 0
+            if unit_exists:
+                unit_ts = unit_path.stat().st_mtime if unit_path.exists() else unit_path_alt.stat().st_mtime
+            
+            e2e_ts = 0
+            if e2e_exists:
+                e2e_ts = e2e_path.stat().st_mtime if e2e_path.exists() else e2e_path_alt.stat().st_mtime
             
             exists = unit_exists or e2e_exists
             if exists: documented += 1
             else: missing += 1
             
             # Drift (Max of unit/e2e vs code)
-            # If doc is NEWER, drift is 0. If OLDER, drift is (Code - Doc).
             doc_ts = max(unit_ts, e2e_ts)
             drift = self._calc_drift_days(doc_ts, code_ts) if doc_ts > 0 else -1
             
@@ -201,6 +275,7 @@ class DocumentationReporter:
             drift_map[mod] = drift
             
         return {"stats": {"documented": documented, "missing": missing}, "modules": results, "drift_map": drift_map}
+
 
     def _scan_generic(self, root, modules, base_path, suffix, is_dir=False):
         results = {}

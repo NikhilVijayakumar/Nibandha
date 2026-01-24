@@ -1,0 +1,21 @@
+"""
+Export module for converting Markdown documents to HTML and DOCX formats.
+
+This module provides reusable export functionality for:
+- Reports (unit tests, quality, dependencies, etc.)
+- Documentation (functional, technical, test scenarios)
+
+Usage:
+    from nikhil.nibandha.export import ExportService, ExportFormat
+    
+    service = ExportService()
+    service.export_document(
+        Path("report.md"),
+        formats=[ExportFormat.HTML, ExportFormat.DOCX]
+    )
+"""
+
+from .application.export_service import ExportService
+from .domain.protocols.exporter import ExportFormat
+
+__all__ = ["ExportService", "ExportFormat"]

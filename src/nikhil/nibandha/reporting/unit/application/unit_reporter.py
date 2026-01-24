@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, TYPE_CHECKING
 import logging
 from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer 
 from ...shared.infrastructure import utils
@@ -9,6 +9,9 @@ from ...shared.domain.protocols.visualization_protocol import VisualizationProvi
 from ...shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
 from ...shared.data.data_builders import UnitDataBuilder
 from ...shared.domain.grading import Grader
+
+if TYPE_CHECKING:
+    from ...shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
 
 logger = logging.getLogger("nibandha.reporting.unit")
 
@@ -19,7 +22,9 @@ class UnitReporter:
         templates_dir: Path, 
         docs_dir: Path,
         template_engine: TemplateEngine = None,
-        viz_provider: VisualizationProvider = None
+        viz_provider: VisualizationProvider = None,
+        module_discovery: "ModuleDiscoveryProtocol" = None,
+        source_root: Path = None
     ):
         self.output_dir = output_dir
         self.templates_dir = templates_dir
@@ -35,6 +40,8 @@ class UnitReporter:
         self.template_engine = template_engine or TemplateEngine(templates_dir)
         self.viz_provider = viz_provider or DefaultVisualizationProvider()
         self.data_builder = UnitDataBuilder()
+        self.module_discovery = module_discovery
+        self.source_root = source_root
 
     def generate(self, data: Dict[str, Any], cov_data: Dict[str, Any], timestamp: str):
         logger.info("Generating Unit Test Report...")
@@ -81,7 +88,14 @@ class UnitReporter:
                 cov_str = f"🔴 {cov_str}"
             elif cov_val > 80:
                 cov_str = f"🟢 {cov_str}"
-            mod_table += f"| {mod} | {m_data['total']} | {m_data['pass']} | {m_data['fail'] + m_data['error']} | {cov_str} |\n"
+            
+            # Calculate module-level grade based on pass rate and coverage
+            module_pass_rate = (m_data['pass'] / m_data['total'] * 100) if m_data['total'] > 0 else 100
+            module_grade = Grader.calculate_unit_grade(module_pass_rate, cov_val)
+            grade_color = "red" if module_grade in ["D", "F"] else ("orange" if module_grade == "C" else "green")
+            grade_display = f"<span style=\"color:{grade_color}\">{module_grade}</span>"
+            
+            mod_table += f"| {mod} | {m_data['total']} | {m_data['pass']} | {m_data['fail'] + m_data['error']} | {cov_str} | {grade_display} |\n"
             
             det_sections += f"### Module: {mod}\n\n#### Documentation Scenarios\n\n"
             det_sections += utils.get_module_doc(self.docs_dir, mod, "unit") + "\n\n"
@@ -109,7 +123,7 @@ class UnitReporter:
 
     def _group_results(self, data):
         # Helper to group by module
-        all_modules = utils.get_all_modules()
+        all_modules = utils.get_all_modules(self.source_root, self.module_discovery)
         module_results = {mod: {"total": 0, "pass": 0, "fail": 0, "error": 0, "tests": []} for mod in all_modules}
         module_results["Unknown"] = {"total": 0, "pass": 0, "fail": 0, "error": 0, "tests": []}
         

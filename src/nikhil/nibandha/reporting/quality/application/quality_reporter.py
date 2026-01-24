@@ -60,8 +60,7 @@ class QualityReporter:
         self._generate_type_safety_report(results["type_safety"])
         # Complexity
         self._generate_complexity_report(results["complexity"])
-        # Overview
-        self._generate_overview(results)
+
 
     def _generate_architecture_report(self, data):
         # Grade Calculation
@@ -78,15 +77,26 @@ class QualityReporter:
         status = data["status"]
         output_text = data["output"]
         
-        if "cannot find the file" in output_text.lower() or "no such file" in output_text.lower():
-             detailed_violations = "⚠️ **Configuration Missing**\n.importlinter file not found."
+        
+        if "cannot find the file" in output_text.lower() or "no such file" in output_text.lower() or ".importlinter" in output_text.lower():
+             detailed_violations = (
+                 "> [!WARNING]\n"
+                 "> **Configuration file `.importlinter` not found**\n\n"
+                 "The architecture report requires a configuration file to define your architectural contracts.\n\n"
+                 "**To set up:**\n"
+                 "1. Create `.importlinter` in your project root\n"
+                 "2. Define architectural rules (see Configuration section below)\n"
+                 "3. Run the report again\n\n"
+                 "Without configuration, this report cannot enforce architectural boundaries."
+             )
              status = "⚠️ NOT CONFIGURED"
         elif status == "PASS":
-             detailed_violations = "✅ **No violations detected**"
+             detailed_violations = "✅ **No violations detected**\n\nAll architectural contracts are being respected."
              status = "🟢 PASS"
         else:
              detailed_violations = f"```\n{output_text}\n```"
              status = "🔴 FAIL"
+
              
         mapping = {
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
@@ -157,14 +167,17 @@ class QualityReporter:
             "type_violations": total_errors
         }
         
-        # Generate dynamic module table based on actual errors
-        module_table = "| Module | Status | Errors |\n| :--- | :---: | :---: |\n"
+        
+        # Generate dynamic module table with grades (similar to complexity report)
+        module_table = "| Module | Status | Errors | Grade |\n| :--- | :---: | :---: | :---: |\n"
         if errors_by_module:
             for module, error_count in sorted(errors_by_module.items(), key=lambda x: x[1], reverse=True):
-                status = "🟢" if error_count == 0 else "🔴"
-                module_table += f"| **{module}** | {status} | {error_count} |\n"
+                status_icon = "🔴" if error_count > 0 else "🟢"
+                module_grade = Grader.calculate_quality_grade(error_count)
+                grade_color = "red" if module_grade in ["D", "F"] else ("orange" if module_grade == "C" else "green")
+                module_table += f"| **{module}** | {status_icon} | {error_count} | <span style=\"color:{grade_color}\">{module_grade}</span> |\n"
         else:
-            module_table += "| **All Modules** | 🟢 | 0 |\n"
+            module_table += "| **All Modules** | 🟢 | 0 | A |\n"
         
         mapping["module_table"] = module_table
 
@@ -172,73 +185,51 @@ class QualityReporter:
         self.template_engine.render("type_safety_report_template.md", mapping, self.details_dir / "type_safety_report.md")
 
     def _generate_complexity_report(self, data):
-        # Grade
-        # Need partial parse first to get total? no, Data has violation_count now?
-        # Check run_complexity_check return. Yes, it has violation_count.
-        total = data["violation_count"]
-        grade = Grader.calculate_quality_grade(total)
+        # Get violation count from data (already calculated in run_complexity_check)
+        total_violations = data["violation_count"]
+        grade = Grader.calculate_quality_grade(total_violations)
         data["grade"] = grade
 
-        # 1. Visualize
-        violations = self._parse_ruff_output(data["output"])
-        self.viz_provider.generate_complexity_charts({"violations_by_module": violations}, self.images_dir)
+        # 1. Parse output to get module-level breakdown
+        violations_by_module = self._parse_ruff_output(data["output"])
         
-        # 2. Enrich
-        total = sum(violations.values())
-        status = "🟢 PASS" if total == 0 else "🔴 FAIL"
+        # 2. Visualize
+        self.viz_provider.generate_complexity_charts({"violations_by_module": violations_by_module}, self.images_dir)
+        
+        # 3. Determine status based on actual violation count
+        status = "🔴 FAIL" if total_violations > 0 else "🟢 PASS"
         detailed = data["output"] if data["output"].strip() else "No complexity violations."
 
         mapping = {
              "date": datetime.datetime.now().strftime("%Y-%m-%d"),
-             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
              "display_grade": grade,
              "grade_color": Grader.get_grade_color(grade),
              "overall_status": status,
-             "total_violations": total,
+             "total_violations": total_violations,
              "top_complex_functions": f"```\n{detailed}\n```",
              "cplx_status": status,
-             "cplx_violations": total
+             "cplx_violations": total_violations
         }
 
-        # Generate dynamic module table based on actual violations
-        module_table = "| Module | Status | Avg Complexity | Max Complexity | Violations (>10) |\n| :--- | :---: | :---: | :---: | :---: |\n"
-        if violations:
-            for module, viol_count in sorted(violations.items(), key=lambda x: x[1], reverse=True):
-                status = "🟢" if viol_count == 0 else "🔴"
-                module_table += f"| **{module}** | {status} | - | - | {viol_count} |\n"
+        # Generate dynamic module table with grades
+        module_table = "| Module | Status | Violations (>10) | Grade |\n| :--- | :---: | :---: | :---: |\n"
+        if violations_by_module:
+            for module, viol_count in sorted(violations_by_module.items(), key=lambda x: x[1], reverse=True):
+                status_icon = "🔴" if viol_count > 0 else "🟢"
+                module_grade = Grader.calculate_quality_grade(viol_count)
+                grade_color = "red" if module_grade in ["D", "F"] else ("orange" if module_grade == "C" else "green")
+                module_table += f"| **{module}** | {status_icon} | {viol_count} | <span style=\"color:{grade_color}\">{module_grade}</span> |\n"
         else:
-            module_table += "| **All Modules** | 🟢 | - | - | 0 |\n"
+            module_table += "| **All Modules** | 🟢 | 0 | A |\n"
         
         mapping["module_table"] = module_table
 
-        # 3. Render
+        # 4. Render
         self.template_engine.render("complexity_report_template.md", mapping, self.details_dir / "complexity_report.md")
 
-    def _generate_overview(self, results):
-        arch = results["architecture"]
-        type_ = results["type_safety"]
-        cplx = results["complexity"]
-        
-        mapping = {
-            "date": datetime.datetime.now().strftime("%Y-%m-%d"),
-            "overall_status": "🟢 HEALTHY" if all(x["status"] == "PASS" for x in results.values()) else "🟡 ISSUES DETECTED",
-            "arch_status": arch["status"],
-            "arch_violations": "-",
-            "struct_status": "⚪ N/A",
-            "struct_violations": "-",
-            "type_status": type_["status"],
-            "type_violations": type_["violation_count"],
-            "cplx_status": cplx["status"],
-            "cplx_violations": cplx["violation_count"],
-        }
-        
-        # Calculate overall grade
-        sub_grades = [arch.get("grade", "F"), type_.get("grade", "F"), cplx.get("grade", "F")]
-        grade = Grader.calculate_overall_grade(sub_grades)
-        mapping["display_grade"] = grade
-        mapping["grade_color"] = Grader.get_grade_color(grade)
-        
-        self.template_engine.render("quality_overview_template.md", mapping, self.details_dir / "quality_overview.md")
+
+
+
 
     def _get_executable(self, name: str) -> str:
         bin_dir = Path(sys.executable).parent
@@ -297,16 +288,35 @@ class QualityReporter:
         return mod_stats, cat_stats
 
     def _parse_ruff_output(self, output):
+        """Parse ruff C901 complexity output to extract violations per module."""
         mod_stats = {}
-        pattern = re.compile(r"([^:]+):.*C901.*complex")
+        
         for line in output.splitlines():
-            match = pattern.search(line)
-            if match:
-                fpath = match.group(1).replace("\\", "/")
-                name = Path(fpath).stem.capitalize()
-                parts = fpath.split("/")
-                if "src" in parts and "src" in parts:
-                    idx = parts.index("src")
-                    if idx + 3 < len(parts): name = parts[idx+3].capitalize()
-                mod_stats[name] = mod_stats.get(name, 0) + 1
+            # Ruff format: "  --> src/nikhil/nibandha/MODULE/...path.py:244:9"
+            if '-->' in line and 'src' in line:
+                # Extract file path from line
+                match = re.search(r'-->\s+(.+?):\d+', line)
+                if match:
+                    file_path = match.group(1)
+                    parts = Path(file_path).parts
+                    
+                    # Find module name after package root
+                    # Expected structure: src/.../package_name/MODULE/...
+                    # For Nibandha: src/nikhil/nibandha/MODULE/...
+                    if 'nibandha' in parts:
+                        pkg_idx = parts.index('nibandha')
+                        if pkg_idx + 1 < len(parts):
+                            module = parts[pkg_idx + 1].capitalize()
+                            mod_stats[module] = mod_stats.get(module, 0) + 1
+                    else:
+                        # Fallback: try to find 'src' and get next meaningful part
+                        if 'src' in parts:
+                            src_idx = parts.index('src')
+                            # Skip until we find a non-package directory
+                            for i in range(src_idx + 1, len(parts)):
+                                if not parts[i].startswith('_') and parts[i] not in ['nikhil', 'nibandha']:
+                                    module = parts[i].capitalize()
+                                    mod_stats[module] = mod_stats.get(module, 0) + 1
+                                    break
+        
         return mod_stats

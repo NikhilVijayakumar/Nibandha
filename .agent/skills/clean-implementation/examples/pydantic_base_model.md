@@ -4,7 +4,7 @@ Python
 
 from pydantic import BaseModel, ConfigDict, Field
 
-class NibandhaBaseSettings(BaseModel):
+class BaseSettings(BaseModel):
     """
     Standard Base for all Settings.
     - Frozen: Ensures no runtime tampering.
@@ -17,5 +17,7 @@ class NibandhaBaseSettings(BaseModel):
     )
 
 # Example Usage for Agent:
-# class RotationSettings(NibandhaBaseSettings):
+# from {root_package}.domain.models.base_config import BaseConfig
+# 
+# class RotationSettings(BaseConfig):
 #     max_age_days: int = Field(gt=0, description="[AR-UT-008] Traceability ID")

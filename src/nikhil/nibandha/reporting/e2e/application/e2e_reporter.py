@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, TYPE_CHECKING
 import logging
 from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer
 from ...shared.infrastructure import utils
@@ -9,6 +9,9 @@ from ...shared.domain.protocols.visualization_protocol import VisualizationProvi
 from ...shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
 from ...shared.data.data_builders import E2EDataBuilder
 from ...shared.domain.grading import Grader
+
+if TYPE_CHECKING:
+    from ...shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
 
 logger = logging.getLogger("nibandha.reporting.e2e")
 
@@ -19,7 +22,9 @@ class E2EReporter:
         templates_dir: Path, 
         docs_dir: Path,
         template_engine: TemplateEngine = None,
-        viz_provider: VisualizationProvider = None
+        viz_provider: VisualizationProvider = None,
+        module_discovery: "ModuleDiscoveryProtocol" = None,
+        source_root: Path = None
     ):
         self.output_dir = output_dir
         self.templates_dir = templates_dir
@@ -35,6 +40,8 @@ class E2EReporter:
         self.template_engine = template_engine or TemplateEngine(templates_dir)
         self.viz_provider = viz_provider or DefaultVisualizationProvider()
         self.data_builder = E2EDataBuilder()
+        self.module_discovery = module_discovery
+        self.source_root = source_root
 
     def generate(self, data: Dict[str, Any], timestamp: str):
         """Generate E2E report using newly architecture."""

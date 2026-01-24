@@ -19,7 +19,7 @@ class DependencyReporter:
         self.report_dir.mkdir(parents=True, exist_ok=True)
         self.assets_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate(self, source_root: Path, package_roots: List[str] = None):
+    def generate(self, source_root: Path, package_roots: List[str] = None) -> Dict:
         """Generates module dependency report."""
         logger.info(f"Scanning dependencies in {source_root}...")
         
@@ -37,6 +37,17 @@ class DependencyReporter:
         
         # Report
         self._generate_report(dependencies, circular_deps, most_imported, most_dependent, isolated)
+        
+        # Return summary data
+        total_modules = len(dependencies)
+        total_deps = sum(len(deps) for deps in dependencies.values())
+        
+        return {
+            "status": "PASS" if not circular_deps else "FAIL",
+            "total_modules": total_modules,
+            "total_dependencies": total_deps,
+            "circular_count": len(circular_deps)
+        }
 
     def _generate_report(self, dependencies, circular, most_imported, most_dependent, isolated):
         tmpl = self._load_template("module_dependency_template.md")
@@ -49,6 +60,66 @@ class DependencyReporter:
         circ_text = "None detected."
         if circular:
             circ_text = "\n".join([f"- {a} <-> {b}" for a, b in circular])
+
+        # Calculate Per-Module Grades
+        module_grades = []
+        # Create a set of modules involved in circular deps for O(1) lookup
+        circular_modules = set()
+        for a, b in circular:
+            circular_modules.add(a)
+            circular_modules.add(b)
+            
+        # Calculate fan-in (afferent coupling)
+        fan_in = {}
+        for mod, deps in dependencies.items():
+            if mod not in fan_in: fan_in[mod] = 0
+            for dep in deps:
+                fan_in[dep] = fan_in.get(dep, 0) + 1
+        
+        for mod, deps in dependencies.items():
+            f_out = len(deps)
+            f_in = fan_in.get(mod, 0)
+            is_circular = mod in circular_modules
+            
+            # Grade Logic
+            if is_circular:
+                grade = "F"
+                reason = "Circular Dependency"
+            elif f_out > 12:
+                grade = "D"
+                reason = "High Coupling (12+)"
+            elif f_out > 7:
+                grade = "C"
+                reason = "Moderate Coupling (8-12)"
+            elif f_out > 3:
+                grade = "B"
+                reason = "Low Coupling (4-7)"
+            else:
+                grade = "A"
+                reason = "Clean"
+                
+            color = Grader.get_grade_color(grade)
+            grade_html = f'<span style="color:{color}; font-weight:bold">{grade}</span>'
+            
+            module_grades.append({
+                "name": mod,
+                "fan_out": f_out,
+                "fan_in": f_in,
+                "grade": grade,
+                "grade_html": grade_html,
+                "reason": reason
+            })
+            
+        # Sort by grade (ascending) then name
+        module_grades.sort(key=lambda x: (x["grade"], x["name"]))
+        
+        # Build Table
+        grade_rows = ""
+        for m in module_grades:
+            grade_rows += f"| {m['name']} | {m['fan_out']} | {m['fan_in']} | {m['reason']} | {m['grade_html']} |\n"
+            
+        if not grade_rows:
+            grade_rows = "| No modules found | - | - | - | - |"
 
         # Grade
         grade = Grader.calculate_dependency_grade(len(circular))
@@ -77,6 +148,7 @@ class DependencyReporter:
             # Tables
             "top_imported": imp_rows if imp_rows else "| None | - | - |",
             "top_importers": dep_rows if dep_rows else "| None | - | - |",
+            "module_grades_table": grade_rows,
             
             # Lists
             "circular_deps_list": circ_text,

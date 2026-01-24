@@ -105,11 +105,21 @@ def main():
         quality_data = generator.run_quality_checks("src/nikhil/nibandha")
         
         # 4. Dependencies
-        src_root = generator.output_dir.parent.parent / "src/nikhil/nibandha" # Approx
-        # generator.run_dependency_checks(...) - skipped for now or add if needed
+        actual_src_root = Path(__file__).parent.parent / "src/nikhil/nibandha"
+        dep_data = generator.run_dependency_checks(
+            actual_src_root,
+            package_roots=["nikhil.nibandha"]
+        )
+        
+        # 5. Packages
+        project_root = generator.output_dir.parent.parent
+        pkg_data = generator.run_package_checks(project_root)
 
-        # 5. Documentation
-        doc_data = generator.run_documentation_checks(generator.output_dir.parent.parent)
+        # 6. Documentation (use actual project root, not .Nibandha)
+        actual_project_root = Path(__file__).parent.parent  # /scripts/../ = project root
+        doc_data = generator.run_documentation_checks(actual_project_root)
+
+
 
         # Save Quality JSON for Agent Consumption
         quality_json_path = generator.output_dir / "assets" / "data" / "quality.json"

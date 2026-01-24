@@ -1,6 +1,9 @@
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, TYPE_CHECKING, List
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from ...reporting.shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
 
 class ReportingConfig(BaseModel):
     """
@@ -16,6 +19,14 @@ class ReportingConfig(BaseModel):
             "test": Path("docs/test")
         },
         description="Map of documentation categories to paths"
+    )
+    module_discovery: Optional["ModuleDiscoveryProtocol"] = Field(
+        None,
+        description="Optional custom module discovery protocol for flexible architecture support"
+    )
+    export_formats: List[str] = Field(
+        default=["md"],
+        description="List of formats to export reports to (e.g. ['md', 'html', 'docx'])"
     )
 
     class Config:

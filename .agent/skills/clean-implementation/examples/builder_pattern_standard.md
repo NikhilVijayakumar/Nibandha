@@ -3,9 +3,9 @@ This demonstrates how a Doc-Architect requirement is turned into a Clean Archite
 
 Python
 
-from nibandha.domain.models.archiver_settings import ArchiverSettings
-from nibandha.domain.protocols.logger_protocol import LoggerProtocol
-from nibandha.archiver.core import Archiver
+from {root_package}.domain.models.archiver_settings import ArchiverSettings
+from {root_package}.domain.protocols.logger_protocol import LoggerProtocol
+from {root_package}.archiver.core import Archiver
 
 class ArchiverBuilder:
     """Fluent Builder for the Archiver library."""

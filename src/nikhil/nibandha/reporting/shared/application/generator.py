@@ -57,8 +57,11 @@ class ReportGenerator:
             self.docs_dir = Path(docs_dir).resolve()
             self.templates_dir = Path(template_dir).resolve() if template_dir else self.default_templates_dir
 
-        # Store config for later use
+        # Store config and extract module discovery protocol
         self.config = config
+        self.module_discovery = None
+        if config and isinstance(config, ReportingConfig):
+            self.module_discovery = config.module_discovery
 
         # 2. Setup Template Engine
         if self.templates_dir != self.default_templates_dir:
@@ -70,21 +73,45 @@ class ReportGenerator:
         self.viz_provider = visualization_provider or DefaultVisualizationProvider()
         self.summary_builder = SummaryDataBuilder()
         
-        # Initialize reporters with DI
+        # Determine source_root for module discovery
+        # This should point to the package root where modules are located
+        source_root = None
+        if self.module_discovery:
+            # If custom discovery is provided, we need a source root
+            # Use a reasonable default or let reporters handle it
+            source_root = Path.cwd() / "src"  # Default assumption
+        
+        # Initialize reporters with DI (including module discovery)
         self.unit_reporter = unit_reporter.UnitReporter(
             self.output_dir, self.templates_dir, self.docs_dir, 
-            self.template_engine, self.viz_provider
+            self.template_engine, self.viz_provider,
+            self.module_discovery, source_root
         )
         self.e2e_reporter = e2e_reporter.E2EReporter(
             self.output_dir, self.templates_dir, self.docs_dir,
-            self.template_engine, self.viz_provider
+            self.template_engine, self.viz_provider,
+            self.module_discovery, source_root
         )
         self.quality_reporter = quality_reporter.QualityReporter(
             self.output_dir, self.templates_dir,
             self.template_engine, self.viz_provider
         )
         self.dep_reporter = dependency_reporter.DependencyReporter(self.output_dir, self.templates_dir)
+        self.dep_reporter = dependency_reporter.DependencyReporter(self.output_dir, self.templates_dir)
         self.pkg_reporter = package_reporter.PackageReporter(self.output_dir, self.templates_dir)
+        
+        # Initialize Export Service
+        self.export_formats = ["md"]
+        if config and isinstance(config, ReportingConfig):
+            self.export_formats = config.export_formats
+            
+        self.export_service = None
+        if "html" in self.export_formats or "docx" in self.export_formats:
+             try:
+                 from ...export import ExportService
+                 self.export_service = ExportService()
+             except ImportError as e:
+                 logger.warning(f"Failed to import ExportService: {e}")
         
     def generate_all(self, 
                      unit_target: str = "tests/unit", 
@@ -110,18 +137,66 @@ class ReportGenerator:
         
         # Dependencies
         src_root = Path(package_target).resolve()
-        self.run_dependency_checks(src_root, proj_path, package_roots=["nikhil", "nibandha", "pravaha"])
+        dependency_data = self.run_dependency_checks(src_root, package_roots=["nikhil", "nibandha", "pravaha"])
+        
+        # Package Health
+        package_data = self.run_package_checks(proj_path)
+        
+        # Documentation
+        try:
+             # run_documentation_checks is not fully implemented/integrated yet in this codebase version
+             # but assuming it returns None or we skip it if not existent.
+             # Based on previous file reads, it seemed missing or scaffolded.
+             # Let's check if run_documentation_checks exists.
+             # It was in the file content previously read: 
+             # def run_documentation_checks(self, project_root: Path) -> Dict:
+             documentation_data = self.run_documentation_checks(proj_path)
+        except Exception as e:
+             logger.warning(f"Documentation check validation failed/skipped: {e}")
+             documentation_data = None
         
         # Generate Unified Summary
-        summary_data = self.summary_builder.build(unit_data, e2e_data, quality_data)
+        summary_data = self.summary_builder.build(
+            unit_data, 
+            e2e_data, 
+            quality_data,
+            documentation_data=documentation_data,
+            dependency_data=dependency_data,
+            package_data=package_data
+        )
         self.template_engine.render(
              "unified_overview_template.md",
              summary_data,
              self.output_dir / "summary.md"
         )
         logger.info(f"Generated unified summary at {self.output_dir / 'summary.md'}")
+        
+        # Export Reports
+        self._export_reports()
 
         logger.info("Report generation complete.")
+        
+    def _export_reports(self):
+        """Export all generated reports to configured formats."""
+        if not self.export_service:
+            return
+            
+        formats = [f for f in self.export_formats if f != "md"]
+        if not formats:
+            return
+            
+        logger.info(f"Exporting reports to: {formats}")
+        
+        # Export summary
+        summary_path = self.output_dir / "summary.md"
+        if summary_path.exists():
+            self.export_service.export_document(summary_path, formats)
+            
+        # Export details
+        details_dir = self.output_dir / "details"
+        if details_dir.exists():
+            for report in details_dir.glob("*.md"):
+                self.export_service.export_document(report, formats)
         
     def run_unit_Tests(self, target: str, timestamp: str) -> Dict:
         """Run unit tests and generate report."""
@@ -183,9 +258,16 @@ class ReportGenerator:
         # Let's create the reporter here using default or config if accessible.
         
         from ...documentation.application import documentation_reporter
+        
+        # Determine source_root for module discovery
+        source_root = None
+        if self.module_discovery:
+            source_root = Path.cwd() / "src"
+        
         reporter = documentation_reporter.DocumentationReporter(
             self.output_dir, self.templates_dir, doc_paths,
-            self.template_engine, self.viz_provider
+            self.template_engine, self.viz_provider,
+            self.module_discovery, source_root
         )
         data = reporter.generate(project_root)
         
@@ -198,3 +280,34 @@ class ReportGenerator:
         logger.info(f"Documentation data saved to {json_path}")
         
         return data
+
+    def run_dependency_checks(self, source_root: Path, package_roots: list = None) -> Dict:
+        """
+        Run module dependency analysis.
+        
+        Args:
+            source_root: Root directory of source code to analyze
+            package_roots: Optional list of package names to analyze (e.g., ["nikhil.nibandha"])
+            
+        Returns:
+            Dictionary with dependency analysis data
+        """
+        logger.info(f"Running dependency checks on source: {source_root}")
+        
+        reporter = dependency_reporter.DependencyReporter(self.output_dir, self.templates_dir)
+        return reporter.generate(source_root, package_roots)
+
+    def run_package_checks(self, project_root: Path) -> Dict:
+        """
+        Run package dependency analysis (PyPI packages, outdated deps, etc.).
+        
+        Args:
+            project_root: Root directory of the project
+            
+        Returns:
+            Dictionary with package analysis data
+        """
+        logger.info(f"Running package checks on project: {project_root}")
+        
+        reporter = package_reporter.PackageReporter(self.output_dir, self.templates_dir)
+        return reporter.generate(project_root)
