@@ -21,7 +21,7 @@ class TemplateEngine:
         output_path: Optional[Path] = None
     ) -> str:
         """
-        Render a template with provided data.
+        Render a template with provided data using Jinja2.
         
         Args:
             template_name: Name of template file (e.g., "unit_report_template.md")
@@ -32,31 +32,24 @@ class TemplateEngine:
             Rendered markdown content
             
         Raises:
-            FileNotFoundError: If template file does not exist
-            ValueError: If data is missing keys required by the template
+            TemplateNotFound: If template file does not exist
         """
-        template_path = self.templates_dir / template_name
+        from jinja2 import Environment, FileSystemLoader, select_autoescape, StrictUndefined
         
-        if not template_path.exists():
-            if self.defaults_dir:
-                fallback_path = self.defaults_dir / template_name
-                if fallback_path.exists():
-                    template_path = fallback_path
+        # Setup loader with fallback
+        search_paths = [str(self.templates_dir)]
+        if self.defaults_dir:
+            search_paths.append(str(self.defaults_dir))
             
-            if not template_path.exists():
-                raise FileNotFoundError(f"Template not found: {template_path} (checked {self.templates_dir} and {self.defaults_dir})")
+        env = Environment(
+            loader=FileSystemLoader(search_paths),
+            # autoescape=select_autoescape(['html', 'xml']) # Markdown isn't HTML, usually better to not autoescape or be careful
+            autoescape=False,
+            undefined=StrictUndefined
+        )
         
-        template = template_path.read_text(encoding="utf-8")
-        
-        # Use format with safe error handling
-        try:
-            content = template.format(**data)
-        except KeyError as e:
-            missing_key = e.args[0]
-            raise ValueError(
-                f"Template '{template_name}' requires key '{missing_key}' "
-                f"which was not provided in data"
-            )
+        template = env.get_template(template_name)
+        content = template.render(**data)
         
         if output_path:
             output_path.parent.mkdir(parents=True, exist_ok=True)

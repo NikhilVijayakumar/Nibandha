@@ -12,7 +12,7 @@ def template_dir(tmp_path):
 @pytest.fixture
 def sample_template(template_dir):
     f = template_dir / "simple.md"
-    f.write_text("# Report\nValue: {value}\nList:\n{items}", encoding="utf-8")
+    f.write_text("# Report\nValue: {{ value }}\nList:\n{{ items }}", encoding="utf-8")
     return "simple.md"
 
 @pytest.fixture
@@ -26,12 +26,14 @@ def test_render_success(engine, sample_template):
     assert "- A" in result
 
 def test_render_missing_key(engine, sample_template):
+    from jinja2.exceptions import UndefinedError
     data = {"value": "123"} # Missing 'items'
-    with pytest.raises(ValueError, match="requires key 'items'"):
+    with pytest.raises(UndefinedError):
         engine.render(sample_template, data)
 
 def test_template_not_found(engine):
-    with pytest.raises(FileNotFoundError):
+    from jinja2.exceptions import TemplateNotFound
+    with pytest.raises(TemplateNotFound):
         engine.render("non_existent.md", {})
 
 def test_render_save_output(engine, sample_template, tmp_path):

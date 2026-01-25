@@ -6,10 +6,11 @@ code modules in their projects, enabling support for various architectures
 (e.g., Clean Architecture, Django apps, microservices).
 """
 
-from typing import Protocol, List
+from typing import Protocol, List, runtime_checkable
 from pathlib import Path
 
 
+@runtime_checkable
 class ModuleDiscoveryProtocol(Protocol):
     """
     Protocol for discovering code modules in a project.

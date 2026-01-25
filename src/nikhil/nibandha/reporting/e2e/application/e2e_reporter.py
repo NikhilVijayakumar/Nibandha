@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict, Any, List, TYPE_CHECKING
+from typing import Dict, Any, List, TYPE_CHECKING, Optional
 import logging
 from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer
 from ...shared.infrastructure import utils
@@ -9,9 +9,11 @@ from ...shared.domain.protocols.visualization_protocol import VisualizationProvi
 from ...shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
 from ...shared.data.data_builders import E2EDataBuilder
 from ...shared.domain.grading import Grader
+from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
 
 if TYPE_CHECKING:
     from ...shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
+    from ...shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
 
 logger = logging.getLogger("nibandha.reporting.e2e")
 
@@ -24,7 +26,8 @@ class E2EReporter:
         template_engine: TemplateEngine = None,
         viz_provider: VisualizationProvider = None,
         module_discovery: "ModuleDiscoveryProtocol" = None,
-        source_root: Path = None
+        source_root: Path = None,
+        reference_collector: "ReferenceCollectorProtocol" = None
     ):
         self.output_dir = output_dir
         self.templates_dir = templates_dir
@@ -42,6 +45,7 @@ class E2EReporter:
         self.data_builder = E2EDataBuilder()
         self.module_discovery = module_discovery
         self.source_root = source_root
+        self.reference_collector = reference_collector
 
     def generate(self, data: Dict[str, Any], timestamp: str):
         """Generate E2E report using newly architecture."""
@@ -61,7 +65,7 @@ class E2EReporter:
         logger.debug("E2E charts generated.")
         
         # 5. Render Template
-        target_path = self.details_dir / "e2e_report.md"
+        target_path = self.details_dir / "04_e2e_report.md"
         logger.info(f"Rendering E2E Report to: {target_path}")
         self.template_engine.render(
             "e2e_report_template.md",
@@ -154,4 +158,46 @@ class E2EReporter:
                 failures += f"### {t['nodeid']}\n```\n{longrepr}\n```\n"
 
         data["failures_section"] = failures if failures else "*No Failures*"
+        
+        # Register References (Phase 2 Hierarchical Numbering)
+        if self.reference_collector:
+            # Figures
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-e2e-status",
+                title="E2E test pass/fail status across all scenarios",
+                path="../assets/images/e2e_status.png",
+                type="bar_chart",
+                description="Distribution of pass/fail status across all E2E scenarios",
+                source_report="e2e",
+                report_order=4
+            ))
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-e2e-durations",
+                title="E2E test execution time by scenario",
+                path="../assets/images/e2e_durations.png",
+                type="histogram",
+                description="Execution time distribution for E2E scenarios",
+                source_report="e2e",
+                report_order=4
+            ))
+            # Tables
+            self.reference_collector.add_table(TableReference(
+                id="table-e2e-modules",
+                title="E2E test results by module",
+                description="Breakdown of test results passing/failing by module",
+                source_report="e2e",
+                report_order=4
+            ))
+            self.reference_collector.add_table(TableReference(
+                id="table-e2e-failures",
+                title="Failed E2E tests requiring investigation",
+                description="List of failed tests with traceback snippets",
+                source_report="e2e",
+                report_order=4
+            ))
+            # Nomenclature
+            self.reference_collector.add_nomenclature(NomenclatureItem(term="E2E Test", definition="An integrated test scenario verifying end-to-end system behavior", source_reports=["e2e"]))
+            self.reference_collector.add_nomenclature(NomenclatureItem(term="Scenario", definition="A specific test case or user flow in an E2E test", source_reports=["e2e"]))
+            self.reference_collector.add_nomenclature(NomenclatureItem(term="Pass Rate", definition="Percentage of tests that completed successfully without failures", source_reports=["e2e"]))
+        
         return data

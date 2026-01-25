@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Nibandha"
-version = "1.0.4"
+version = "1.0.5a2"
 description = "Universal logger and storage module for Amsha, Pravaha, and beyond."
 readme = "README.md"
 dependencies = [
@@ -50,3 +50,17 @@ where = ["src/nikhil"]
 
 [tool.setuptools.package-data]
 nibandha = ["reporting/templates/*.md", "py.typed"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = ["markdown2", "pypandoc", "pygments.*"]
+ignore_missing_imports = true

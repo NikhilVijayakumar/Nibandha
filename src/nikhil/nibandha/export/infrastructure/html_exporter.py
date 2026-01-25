@@ -59,7 +59,8 @@ class HTMLExporter:
                 "header-ids",
                 "metadata",
                 "break-on-newline",
-                "cuddled-lists"  # Better list formatting
+                "cuddled-lists",  # Better list formatting
+                "toc"
             ]
         )
         

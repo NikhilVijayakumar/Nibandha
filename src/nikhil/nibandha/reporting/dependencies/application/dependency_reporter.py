@@ -1,23 +1,36 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer
 from ...shared.infrastructure import utils
 from ...dependencies.infrastructure.analysis.module_scanner import ModuleScanner
-import datetime
+from ...shared.rendering.template_engine import TemplateEngine
 from ...shared.domain.grading import Grader
+from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
+
+if TYPE_CHECKING:
+    from ...shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
 
 logger = logging.getLogger("nibandha.reporting.dependencies")
 
 class DependencyReporter:
-    def __init__(self, output_dir: Path, templates_dir: Path):
+    def __init__(
+        self, 
+        output_dir: Path, 
+        templates_dir: Path,
+        template_engine: TemplateEngine = None,
+        reference_collector: "ReferenceCollectorProtocol" = None
+    ):
         self.output_dir = output_dir
         self.templates_dir = templates_dir
         self.report_dir = output_dir / "details"
         self.assets_dir = output_dir / "assets" / "images" / "dependencies"
         self.report_dir.mkdir(parents=True, exist_ok=True)
         self.assets_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.template_engine = template_engine or TemplateEngine(templates_dir)
+        self.reference_collector = reference_collector
 
     def generate(self, source_root: Path, package_roots: List[str] = None) -> Dict:
         """Generates module dependency report."""
@@ -50,8 +63,6 @@ class DependencyReporter:
         }
 
     def _generate_report(self, dependencies, circular, most_imported, most_dependent, isolated):
-        tmpl = self._load_template("module_dependency_template.md")
-        
         # Format lists
         imp_rows = "\n".join([f"| {m} | {c} |" for m, c in most_imported])
         dep_rows = "\n".join([f"| {m} | {c} |" for m, c in most_dependent])
@@ -63,13 +74,11 @@ class DependencyReporter:
 
         # Calculate Per-Module Grades
         module_grades = []
-        # Create a set of modules involved in circular deps for O(1) lookup
         circular_modules = set()
         for a, b in circular:
             circular_modules.add(a)
             circular_modules.add(b)
             
-        # Calculate fan-in (afferent coupling)
         fan_in = {}
         for mod, deps in dependencies.items():
             if mod not in fan_in: fan_in[mod] = 0
@@ -81,7 +90,6 @@ class DependencyReporter:
             f_in = fan_in.get(mod, 0)
             is_circular = mod in circular_modules
             
-            # Grade Logic
             if is_circular:
                 grade = "F"
                 reason = "Circular Dependency"
@@ -110,10 +118,8 @@ class DependencyReporter:
                 "reason": reason
             })
             
-        # Sort by grade (ascending) then name
         module_grades.sort(key=lambda x: (x["grade"], x["name"]))
         
-        # Build Table
         grade_rows = ""
         for m in module_grades:
             grade_rows += f"| {m['name']} | {m['fan_out']} | {m['fan_in']} | {m['reason']} | {m['grade_html']} |\n"
@@ -121,22 +127,20 @@ class DependencyReporter:
         if not grade_rows:
             grade_rows = "| No modules found | - | - | - | - |"
 
-        # Grade
         grade = Grader.calculate_dependency_grade(len(circular))
         
-        # Calculate Statuses
         avg_deps = round(sum(len(deps) for deps in dependencies.values()) / len(dependencies), 2) if dependencies else 0
         overall_status = "Healthy" if not circular and len(isolated) == 0 else "Needs Attention"
         circ_status = "🔴 Critical" if circular else "🟢 None"
         iso_status = "🟡 Warning" if isolated else "🟢 None"
 
+        import datetime
         mapping = {
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
             "overall_status": overall_status,
             "display_grade": grade,
             "grade_color": Grader.get_grade_color(grade),
             
-            # Executive Summary
             "total_modules": len(dependencies),
             "total_deps": sum(len(deps) for deps in dependencies.values()),
             "circular_deps": len(circular),
@@ -145,38 +149,44 @@ class DependencyReporter:
             "isolated_status": iso_status,
             "avg_deps": avg_deps,
             
-            # Tables
             "top_imported": imp_rows if imp_rows else "| None | - | - |",
             "top_importers": dep_rows if dep_rows else "| None | - | - |",
             "module_grades_table": grade_rows,
             
-            # Lists
             "circular_deps_list": circ_text,
             "isolated_modules_list": iso_list,
             "detailed_dependency_list": "\n".join([f"- **{m}**: {', '.join(d)}" for m, d in dependencies.items()]),
             
-            # Placeholders for unimplemented sections
             "high_priority_items": "None generated.",
             "recommendations": "None generated."
         }
         
-        try:
-            content = tmpl.format(**mapping)
-        except KeyError as e:
-            logger.warning(f"Missing key in dependency template: {e}")
-            mapping[e.args[0]] = "N/A"
-            try:
-                content = tmpl.format(**mapping)
-            except:
-                content = tmpl
-                
-        utils.save_report(self.report_dir / "module_dependency_report.md", content)
-
-    def _load_template(self, name):
-         # Check if template exists in templates_dir, else try package default (if passed correctly)
-         # In generic core.py we pass templates_dir.
-         f = self.templates_dir / name
-         if f.exists():
-             return f.read_text(encoding="utf-8")
-         # Fallback logic if needed, but ReportGenerator handles setting up templates_dir
-         return f"# {name}\nTemplate not found."
+        # Register References (Order 8)
+        if self.reference_collector:
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-module-deps",
+                title="Module dependency graph",
+                path="../assets/images/dependencies/module_dependencies.png",
+                type="network_graph",
+                description="Visual representation of module inter-dependencies",
+                source_report="dependencies",
+                report_order=8
+            ))
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-dep-matrix",
+                title="Dependency matrix",
+                path="../assets/images/dependencies/dependency_matrix.png",
+                type="matrix",
+                description="Adjacency matrix of module dependencies",
+                source_report="dependencies",
+                report_order=8
+            ))
+            self.reference_collector.add_table(TableReference(
+                id="table-module-grades",
+                title="Module coupling grades",
+                description="Assessment of module coupling (fan-in/fan-out) and cyclomatic dependencies",
+                source_report="dependencies",
+                report_order=8
+            ))
+        
+        self.template_engine.render("module_dependency_template.md", mapping, self.report_dir / "08_module_dependency_report.md")

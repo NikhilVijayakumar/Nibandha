@@ -4,7 +4,7 @@ import subprocess
 import re
 import datetime
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 import logging
 from ...shared.domain.grading import Grader
 from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer
@@ -12,6 +12,10 @@ from ...shared.infrastructure import utils
 from ...shared.rendering.template_engine import TemplateEngine
 from ...shared.domain.protocols.visualization_protocol import VisualizationProvider
 from ...shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
+from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
+
+if TYPE_CHECKING:
+    from ...shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
 
 logger = logging.getLogger("nibandha.reporting.quality")
 
@@ -21,10 +25,12 @@ class QualityReporter:
         output_dir: Path, 
         templates_dir: Path,
         template_engine: TemplateEngine = None,
-        viz_provider: VisualizationProvider = None
+        viz_provider: VisualizationProvider = None,
+        reference_collector: "ReferenceCollectorProtocol" = None
     ):
         self.output_dir = output_dir
         self.templates_dir = templates_dir
+        self.reference_collector = reference_collector
         
         # Write reports to "data" to match Unit/E2E behavior and test expectations
         # Ideally reports go to a 'reports' folder and data to 'data', but tests expect 'data/*.md'
@@ -46,9 +52,6 @@ class QualityReporter:
             "type_safety": self._run_type_check(target_package),
             "complexity": self._run_complexity_check(target_package),
         }
-        
-        # Calculate overall quality grade? 
-        # Actually generate methods will enrich data with grades.
         return results
 
     def generate(self, results: Dict[str, Any]):
@@ -60,7 +63,6 @@ class QualityReporter:
         self._generate_type_safety_report(results["type_safety"])
         # Complexity
         self._generate_complexity_report(results["complexity"])
-
 
     def _generate_architecture_report(self, data):
         # Grade Calculation
@@ -76,7 +78,6 @@ class QualityReporter:
         # 2. Enrich Data for Template
         status = data["status"]
         output_text = data["output"]
-        
         
         if "cannot find the file" in output_text.lower() or "no such file" in output_text.lower() or ".importlinter" in output_text.lower():
              detailed_violations = (
@@ -97,16 +98,14 @@ class QualityReporter:
              detailed_violations = f"```\n{output_text}\n```"
              status = "🔴 FAIL"
 
-             
         mapping = {
-            "date": datetime.datetime.now().strftime("%Y-%m-%d"),
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
             "display_grade": grade,
             "grade_color": Grader.get_grade_color(grade),
             "overall_status": status,
             "detailed_violations": detailed_violations,
-            "module_breakdown": f"## Module Breakdown\nPleasure refer to detailed violations.",
-            "status": status, # raw status just in case
+            "module_breakdown": f"## Module Breakdown\nPlease refer to detailed violations.",
+            "status": status,
             "arch_status": status,
             "arch_violations": "-",
             # Add placeholders for template keys if they exist
@@ -121,8 +120,21 @@ class QualityReporter:
                 f"| **Project** | PASS | - |"
             )
 
+        # Register References - Architecture (Order 5)
+        if self.reference_collector:
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-arch-status",
+                title="Architecture validation status",
+                path="../assets/images/quality/architecture_status.png",
+                type="status_badge",
+                description="Overall pass/fail status of architectural contracts",
+                source_report="architecture",
+                report_order=5
+            ))
+            # No explicit tables worth registering as they are mostly text output
+
         # 3. Render
-        self.template_engine.render("architecture_report_template.md", mapping, self.details_dir / "architecture_report.md")
+        self.template_engine.render("architecture_report_template.md", mapping, self.details_dir / "05_architecture_report.md")
 
     def _generate_type_safety_report(self, data):
         # Grade
@@ -156,7 +168,6 @@ class QualityReporter:
 
         mapping = {
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
-            "date": datetime.datetime.now().strftime("%Y-%m-%d"),
             "display_grade": grade,
             "grade_color": Grader.get_grade_color(grade),
             "overall_status": overall_status,
@@ -167,8 +178,6 @@ class QualityReporter:
             "type_violations": total_errors
         }
         
-        
-        # Generate dynamic module table with grades (similar to complexity report)
         # Generate dynamic module table with grades (include all modules)
         all_modules = sorted(list(set(utils.get_all_modules() + list(errors_by_module.keys()))))
         module_table = "| Module | Status | Errors | Grade |\n| :--- | :---: | :---: | :---: |\n"
@@ -182,8 +191,34 @@ class QualityReporter:
         
         mapping["module_table"] = module_table
 
+        # Register References - Type Safety (Order 6)
+        if self.reference_collector:
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-type-modules",
+                title="Type errors by module",
+                path="../assets/images/quality/type_errors_by_module.png",
+                type="bar_chart",
+                description="Distribution of MyPy type errors across modules",
+                source_report="type_safety",
+                report_order=6
+            ))
+            self.reference_collector.add_table(TableReference(
+                id="table-type-categories",
+                title="Error types breakdown",
+                description="Frequency of different type error categories",
+                source_report="type_safety",
+                report_order=6
+            ))
+            self.reference_collector.add_table(TableReference(
+                id="table-type-modules",
+                title="Type safety status by module",
+                description="Per-module error counts and grades",
+                source_report="type_safety",
+                report_order=6
+            ))
+
         # 3. Render
-        self.template_engine.render("type_safety_report_template.md", mapping, self.details_dir / "type_safety_report.md")
+        self.template_engine.render("type_safety_report_template.md", mapping, self.details_dir / "06_type_safety_report.md")
 
     def _generate_complexity_report(self, data):
         # Get violation count from data (already calculated in run_complexity_check)
@@ -213,7 +248,6 @@ class QualityReporter:
         }
 
         # Generate dynamic module table with grades
-        # Generate dynamic module table with grades
         all_modules = sorted(list(set(utils.get_all_modules() + list(violations_by_module.keys()))))
         module_table = "| Module | Status | Violations (>10) | Grade |\n| :--- | :---: | :---: | :---: |\n"
         
@@ -226,12 +260,27 @@ class QualityReporter:
         
         mapping["module_table"] = module_table
 
+        # Register References - Complexity (Order 7)
+        if self.reference_collector:
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-complexity-dist",
+                title="Complexity score distribution",
+                path="../assets/images/quality/complexity_distribution.png",
+                type="histogram",
+                description="Distribution of cyclomatic complexity scores across codebase",
+                source_report="complexity",
+                report_order=7
+            ))
+            self.reference_collector.add_table(TableReference(
+                id="table-complexity-modules",
+                title="Complexity violations by module",
+                description="Per-module count of high-complexity functions",
+                source_report="complexity",
+                report_order=7
+            ))
+
         # 4. Render
-        self.template_engine.render("complexity_report_template.md", mapping, self.details_dir / "complexity_report.md")
-
-
-
-
+        self.template_engine.render("complexity_report_template.md", mapping, self.details_dir / "07_complexity_report.md")
 
     def _get_executable(self, name: str) -> str:
         bin_dir = Path(sys.executable).parent
