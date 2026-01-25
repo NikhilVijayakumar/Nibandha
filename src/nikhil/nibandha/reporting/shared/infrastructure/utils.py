@@ -80,7 +80,7 @@ def get_all_modules(
         nibandha_dir = source_root or Path(__file__).parent.parent.parent.parent
         modules = []
         for item in nibandha_dir.iterdir():
-            if item.is_dir() and not item.name.startswith("__") and item.name != "reporting":
+            if item.is_dir() and not item.name.startswith("__"):
                 modules.append(item.name.capitalize())
         return sorted(modules)
     except Exception as e:

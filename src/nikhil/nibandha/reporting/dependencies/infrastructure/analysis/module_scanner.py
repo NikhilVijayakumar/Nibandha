@@ -29,6 +29,9 @@ class ModuleScanner:
                 continue
                 
             module_name = self._get_module_name(py_file)
+            if module_name == "Root":
+                continue
+
             self.module_files[module_name] = py_file
             
             # Extract imports
@@ -57,13 +60,6 @@ class ModuleScanner:
         if not parts:
             return "Root"
 
-        # Heuristic: If "domain" is present, use child.
-        if "domain" in parts:
-            idx = parts.index("domain")
-            if idx + 1 < len(parts):
-                return parts[idx + 1].capitalize()
-        
-        # Heuristic: use first part if simple
         if len(parts) > 0:
             return parts[0].capitalize()
             
@@ -96,15 +92,16 @@ class ModuleScanner:
                             break
                     
                     if is_internal:
-                        # Extract domain/module logic generic
-                        # e.g. nikhil.pravaha.domain.auth -> Auth
-                        if "domain" in parts:
-                            idx = parts.index("domain")
-                            if idx + 1 < len(parts):
-                                imports.add(parts[idx + 1].capitalize())
-                        elif len(parts) > 1:
-                            # Generic fallback: last meaningful part
-                            imports.add(parts[-1].capitalize())
+                        # Extract root module only (e.g., nikhil.pravaha.logging.domain... -> Logging)
+                        # We need to find the segment after the package root.
+                        # Assuming package root is like 'nikhil.nibandha'
+                        for root in self.package_roots:
+                            root_parts = root.split(".")
+                            # If parts starts with root_parts
+                            if parts[:len(root_parts)] == root_parts:
+                                if len(parts) > len(root_parts):
+                                    imports.add(parts[len(root_parts)].capitalize())
+                                break
 
         return imports
     

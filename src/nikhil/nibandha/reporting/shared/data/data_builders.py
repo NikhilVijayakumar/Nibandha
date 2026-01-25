@@ -47,9 +47,63 @@ class UnitDataBuilder:
         }
         
     def _build_module_breakdown(self, pytest_data, coverage_data):
-        # Placeholder for complex mapping, implemented simply for now
-        # In real impl, we'd map file paths to modules
-        return []
+        """
+        Aggregates coverage data by module.
+        Assumes file paths like .../src/nikhil/nibandha/<module>/...
+        """
+        module_stats = {}
+        files = coverage_data.get("files", {})
+
+        for file_path, stats in files.items():
+            # Normalize path
+            # Expected pattern: .../src/nikhil/nibandha/MODULENAME/file.py
+            parts = file_path.split("src/nikhil/nibandha/")
+            if len(parts) < 2:
+                # Try relative path or verification environment paths
+                if "src/nikhil/nibandha" in file_path:
+                   parts = file_path.split("src/nikhil/nibandha/")
+                else: 
+                   continue
+
+            subpath = parts[1]
+            module_name = subpath.split("/")[0]
+            
+            # Skip root files like __init__.py if they are not in a submodule
+            if ".py" in module_name:
+                module_name = "root"
+
+            if module_name not in module_stats:
+                module_stats[module_name] = {"stmts": 0, "covered": 0, "missed": 0}
+            
+            summary = stats.get("summary", {})
+            module_stats[module_name]["stmts"] += summary.get("num_statements", 0)
+            module_stats[module_name]["covered"] += summary.get("covered_lines", 0)
+            module_stats[module_name]["missed"] += summary.get("missing_lines", 0)
+
+        # Convert to list
+        breakdown = []
+        for name, data in module_stats.items():
+            total = data["stmts"]
+            covered = data["covered"]
+            percent = (covered / total * 100) if total > 0 else 0.0
+            
+            # Determine grade
+            if percent >= 80: grade = "A"
+            elif percent >= 70: grade = "B"
+            elif percent >= 50: grade = "C"
+            elif percent >= 30: grade = "D"
+            else: grade = "F"
+
+            breakdown.append({
+                "name": name.capitalize(),
+                "coverage": round(percent, 1),
+                "stmts": total,
+                "miss": data["missed"],
+                "grade": grade,
+                "status": "PASS" if percent >= 80 else "FAIL" # Simplified status rule
+            })
+            
+        return sorted(breakdown, key=lambda x: x["name"])
 
     def _build_outcomes_by_module(self, pytest_data):
         # We can simulate this from pytest 'tests' list
@@ -60,6 +114,9 @@ class UnitDataBuilder:
             # Attempt to guess module: tests/unit/reporting -> reporting
             if len(path_parts) > 2 and path_parts[1] == "unit":
                  module = path_parts[2]
+                 # Remap known modules that don't have their own top-level source package
+                 if module == "rotation":
+                     module = "logging"
             else:
                  module = "other"
             
@@ -125,7 +182,7 @@ class QualityDataBuilder:
 
 class SummaryDataBuilder:
     """Aggregates all data for summary report."""
-    def build(self, unit_data: Dict, e2e_data: Dict, quality_data: Dict, documentation_data: Dict = None, project_name="Nibandha") -> Dict[str, Any]:
+    def build(self, unit_data: Dict, e2e_data: Dict, quality_data: Dict, documentation_data: Dict = None, dependency_data: Dict = None, package_data: Dict = None, project_name="Nibandha") -> Dict[str, Any]:
         """
         Build data dictionary for unified overview report.
         Expects enriched data from other builders.

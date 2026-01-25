@@ -82,9 +82,13 @@ class E2EReporter:
         data["grade"] = grade
         data["grade_color"] = Grader.get_grade_color(grade)
         
-        # Group logic (Legacy)
+        # Group logic
         e_tests = original_pytest.get("tests", [])
-        module_results = {}
+        
+        # Initialize all modules with default values
+        all_modules = utils.get_all_modules(self.source_root, self.module_discovery)
+        module_results = {mod: {"total": 0, "pass": 0, "fail": 0, "tests": []} for mod in all_modules}
+        
         for t in e_tests:
             parts = t["nodeid"].replace("\\", "/").split("/")
             mod = "Other"
@@ -97,19 +101,35 @@ class E2EReporter:
                 if idx + 1 < len(parts):
                     mod = parts[idx + 1].capitalize()
             
+            # Remap Rotation -> Logging (same as Unit)
+            if mod == "Rotation":
+                mod = "Logging"
+            
             if mod not in module_results:
+                # If a test belongs to a module we didn't discover, add it
                 module_results[mod] = {"total": 0, "pass": 0, "fail": 0, "tests": []}
                 
             module_results[mod]["total"] += 1
             if t["outcome"] == "passed": module_results[mod]["pass"] += 1
             else: module_results[mod]["fail"] += 1
             module_results[mod]["tests"].append(t)
+            
+        # Clean up 'Other' if empty
+        if "Other" in module_results and module_results["Other"]["total"] == 0:
+            del module_results["Other"]
 
         mod_table = ""
         det_sections = ""
         for mod in sorted(module_results.keys()):
             m_data = module_results[mod]
-            mod_table += f"| {mod} | {m_data['total']} | {m_data['pass']} | {m_data['fail']} |\n"
+            
+            # Calculate module grade
+            m_pass_rate = (m_data["pass"] / m_data["total"] * 100) if m_data["total"] > 0 else 0
+            m_grade = Grader.calculate_e2e_grade(m_pass_rate)
+            grade_color = "red" if m_grade in ["D", "F"] else ("orange" if m_grade == "C" else "green")
+            grade_display = f'<span style="color:{grade_color}">{m_grade}</span>'
+            
+            mod_table += f"| {mod} | {m_data['total']} | {m_data['pass']} | {m_data['fail']} | {grade_display} |\n"
             
             det_sections += f"### Module: {mod}\n\n"
             if m_data['tests']:

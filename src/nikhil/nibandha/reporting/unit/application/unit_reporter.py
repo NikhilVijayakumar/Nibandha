@@ -137,6 +137,10 @@ class UnitReporter:
                 idx = parts.index("domain")
                 if idx + 1 < len(parts): mod = parts[idx + 1].capitalize()
             
+            # Remap Rotation -> Logging
+            if mod == "Rotation":
+                mod = "Logging"
+            
             if mod not in module_results:
                 module_results[mod] = {"total": 0, "pass": 0, "fail": 0, "error": 0, "tests": []}
             

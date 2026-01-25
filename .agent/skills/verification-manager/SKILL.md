@@ -50,8 +50,27 @@ The agent MUST read the JSON artifacts in `{report_dir}/assets/data/`.
 ### D. Type Safety (`quality.json`)
 *   **Check:** `type_safety.violation_count`.
 *   **Condition:** If `violation_count > 0`.
-*   **Action:**
-    *   Trigger **Clean-Implementation**: `"Fix type errors in [Module]. [Error Log Snippet]."`
+*   **Action:** Trigger **Clean-Implementation**: `"Fix type errors in [Module]. [Snippet]."`
+
+### E. Dependencies (`dependency.json`)
+*   **Check:** `circular_dependencies` count.
+*   **Condition:** If `circular_count > 0`.
+*   **Action:** Trigger **Refactor-Agent**: `"Break circular dependency between [Modules]."`
+
+### F. Packages (`package.json`)
+*   **Check:** `outdated_packages` or `vulnerabilities`.
+*   **Condition:** Any high-risk finding using `safety` or `pip-audit`.
+*   **Action:** Trigger **Package-Maintainer**: `"Update [Package] to safe version."`
+
+### G. Documentation (`documentation.json`)
+*   **Check:** `missing` stats for Functional, Technical, Test.
+*   **Condition:** If `coverage < 100%`.
+*   **Action:** Trigger **Doc-Architect**: `"Scaffold missing documentation for [Module]."`
+
+### H. E2E Tests (`e2e.json`)
+*   **Check:** `failed` scenarios.
+*   **Condition:** If any scenario fails.
+*   **Action:** Trigger **Clean-Implementation**: `"Fix logic for E2E scenario [ID]."`
 
 ---
 

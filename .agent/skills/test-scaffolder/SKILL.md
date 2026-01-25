@@ -5,7 +5,12 @@ priority: critical
 ---
 # Test-Scaffolder Workflow (Dynamic N+1 Pattern)
 
-Once the **Doc-Architect** has defined the components, the Scaffolder generates the "Red Phase" infrastructure.
+## 0. Activation & Triggers
+*   **Trigger:** `"Scaffold Tests for [Module]"`
+*   **Pre-requisites:** `docs/modules/[Module]/functional/README.md` must exist.
+*   **Goal:** Create **failing** Pytest stubs (`RED` phase) that map 1:1 to the documented IDs.
+
+Once the **Doc-Architect** has defined the components...
 
 ## 1. Discovery & Count ($N$)
 - **Analyze Documentation:** Identify how many sub-modules ($N$) were defined in `docs/modules/`.

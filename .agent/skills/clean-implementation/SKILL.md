@@ -4,7 +4,14 @@ description: Translates Kotlin/Java Clean Architecture into Python using Pydanti
 ---
 # Clean-Implementation Workflow (Android/Kotlin Standard)
 
-When implementing domain or infrastructure logic, follow these strict architectural standards to ensure library-grade stability. The Project Manager internally runs comprehensive reports (Dependency, Package, Architecture, Type Safety), so your code MUST be "Top Notch" and pass these checks by default.
+## 0. Activation & Triggers
+*   **Trigger:** `"Implement [Module]"` or `"Fix [Module]"`
+*   **Pre-requisites:** 
+    1.  **Docs:** Functional/Technical specs must exist in `docs/modules/[Module]`.
+    2.  **Tests:** Failing tests must exist in `tests/unit/[Module]`.
+*   **Goal:** Write passing, compliant code that satisfies the tests and the architectural rules.
+
+When implementing domain or infrastructure logic, follow these strict architectural standards...
 
 ## 1. Model Translation & Isolation
 - **One Class, One File:** Every Pydantic model and implementation class must live in its own file.

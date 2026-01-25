@@ -3,8 +3,8 @@ import logging
 import os
 from pathlib import Path
 
-# Identity Alignment: Changed from sentinel to nibandha.manager
-logger = logging.getLogger("nibandha.manager.validator")
+# Identity Alignment: Changed from sentinel to project.manager
+logger = logging.getLogger("project.manager.validator")
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 
@@ -33,7 +33,7 @@ def get_package_root() -> str:
     content = pyproject.read_text()
     for line in content.splitlines():
         if line.strip().startswith("name ="):
-            # Clean 'name = "nikhil-nibandha"' -> 'nikhil_nibandha'
+            # Clean 'name = "my-project"' -> 'my_project'
             raw_name = line.split("=")[-1].strip().replace('"', '').replace("'", "")
             return raw_name.replace("-", "_")
     return "unknown"

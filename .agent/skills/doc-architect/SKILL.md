@@ -5,7 +5,12 @@ priority: critical
 ---
 # Doc-Architect Workflow
 
-You are the System Architect. Your goal is to define "What" a system does and "How" it is proven, ensuring complete documentation coverage and high testability before code is written.
+## 0. Activation & Triggers
+*   **Trigger:** `"Document [Module]"` or `"Plan [Feature]"`
+*   **Pre-requisites:** None (Start here).
+*   **Goal:** Create the "Trinity" of documentation (Functional, Technical, Test) to serve as the blueprint for the rest of the lifecycle.
+
+You are the System Architect. Your goal is to define...
 
 ## 1. Architectural Discovery
 - **Identify Components ($N$):** Determine the number of logical sub-modules required based on `examples/architectural_decisions.md`.

@@ -1,52 +1,41 @@
 # Project Agent System
 
-The **Project Agent System** is a managed ecosystem of specialized AI agents (skills) orchestrated by the **Quality Manager**. It is designed to be a portable, generalized framework that can be dropped into any Python project to enforce "Gold Standard" quality.
+The **Project Agent System** is a portable, plug-and-play AI team that enforces "Gold Standard" quality in your Python project.
 
-## 🧠 Quality Manager (The Orchestrator)
+## 🚀 Quick Start (How to Use)
 
-The **Quality Manager** ([Skill Definition](skills/quality-manager/SKILL.md)) is the central authority responsible for the software development lifecycle. It operates as a strict state machine, enforcing:
+### 1. Installation
+Copy this `.agent` folder to the root of your project. Ensure you have a `pyproject.toml`.
 
-1.  **Environmental Sovereignty**: All actions occur within the defined project root and virtual environment (`.venv`).
-2.  **TDD Foundational Loop**: A strict sequence of `Plan -> Test -> Implement -> Verify`.
-3.  **Quality Gates**: Automated checks preventing bad code from progressing.
+### 2. The Triggers (Command & Control)
+Use these phrases to activate specific agents. The System will auto-detect your project structure.
 
-## 🛠️ Skills Ecosystem
+| Agent | Trigger Phrase | What it does | Expected Outcome |
+| :--- | :--- | :--- | :--- |
+| **Quality Manager** | `"Act as Quality Manager"` | **Audit:** Runs `project_doctor.py` to check all modules. | Reports Pass/Fail for Docs, Tests, and Code. |
+| **Doc Architect** | `"Document [Module]"` | **Plan:** Runs `scaffold_docs.py` to create the Trinity structure. | Creates `docs/modules/[Module]/functional/README.md` etc. |
+| **Clean Impl.** | `"Implement [Module]"` | **Build:** References plans to write Pydantic/Clean Arch code. | Creates `src/[package]/[Module]/core.py` etc. |
+| **Verifier** | `"Verify [Module]"` | **Test:** Runs tests and checks reports. | Returns `pytest` results and Coverage/Quality reports. |
 
-Each skill is a specialized agent capability with its own **Instructions**, **Examples**, **Resources**, and **Scripts**. The scripts are designed to auto-adapt to your project's naming conventions.
+### 3. Example Workflows (Copy-Paste Prompts)
 
-### Core Lifecycle Skills
-| Stage | Skill | Description |
-| :--- | :--- | :--- |
-| **0. Init** | **[Quality Manager](skills/quality-manager/SKILL.md)** | Orchestrates the lifecycle and manages handovers. |
-| **1. Plan** | **[Doc Architect](skills/doc-architect/SKILL.md)** | Designs platform-agnostic blueprints (Functional/Technical/Test). |
-| **2. Test** | **[Test Scaffolder](skills/test-scaffolder/SKILL.md)** | Generates failing tests based on documented scenario IDs. |
-| **3. Build** | **[Clean Implementation](skills/clean-implementation/SKILL.md)** | Implements logic using Clean Architecture & Pydantic. |
-| **4. Verify** | **[Verification Manager](skills/verification-manager/SKILL.md)** | Verifies system health via automated reports. |
+#### A. Starting a New Feature
+> "Act as Quality Manager. I need to create a new module called `archiver`. Please trigger the Doc Architect to scaffold the plan."
 
-### Support Skills
-*   **[Logging Architect](skills/logging-architect/SKILL.md)**: Enforces structured logging standards.
-*   **[Package Maintainer](skills/package-maintainer/SKILL.md)**: Manages dependencies and public API.
-*   **[Refactor Agent](skills/refactor-agent/SKILL.md)**: Resolves technical debt and complexity.
-*   **[Security & Pitfalls](skills/security-and-pitfalls/SKILL.md)**: Scans for vulnerabilities.
+#### B. Auditing the System
+> "Quality Manager, run a full system audit. Are there any relative imports or missing tests in the `rotation` module?"
 
-## 📂 Architecture
+#### C. Fixing Broken Code
+> "I see the Quality Manager failed on `scheduler`. Please act as Clean Implementation agent and fix the relative imports to meet the standard."
 
-The configuration is stored in `.agent/` and is fully self-contained:
+## 🛠️ The Skills (Under the Hood)
 
-*   `rules/`: Global rules (`core`, `testing`, `imports`) applied to all agents.
-*   `skills/`: Actionable capability packages.
-    *   `[skill-name]/`:
-        *   `SKILL.md`: Master instructions (genericized).
-        *   `examples/`: Reference interactions (using generic placeholders).
-        *   `resources/`: Templates and assets.
-        *   `scripts/`: Project-agnostic automation tools.
+*   **[Quality Manager](skills/quality-manager/SKILL.md)**: The State Machine. Enforces the loop.
+*   **[Doc Architect](skills/doc-architect/SKILL.md)**: Ensures you plan before you build.
+*   **[Clean Implementation](skills/clean-implementation.md)**: Writes generic, strict Python code.
+*   **[Test Scaffolder](skills/test-scaffolder.md)**: Ensures TDD by creating failing tests first.
 
-## 🚀 How to Use
-
-1.  **Drop-in**: Copy the `.agent/` folder to your project root.
-2.  **Configure**: Ensure you have a valid `pyproject.toml` (the agents use this to detect your package name).
-3.  **Trigger**:
-    *   **Start**: Tell the AI to ACT as the `"Quality Manager"`.
-    *   **Specific Task**: Use triggers like `"Document [Module]"` (Doc Architect) or `"Implement [Module]"` (Clean Implementation).
-
-The agents will automatically align with your project's structure and enforce strict quality standards from day one.
+## 📂 Configuration (Rules)
+*   **[Core Rules](rules/core-standards.md)**: Naming & Environment.
+*   **[Testing](rules/testing-standards.md)**: `PREFIX-UT-001` mapping.
+*   **[Imports](rules/import-standards.md)**: No relative imports.

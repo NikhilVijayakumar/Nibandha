@@ -34,8 +34,8 @@ lot: true
 
 : **Table 1:** E2E test results by module
 
-| Module | Tests | Passing | Failing |
-| :--- | :---: | :---: | :---: |
+| Module | Tests | Passing | Failing | Grade |
+| :--- | :---: | :---: | :---: | :---: |
 {module_table}
 
 ## 📊 Result Distribution

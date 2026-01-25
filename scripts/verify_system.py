@@ -8,15 +8,62 @@ import shutil
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-from nibandha import Nibandha
-from nibandha.configuration.infrastructure.file_loader import FileConfigLoader
-from nibandha.configuration.domain.models.app_config import AppConfig
-from nibandha.configuration.domain.models.reporting_config import ReportingConfig
-from nibandha.reporting import ReportGenerator
+NIBANDHA_INSTALLED = False
+try:
+    from nibandha import Nibandha
+    from nibandha.configuration.infrastructure.file_loader import FileConfigLoader
+    from nibandha.configuration.domain.models.app_config import AppConfig
+    from nibandha.configuration.domain.models.reporting_config import ReportingConfig
+    from nibandha.reporting import ReportGenerator
+    from nibandha.reporting.shared.data.data_builders import SummaryDataBuilder
+    NIBANDHA_INSTALLED = True
+except ImportError:
+    NIBANDHA_INSTALLED = False
+
+def run_basic_verification():
+    """Fallback when Nibandha is not installed."""
+    print("\n[⚠️] Nibandha Module NOT found. Running Basic Verification (Pytest only).")
+    import subprocess
+    import json
+    
+    # 1. Run Unit Tests with JSON output
+    # We use a fixed path that the agent expects: .Nibandha/VerificationApp/Report/assets/data/unit.json
+    # Or just a temporary path and print it.
+    output_dir = Path(".agent_reports/assets/data")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    unit_json = output_dir / "unit.json"
+    
+    cmd = [sys.executable, "-m", "pytest", "tests/unit", f"--json-report-file={unit_json}", "--json-report"]
+    print(f"    Running: {' '.join(cmd)}")
+    
+    try:
+        subprocess.run(cmd, check=False) # Don't error if tests fail, we want the report
+        if unit_json.exists():
+            print(f"    ✅ Unit Test Report generated: {unit_json}")
+            
+            # Read to verify basic pass/fail
+            with open(unit_json) as f:
+                data = json.load(f)
+                summary = data.get("summary", {})
+                passed = summary.get("passed", 0)
+                failed = summary.get("failed", 0)
+                print(f"       Passed: {passed}, Failed: {failed}")
+        else:
+            print("    ❌ Failed to generate JSON report. Install pytest-json-report.")
+            
+    except Exception as e:
+        print(f"    ❌ Execution failed: {e}")
+        
+    print("\n[ℹ️] Note: Advanced reports (Architecture, Complexity, Dependencies) require 'nibandha' module.")
 
 def main():
     print(">>> Nibandha System Verification <<<")
     
+    if not NIBANDHA_INSTALLED:
+        run_basic_verification()
+        return
+
     # 1. Load Configuration from YAML
     config_path = Path(__file__).parent / "config" / "demo_config.yaml"
     print(f"\n[1] Loading Configuration from: {config_path}")
@@ -129,10 +176,27 @@ def main():
             json.dump(quality_data, f, indent=2, default=str)
         print(f"    ✅ Quality Artifact saved: {quality_json_path}")
 
-        # Generate Unified Summary (this was missing!)
-        from nibandha.reporting.shared.data.data_builders import SummaryDataBuilder
+        # Save Dependency JSON
+        dep_json_path = generator.output_dir / "assets" / "data" / "dependency.json"
+        with open(dep_json_path, 'w') as f:
+            json.dump(dep_data, f, indent=2, default=str)
+        print(f"    ✅ Dependency Artifact saved: {dep_json_path}")
+
+        # Save Package JSON
+        pkg_json_path = generator.output_dir / "assets" / "data" / "package.json"
+        with open(pkg_json_path, 'w') as f:
+            json.dump(pkg_data, f, indent=2, default=str)
+        print(f"    ✅ Package Artifact saved: {pkg_json_path}")
+
+        # Save Documentation JSON (Ensuring it is saved even if generator doesn't)
+        doc_json_path = generator.output_dir / "assets" / "data" / "documentation.json"
+        with open(doc_json_path, 'w') as f:
+            json.dump(doc_data, f, indent=2, default=str)
+        print(f"    ✅ Documentation Artifact saved: {doc_json_path}")
+
+        # Generate Unified Summary
         summary_builder = SummaryDataBuilder()
-        summary_data = summary_builder.build(unit_data, e2e_data, quality_data, documentation_data=doc_data)
+        summary_data = summary_builder.build(unit_data, e2e_data, quality_data, documentation_data=doc_data, dependency_data=dep_data, package_data=pkg_data)
         generator.template_engine.render(
             "unified_overview_template.md",
             summary_data,

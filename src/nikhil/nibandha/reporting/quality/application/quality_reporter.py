@@ -169,15 +169,16 @@ class QualityReporter:
         
         
         # Generate dynamic module table with grades (similar to complexity report)
+        # Generate dynamic module table with grades (include all modules)
+        all_modules = sorted(list(set(utils.get_all_modules() + list(errors_by_module.keys()))))
         module_table = "| Module | Status | Errors | Grade |\n| :--- | :---: | :---: | :---: |\n"
-        if errors_by_module:
-            for module, error_count in sorted(errors_by_module.items(), key=lambda x: x[1], reverse=True):
-                status_icon = "🔴" if error_count > 0 else "🟢"
-                module_grade = Grader.calculate_quality_grade(error_count)
-                grade_color = "red" if module_grade in ["D", "F"] else ("orange" if module_grade == "C" else "green")
-                module_table += f"| **{module}** | {status_icon} | {error_count} | <span style=\"color:{grade_color}\">{module_grade}</span> |\n"
-        else:
-            module_table += "| **All Modules** | 🟢 | 0 | A |\n"
+        
+        for module in all_modules:
+            error_count = errors_by_module.get(module, 0)
+            status_icon = "🔴" if error_count > 0 else "🟢"
+            module_grade = Grader.calculate_quality_grade(error_count)
+            grade_color = "red" if module_grade in ["D", "F"] else ("orange" if module_grade == "C" else "green")
+            module_table += f"| **{module}** | {status_icon} | {error_count} | <span style=\"color:{grade_color}\">{module_grade}</span> |\n"
         
         mapping["module_table"] = module_table
 
@@ -212,15 +213,16 @@ class QualityReporter:
         }
 
         # Generate dynamic module table with grades
+        # Generate dynamic module table with grades
+        all_modules = sorted(list(set(utils.get_all_modules() + list(violations_by_module.keys()))))
         module_table = "| Module | Status | Violations (>10) | Grade |\n| :--- | :---: | :---: | :---: |\n"
-        if violations_by_module:
-            for module, viol_count in sorted(violations_by_module.items(), key=lambda x: x[1], reverse=True):
-                status_icon = "🔴" if viol_count > 0 else "🟢"
-                module_grade = Grader.calculate_quality_grade(viol_count)
-                grade_color = "red" if module_grade in ["D", "F"] else ("orange" if module_grade == "C" else "green")
-                module_table += f"| **{module}** | {status_icon} | {viol_count} | <span style=\"color:{grade_color}\">{module_grade}</span> |\n"
-        else:
-            module_table += "| **All Modules** | 🟢 | 0 | A |\n"
+        
+        for module in all_modules:
+            viol_count = violations_by_module.get(module, 0)
+            status_icon = "🔴" if viol_count > 0 else "🟢"
+            module_grade = Grader.calculate_quality_grade(viol_count)
+            grade_color = "red" if module_grade in ["D", "F"] else ("orange" if module_grade == "C" else "green")
+            module_table += f"| **{module}** | {status_icon} | {viol_count} | <span style=\"color:{grade_color}\">{module_grade}</span> |\n"
         
         mapping["module_table"] = module_table
 
