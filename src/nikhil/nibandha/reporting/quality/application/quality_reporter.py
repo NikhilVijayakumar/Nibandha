@@ -26,11 +26,13 @@ class QualityReporter:
         templates_dir: Path,
         template_engine: TemplateEngine = None,
         viz_provider: VisualizationProvider = None,
-        reference_collector: "ReferenceCollectorProtocol" = None
+        reference_collector: "ReferenceCollectorProtocol" = None,
+        source_root: Path = None
     ):
         self.output_dir = output_dir
         self.templates_dir = templates_dir
         self.reference_collector = reference_collector
+        self.source_root = source_root
         
         # Write reports to "data" to match Unit/E2E behavior and test expectations
         # Ideally reports go to a 'reports' folder and data to 'data', but tests expect 'data/*.md'
@@ -54,17 +56,17 @@ class QualityReporter:
         }
         return results
 
-    def generate(self, results: Dict[str, Any]):
+    def generate(self, results: Dict[str, Any], project_name: str = "Project"):
         """Generates all quality reports using Template Engine."""
         logger.info("Generating Quality Reports (Architecture, Type Safety, Complexity)")
         # Architecture
-        self._generate_architecture_report(results["architecture"])
+        self._generate_architecture_report(results["architecture"], project_name)
         # Type Safety
-        self._generate_type_safety_report(results["type_safety"])
+        self._generate_type_safety_report(results["type_safety"], project_name)
         # Complexity
-        self._generate_complexity_report(results["complexity"])
+        self._generate_complexity_report(results["complexity"], project_name)
 
-    def _generate_architecture_report(self, data):
+    def _generate_architecture_report(self, data, project_name="Project"):
         # Grade Calculation
         status_pass = (data["status"] == "PASS")
         violation_count = 0 if status_pass else 1 # Simple boolean logic for now
@@ -109,7 +111,8 @@ class QualityReporter:
             "arch_status": status,
             "arch_violations": "-",
             # Add placeholders for template keys if they exist
-            "struct_status": "N/A", "struct_violations": "N/A"
+            "struct_status": "N/A", "struct_violations": "N/A",
+            "project_name": project_name
         }
         
         if "PASS" in status:
@@ -136,7 +139,7 @@ class QualityReporter:
         # 3. Render
         self.template_engine.render("architecture_report_template.md", mapping, self.details_dir / "05_architecture_report.md")
 
-    def _generate_type_safety_report(self, data):
+    def _generate_type_safety_report(self, data, project_name="Project"):
         # Grade
         total_errors = data["violation_count"]
         grade = Grader.calculate_quality_grade(total_errors)
@@ -175,11 +178,12 @@ class QualityReporter:
             "category_table": category_table,
             "detailed_errors": detailed_errors,
             "type_status": overall_status,
-            "type_violations": total_errors
+            "type_violations": total_errors,
+            "project_name": project_name
         }
         
         # Generate dynamic module table with grades (include all modules)
-        all_modules = sorted(list(set(utils.get_all_modules() + list(errors_by_module.keys()))))
+        all_modules = sorted(list(set(utils.get_all_modules(self.source_root) + list(errors_by_module.keys()))))
         module_table = "| Module | Status | Errors | Grade |\n| :--- | :---: | :---: | :---: |\n"
         
         for module in all_modules:
@@ -220,7 +224,7 @@ class QualityReporter:
         # 3. Render
         self.template_engine.render("type_safety_report_template.md", mapping, self.details_dir / "06_type_safety_report.md")
 
-    def _generate_complexity_report(self, data):
+    def _generate_complexity_report(self, data, project_name="Project"):
         # Get violation count from data (already calculated in run_complexity_check)
         total_violations = data["violation_count"]
         grade = Grader.calculate_quality_grade(total_violations)
@@ -244,11 +248,12 @@ class QualityReporter:
              "total_violations": total_violations,
              "top_complex_functions": f"```\n{detailed}\n```",
              "cplx_status": status,
-             "cplx_violations": total_violations
+            "cplx_violations": total_violations,
+             "project_name": project_name
         }
 
         # Generate dynamic module table with grades
-        all_modules = sorted(list(set(utils.get_all_modules() + list(violations_by_module.keys()))))
+        all_modules = sorted(list(set(utils.get_all_modules(self.source_root) + list(violations_by_module.keys()))))
         module_table = "| Module | Status | Violations (>10) | Grade |\n| :--- | :---: | :---: | :---: |\n"
         
         for module in all_modules:
@@ -329,11 +334,7 @@ class QualityReporter:
             match = pattern.search(line)
             if match:
                 fpath = match.group(1).replace("\\", "/")
-                name = Path(fpath).stem.capitalize()
-                parts = fpath.split("/")
-                if "src" in parts and "src" in parts:
-                    idx = parts.index("src")
-                    if idx + 3 < len(parts): name = parts[idx+3].capitalize()
+                name = utils.extract_module_name(fpath, self.source_root)
                 mod_stats[name] = mod_stats.get(name, 0) + 1
                 cat_stats[match.group(2)] = cat_stats.get(match.group(2), 0) + 1
         return mod_stats, cat_stats
@@ -349,25 +350,7 @@ class QualityReporter:
                 match = re.search(r'-->\s+(.+?):\d+', line)
                 if match:
                     file_path = match.group(1)
-                    parts = Path(file_path).parts
-                    
-                    # Find module name after package root
-                    # Expected structure: src/.../package_name/MODULE/...
-                    # For Nibandha: src/nikhil/nibandha/MODULE/...
-                    if 'nibandha' in parts:
-                        pkg_idx = parts.index('nibandha')
-                        if pkg_idx + 1 < len(parts):
-                            module = parts[pkg_idx + 1].capitalize()
-                            mod_stats[module] = mod_stats.get(module, 0) + 1
-                    else:
-                        # Fallback: try to find 'src' and get next meaningful part
-                        if 'src' in parts:
-                            src_idx = parts.index('src')
-                            # Skip until we find a non-package directory
-                            for i in range(src_idx + 1, len(parts)):
-                                if not parts[i].startswith('_') and parts[i] not in ['nikhil', 'nibandha']:
-                                    module = parts[i].capitalize()
-                                    mod_stats[module] = mod_stats.get(module, 0) + 1
-                                    break
+                    module = utils.extract_module_name(file_path, self.source_root)
+                    mod_stats[module] = mod_stats.get(module, 0) + 1
         
         return mod_stats

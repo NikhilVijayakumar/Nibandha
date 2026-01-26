@@ -142,7 +142,16 @@ class UnitDataBuilder:
         return failures
 
     def _extract_durations(self, pytest_data):
-        return [t.get("duration", 0) for t in pytest_data.get("tests", []) if "duration" in t]
+        durations = []
+        for t in pytest_data.get("tests", []):
+            if "duration" in t:
+                durations.append(t["duration"])
+            else:
+                # Fallback to call/setup duration
+                d = t.get("call", {}).get("duration", 0) or t.get("setup", {}).get("duration", 0)
+                if d > 0:
+                    durations.append(d)
+        return durations
 
 
 class E2EDataBuilder:

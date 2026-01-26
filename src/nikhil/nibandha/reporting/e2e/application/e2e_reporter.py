@@ -47,7 +47,7 @@ class E2EReporter:
         self.source_root = source_root
         self.reference_collector = reference_collector
 
-    def generate(self, data: Dict[str, Any], timestamp: str):
+    def generate(self, data: Dict[str, Any], timestamp: str, project_name: str = "Project"):
         """Generate E2E report using newly architecture."""
         logger.info("Generating E2E Report...")
         
@@ -56,6 +56,7 @@ class E2EReporter:
         
         # 2. Add formatted Markdown sections (for compatibility with existing template)
         enriched_data = self._enrich_data_for_template(report_data, data)
+        enriched_data["project_name"] = project_name
         
         # 3. Save Data
         self.template_engine.save_data(enriched_data, self.data_dir / "e2e_data.json")

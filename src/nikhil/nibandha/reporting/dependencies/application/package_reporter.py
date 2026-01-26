@@ -30,14 +30,14 @@ class PackageReporter:
         self.template_engine = template_engine or TemplateEngine(templates_dir)
         self.reference_collector = reference_collector
 
-    def generate(self, project_root: Path) -> Dict:
+    def generate(self, project_root: Path, project_name: str = "Project") -> Dict:
         """Generates package dependency report."""
         logger.info(f"Analyzing packages in {project_root}...")
         
         scanner = PackageScanner(project_root)
         analysis = scanner.analyze()
         
-        self._generate_report(analysis)
+        self._generate_report(analysis, project_name)
         
         score = 100
         score -= (analysis.get("major_updates", 0) * 20)
@@ -53,7 +53,7 @@ class PackageReporter:
             "health_score": score
         }
 
-    def _generate_report(self, analysis):
+    def _generate_report(self, analysis, project_name="Project"):
         outdated_rows = ""
         for p in analysis["outdated_packages"]:
             icon = "🔴" if p["update_type"] == "MAJOR" else ("🟡" if p["update_type"] == "MINOR" else "🟢")
@@ -119,7 +119,8 @@ class PackageReporter:
             "short_term_actions": "Review unused dependencies.",
             "long_term_actions": "Monitor for new updates.",
             
-            "full_package_list": full_list
+            "full_package_list": full_list,
+            "project_name": project_name
         }
         
         # Register References (Order 9)

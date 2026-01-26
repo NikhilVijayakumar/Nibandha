@@ -3,7 +3,7 @@ import shutil
 import sys
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Tuple, TYPE_CHECKING
+from typing import Dict, List, Tuple, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..domain.protocols.module_discovery import ModuleDiscoveryProtocol
@@ -73,19 +73,20 @@ def get_all_modules(
         root = source_root or Path(__file__).parent.parent.parent.parent
         return discovery.discover_modules(root)
     
-    # Fallback to default hardcoded behavior for backward compatibility
+    # Fallback to generic directory scanning of the source root
     try:
-        # utils.py is in src/nikhil/nibandha/reporting/shared/infrastructure
-        # nibandha is 4 parents up (nibandha/reporting/shared/infrastructure)
-        nibandha_dir = source_root or Path(__file__).parent.parent.parent.parent
+        root = source_root or Path.cwd() / "src"
+        if not root.exists():
+            return []
+            
         modules = []
-        for item in nibandha_dir.iterdir():
-            if item.is_dir() and not item.name.startswith("__"):
+        for item in root.iterdir():
+            if item.is_dir() and not item.name.startswith("__") and not item.name.startswith("."):
                 modules.append(item.name.capitalize())
         return sorted(modules)
     except Exception as e:
         logger.error(f"Error finding modules: {e}")
-        return ["Core", "Logging", "Rotation"] # Fallback
+        return []
 
 def run_pytest(target: str, json_path: Path, cov_target: str = None) -> bool:
     """
@@ -116,7 +117,7 @@ def run_pytest(target: str, json_path: Path, cov_target: str = None) -> bool:
         logger.error(f"Error running pytest: {e}")
         return False
 
-def analyze_coverage(cov_data: dict, package_prefix: str = "src/nikhil/nibandha/") -> Tuple[Dict[str, float], float]:
+def analyze_coverage(cov_data: dict, package_prefix: str = None, known_modules: List[str] = None) -> Tuple[Dict[str, float], float]:
     """Analyze coverage json."""
     if not cov_data:
         return {}, 0.0
@@ -127,33 +128,70 @@ def analyze_coverage(cov_data: dict, package_prefix: str = "src/nikhil/nibandha/
     files = cov_data.get("files", {})
     mod_stats = {} # mod: {hits: 0, lines: 0}
     
+    # Heuristic: If prefix not provided, try to detect "src/"
+    if not package_prefix:
+        package_prefix = "src/"
+
     for fpath, stats in files.items():
         # Normalize path separators
         fpath = fpath.replace("\\", "/")
         
-        # Determine module name relative to the package prefix
-        if package_prefix in fpath:
-            parts = fpath.split(package_prefix)
-            if len(parts) > 1:
-                sub = parts[1] # e.g. auth/model/access_key.py
-                mod_name = sub.split("/")[0].capitalize()
-                
+        mod_name = None
+        
+        # 1. Try matching against known modules (Best Method)
+        if known_modules:
+            for mod in known_modules:
+                # check if /mod/ is in path (case insensitive)
+                # Normalized keys for robust matching
+                if f"/{mod.lower()}/" in fpath.lower():
+                    mod_name = mod
+                    break
+        
+        if not mod_name:
+             logger.debug(f"Coverage mismatch for: {fpath} (Known: {known_modules})")
+        
+        # 2. Fallback to path parsing if no known module matched
+        if not mod_name:
+            rel_path = fpath
+            if package_prefix in fpath:
+                 parts = fpath.split(package_prefix)
+                 if len(parts) > 1:
+                     rel_path = parts[1]
+            elif "src/" in fpath:
+                 rel_path = fpath.split("src/")[1]
+            
+            parts = rel_path.split("/")
+            if parts:
+                mod_name = parts[0].capitalize()
                 if mod_name.endswith(".py"):
-                    mod_name = mod_name.replace(".py", "").capitalize()
-                
-                if mod_name not in mod_stats:
-                    mod_stats[mod_name] = {"hits": 0, "lines": 0}
-                
-                summary = stats.get("summary", {})
-                mod_stats[mod_name]["hits"] += summary.get("covered_lines", 0)
-                mod_stats[mod_name]["lines"] += summary.get("num_statements", 0)
+                     mod_name = mod_name.replace(".py", "").capitalize()
+
+        if not mod_name: continue
+
+        if mod_name not in mod_stats:
+             mod_stats[mod_name] = {"hits": 0, "lines": 0}
+        
+        summary = stats.get("summary", {})
+        mod_stats[mod_name]["hits"] += summary.get("covered_lines", 0)
+        mod_stats[mod_name]["lines"] += summary.get("num_statements", 0)
                 
     results = {}
+    total_hits = 0
+    total_lines = 0
+    
     for mod, s in mod_stats.items():
+        total_hits += s["hits"]
+        total_lines += s["lines"]
         if s["lines"] > 0:
             results[mod] = (s["hits"] / s["lines"]) * 100
         else:
             results[mod] = 0.0
+            
+    # Calculate legitimate total coverage from matched modules
+    if total_lines > 0:
+        total_pct = (total_hits / total_lines) * 100
+    else:
+        total_pct = totals.get("percent_covered", 0.0) # Fallback
             
     return results, total_pct
 
@@ -166,3 +204,46 @@ def save_report(path: Path, content: str):
         logger.info(f"Report saved to: {path}")
     except Exception as e:
         logger.error(f"Error saving report to {path}: {e}")
+
+def extract_module_name(file_path: str, source_root: Optional[Path] = None) -> str:
+    """
+    Extracts module name from a file path.
+    Tries to be smart about project structure.
+    """
+    path = Path(file_path)
+    parts = path.parts
+    
+    # helper to capitalize
+    def clean(s): return s.capitalize()
+
+    if source_root:
+        try:
+            # If path is absolute or matches source root
+            if path.is_absolute() and source_root.is_absolute():
+                 try:
+                     rel = path.relative_to(source_root)
+                     if len(rel.parts) > 0:
+                          return clean(rel.parts[0])
+                 except ValueError:
+                     pass
+        except Exception:
+            pass
+            
+    # Fallback heuristics
+    if "src" in parts:
+        try:
+           idx = parts.index("src")
+           # Check for nikhil/nibandha nesting
+           if idx + 2 < len(parts) and parts[idx+1] == "nikhil" and parts[idx+2] == "nibandha":
+               if idx + 3 < len(parts):
+                   return clean(parts[idx+3])
+           # Else generic src/module
+           if idx + 1 < len(parts):
+               return clean(parts[idx+1])
+        except ValueError: 
+             pass
+             
+    # Minimal fallback: parent directory name
+    if len(parts) > 1:
+        return clean(parts[-2])
+    return "Unknown"

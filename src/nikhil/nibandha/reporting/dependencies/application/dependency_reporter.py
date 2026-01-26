@@ -32,7 +32,7 @@ class DependencyReporter:
         self.template_engine = template_engine or TemplateEngine(templates_dir)
         self.reference_collector = reference_collector
 
-    def generate(self, source_root: Path, package_roots: List[str] = None) -> Dict:
+    def generate(self, source_root: Path, package_roots: List[str] = None, project_name: str = "Project") -> Dict:
         """Generates module dependency report."""
         logger.info(f"Scanning dependencies in {source_root}...")
         
@@ -49,7 +49,7 @@ class DependencyReporter:
         visualizer.plot_dependency_matrix(dependencies, self.assets_dir / "dependency_matrix.png")
         
         # Report
-        self._generate_report(dependencies, circular_deps, most_imported, most_dependent, isolated)
+        self._generate_report(dependencies, circular_deps, most_imported, most_dependent, isolated, project_name)
         
         # Return summary data
         total_modules = len(dependencies)
@@ -62,7 +62,7 @@ class DependencyReporter:
             "circular_count": len(circular_deps)
         }
 
-    def _generate_report(self, dependencies, circular, most_imported, most_dependent, isolated):
+    def _generate_report(self, dependencies, circular, most_imported, most_dependent, isolated, project_name="Project"):
         # Format lists
         imp_rows = "\n".join([f"| {m} | {c} |" for m, c in most_imported])
         dep_rows = "\n".join([f"| {m} | {c} |" for m, c in most_dependent])
@@ -158,7 +158,8 @@ class DependencyReporter:
             "detailed_dependency_list": "\n".join([f"- **{m}**: {', '.join(d)}" for m, d in dependencies.items()]),
             
             "high_priority_items": "None generated.",
-            "recommendations": "None generated."
+            "recommendations": "None generated.",
+            "project_name": project_name
         }
         
         # Register References (Order 8)

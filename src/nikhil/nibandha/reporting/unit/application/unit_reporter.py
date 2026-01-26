@@ -47,10 +47,11 @@ class UnitReporter:
         self.source_root = source_root
         self.reference_collector = reference_collector
 
-    def generate(self, data: Dict[str, Any], cov_data: Dict[str, Any], timestamp: str):
+    def generate(self, data: Dict[str, Any], cov_data: Dict[str, Any], timestamp: str, project_name: str = "Project"):
         logger.info("Generating Unit Test Report...")
         report_data = self.data_builder.build(data, cov_data, timestamp)
         enriched_data = self._enrich_data_for_template(report_data, data, cov_data)
+        enriched_data["project_name"] = project_name
         
         self.template_engine.save_data(enriched_data, self.data_dir / "unit_data.json")
         self.viz_provider.generate_unit_test_charts(enriched_data, self.images_dir)
@@ -79,8 +80,14 @@ class UnitReporter:
         data["grade"] = grade
         data["grade_color"] = Grader.get_grade_color(grade)
         
-        cov_map, _ = utils.analyze_coverage(original_cov)
+        prefix = f"{str(self.source_root)}/" if self.source_root else "src/"
+        all_modules = utils.get_all_modules(self.source_root, self.module_discovery)
+        cov_map, total_cov = utils.analyze_coverage(original_cov, package_prefix=prefix, known_modules=all_modules)
         module_results = self._group_results(original_pytest)
+        
+        # Override data builder coverage with our more accurate calculation
+        coverage_rate = total_cov
+        data["coverage_rate"] = total_cov
         
         modules_list = []
         
@@ -125,7 +132,7 @@ class UnitReporter:
         passed_tests = data.get("passed", 0)
         failed_tests = data.get("failed", 0)
         pass_rate = data.get("pass_rate", 0)
-        coverage_rate = data.get("coverage_rate", 0)
+        # coverage_rate already updated above
         
         data["metrics_cards"] = [
             {

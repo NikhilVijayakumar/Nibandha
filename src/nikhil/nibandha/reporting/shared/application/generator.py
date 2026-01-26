@@ -80,9 +80,26 @@ class ReportGenerator:
         self.summary_builder = SummaryDataBuilder()
         self.reference_collector = ReferenceCollector()
         
-        source_root = None
-        if self.module_discovery:
-            source_root = Path.cwd() / "src"
+        # Determine Source Root for Module Discovery
+        # Prefer quality_target (which points to package root), else src
+        if self.quality_target_default and self.quality_target_default != "src":
+             source_root = Path(self.quality_target_default).resolve()
+        elif self.module_discovery:
+             source_root = Path.cwd() / "src"
+        else:
+             # Fallback to src, but attempt to drill down if nested namespaces exist
+             base_src = Path.cwd() / "src"
+             if base_src.exists():
+                 # Check for nikhil/nibandha structure or generic single-packages
+                 # Heuristic: If src contains only 1 dir, and that dir contains 1 dir... drill down.
+                 # Specifically for Nibandha: src/nikhil/nibandha
+                 candidate = base_src / "nikhil" / "nibandha"
+                 if candidate.exists():
+                     source_root = candidate
+                 else:
+                     source_root = base_src
+             else:
+                 source_root = base_src
         
         # Initialize Reporters with DI
         # 1. Introduction
@@ -108,7 +125,8 @@ class ReportGenerator:
         self.quality_reporter = quality_reporter.QualityReporter(
             self.output_dir, self.templates_dir,
             self.template_engine, self.viz_provider,
-            self.reference_collector
+            self.reference_collector,
+            source_root=source_root
         )
         
         # 8. Dependency
@@ -196,7 +214,7 @@ class ReportGenerator:
         
         # 10. Documentation
         try:
-             documentation_data = self.doc_reporter.generate(proj_path)
+             documentation_data = self.doc_reporter.generate(proj_path, project_name=self.project_name)
              # Save JSON
              json_path = self.output_dir / "assets" / "data" / "documentation.json"
              json_path.parent.mkdir(parents=True, exist_ok=True)
@@ -314,7 +332,8 @@ class ReportGenerator:
             "date": timestamp,
             "figures": [fig.model_dump() for fig in references.figures],
             "tables": [tab.model_dump() for tab in references.tables],
-            "nomenclature": [nom.model_dump() for nom in references.nomenclature]
+            "nomenclature": [nom.model_dump() for nom in references.nomenclature],
+            "project_name": self.project_name
         }
         output_path = self.output_dir / "details" / "02_global_references.md"
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -337,7 +356,7 @@ class ReportGenerator:
         
         data = utils.load_json(json_path)
         cov_data = utils.load_json(Path("coverage.json"))
-        return self.unit_reporter.generate(data, cov_data, timestamp) or {}
+        return self.unit_reporter.generate(data, cov_data, timestamp, project_name=self.project_name) or {}
         
     def run_e2e_Tests(self, target: str, timestamp: str) -> Dict:
         logger.info(f"Running E2E tests on target: {target}")
@@ -346,18 +365,18 @@ class ReportGenerator:
         
         utils.run_pytest(target, json_path)
         data = utils.load_json(json_path)
-        return self.e2e_reporter.generate(data, timestamp) or {}
+        return self.e2e_reporter.generate(data, timestamp, project_name=self.project_name) or {}
 
     def run_quality_checks(self, target_package: str) -> Dict:
         logger.info(f"Running quality checks on package: {target_package}")
         results = self.quality_reporter.run_checks(target_package)
-        self.quality_reporter.generate(results)
+        self.quality_reporter.generate(results, project_name=self.project_name)
         return results
 
     def run_dependency_checks(self, source_root: Path, package_roots: list = None) -> Dict:
         logger.info(f"Running dependency checks on source: {source_root}")
-        return self.dep_reporter.generate(source_root, package_roots)
+        return self.dep_reporter.generate(source_root, package_roots, project_name=self.project_name)
 
     def run_package_checks(self, project_root: Path) -> Dict:
         logger.info(f"Running package checks on project: {project_root}")
-        return self.pkg_reporter.generate(project_root)
+        return self.pkg_reporter.generate(project_root, project_name=self.project_name)

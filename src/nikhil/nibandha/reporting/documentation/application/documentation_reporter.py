@@ -44,7 +44,7 @@ class DocumentationReporter:
         self.module_discovery = module_discovery
         self.source_root = source_root
         
-    def generate(self, project_root: Path):
+    def generate(self, project_root: Path, project_name: str = "Project"):
         """Generates the documentation report."""
         logger.info("Generating Documentation Report...")
         
@@ -68,11 +68,11 @@ class DocumentationReporter:
              charts = self.viz_provider.generate_documentation_charts(all_data, self.images_dir)
         
         # 3. Render
-        self._render_report(all_data, charts)
+        self._render_report(all_data, charts, project_name)
         
         return all_data
 
-    def _render_report(self, data, charts):
+    def _render_report(self, data, charts, project_name="Project"):
         func = data["functional"]
         tech = data["technical"]
         test = data["test"]
@@ -102,7 +102,8 @@ class DocumentationReporter:
             "func_table": self._build_doc_table(func),
             "tech_table": self._build_doc_table(tech),
             "test_table": self._build_test_table(test),
-            "missing_section": self._build_missing_section(data)
+            "missing_section": self._build_missing_section(data),
+            "project_name": project_name
         }
 
         # Register References (Order 10)
@@ -307,7 +308,10 @@ class DocumentationReporter:
         pass # Skipping re-implementation as it's cleaner to stick to generate logic
 
     def _get_code_timestamp(self, root, mod_name):
-        mod_path = root / "src/nikhil/nibandha" / mod_name.lower()
+        mod_path = (self.source_root or root / "src") / mod_name.lower()
+        if not mod_path.exists(): 
+             # Fallback to older default if self.source_root not set/found
+             mod_path = root / "src/nikhil/nibandha" / mod_name.lower()
         if not mod_path.exists(): return datetime.datetime.now().timestamp()
         return self._get_dir_timestamp(mod_path)
 

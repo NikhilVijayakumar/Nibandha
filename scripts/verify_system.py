@@ -133,6 +133,7 @@ def main():
             docs_dir=str(app.app_root.parent / "docs"),
             export_formats=["md", "html", "docx"],
             project_name="VerificationApp",
+            quality_target="src/nikhil/nibandha",
             package_roots=["nikhil", "nibandha"]
         )
         
