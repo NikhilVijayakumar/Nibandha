@@ -84,7 +84,10 @@ class TestDailyArchival:
         nb.bind()
         
         # Create archive folders with different dates
-        archive_dir = nb.log_base / "archive"
+        # FIX: Matches default "logs/archive"
+        archive_dir = nb.log_base / "logs/archive"
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        
         today = datetime.now().date()
         
         dates = [
@@ -104,9 +107,6 @@ class TestDailyArchival:
             time.sleep(0.01)
         
         # Run cleanup
-        print(f"DEBUG: archive_dir={archive_dir}, exists={archive_dir.exists()}")
-        print(f"DEBUG: app_root in nb.rm={nb.rotation_manager.app_root}")
-        
         deleted_count = nb.cleanup_old_archives()
         
         # Verify old folders deleted
@@ -136,7 +136,10 @@ class TestDailyArchival:
         nb.bind()
         
         # Create a date folder with multiple log files
-        archive_dir = nb.log_base / "archive"
+        # FIX: Matches default "logs/archive"
+        archive_dir = nb.log_base / "logs/archive"
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        
         yesterday = datetime.now().date() - timedelta(days=1)
         date_str = yesterday.strftime('%Y-%m-%d')
         date_folder = archive_dir / date_str
@@ -178,11 +181,13 @@ class TestDailyArchival:
         nb1.bind()
         
         # Manually create old logs in data/
-        data_dir = nb1.log_base / "data"
+        # FIX: Matches default "logs/data" 
+        data_dir = nb1.log_base / "logs/data"
+        if not data_dir.exists():
+            data_dir.mkdir(parents=True, exist_ok=True)
+            
         today = datetime.now().date()
         old_date = today - timedelta(days=2)
-        if not data_dir.exists():
-            data_dir.mkdir(parents=True)
         old_log = data_dir / f"{old_date.strftime('%Y-%m-%d')}.log"
         old_log.write_text("Old log")
         
@@ -191,8 +196,14 @@ class TestDailyArchival:
         nb2.bind()  # Should automatically archive old logs
         
         # Verify old log was archived
-        assert not old_log.exists()
-        archive_dir = nb2.log_base / "archive"
+        # Ensure config was loaded and enabled
+        assert nb2.rotation_config, "Rotation config wasn't loaded"
+        assert nb2.rotation_config.enabled, "Rotation is disabled"
+        
+        assert not old_log.exists(), f"Old log still exists at {old_log}"
+        
+        # Matches default "logs/archive"
+        archive_dir = nb2.log_base / "logs/archive"
         archived_log = archive_dir / old_date.strftime('%Y-%m-%d') / f"{old_date.strftime('%Y-%m-%d')}.log"
         assert archived_log.exists()
     

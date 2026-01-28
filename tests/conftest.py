@@ -43,7 +43,14 @@ def rotation_config_disabled():
 def cleanup_logger(sample_app_config):
     """Cleanup logger handlers after each test"""
     yield
-    logger = logging.getLogger(sample_app_config.name)
-    for handler in logger.handlers[:]:
-        handler.close()
-        logger.removeHandler(handler)
+    # Clean specific app logger
+    loggers = [logging.getLogger(sample_app_config.name), logging.getLogger("nibandha"), logging.getLogger()]
+    for logger in loggers:
+        for handler in logger.handlers[:]:
+            handler.close()
+            logger.removeHandler(handler)
+            
+    # Also clean manager to be safe
+    logging.shutdown()
+    import importlib
+    importlib.reload(logging)
