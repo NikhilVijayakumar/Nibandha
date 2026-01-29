@@ -23,8 +23,8 @@ class E2EReporter:
         output_dir: Path, 
         templates_dir: Path, 
         docs_dir: Path,
-        template_engine: TemplateEngine = None,
-        viz_provider: VisualizationProvider = None,
+        template_engine: Optional[TemplateEngine] = None,
+        viz_provider: Optional[VisualizationProvider] = None,
         module_discovery: Optional["ModuleDiscoveryProtocol"] = None,
         source_root: Optional[Path] = None,
         reference_collector: Optional["ReferenceCollectorProtocol"] = None
@@ -47,7 +47,7 @@ class E2EReporter:
         self.source_root = source_root
         self.reference_collector = reference_collector
 
-    def generate(self, data: Dict[str, Any], timestamp: str, project_name: str = "Project"):
+    def generate(self, data: Dict[str, Any], timestamp: str, project_name: str = "Project") -> Dict[str, Any]:
         """Generate E2E report using newly architecture."""
         logger.info("Generating E2E Report...")
         
@@ -75,7 +75,7 @@ class E2EReporter:
         )
         return enriched_data
 
-    def _enrich_data_for_template(self, report_data: Dict, original_pytest: Dict) -> Dict:
+    def _enrich_data_for_template(self, report_data: Dict[str, Any], original_pytest: Dict[str, Any]) -> Dict[str, Any]:
         """Enrich data with markdown tables for the simple template."""
         logger.debug("Enriching E2E data for template")
         data = report_data.copy()
@@ -92,17 +92,17 @@ class E2EReporter:
             
         return data
 
-    def _enrich_grades(self, data: Dict):
+    def _enrich_grades(self, data: Dict[str, Any]) -> None:
         data["total"] = data["total_scenarios"]
         pass_rate = data.get("pass_rate", 0)
         grade = Grader.calculate_e2e_grade(pass_rate)
         data["grade"] = grade
         data["grade_color"] = Grader.get_grade_color(grade)
 
-    def _group_tests_by_module(self, tests: List[Dict]) -> Dict:
+    def _group_tests_by_module(self, tests: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         # Initialize all modules with default values
         all_modules = utils.get_all_modules(self.source_root, self.module_discovery)
-        module_results = {mod: {"total": 0, "pass": 0, "fail": 0, "tests": []} for mod in all_modules}
+        module_results: Dict[str, Dict[str, Any]] = {mod: {"total": 0, "pass": 0, "fail": 0, "tests": []} for mod in all_modules}
         
         for t in tests:
             mod = self._resolve_test_module(t)
@@ -121,7 +121,7 @@ class E2EReporter:
             del module_results["Other"]
         return module_results
 
-    def _resolve_test_module(self, test_item: Dict) -> str:
+    def _resolve_test_module(self, test_item: Dict[str, Any]) -> str:
         parts = test_item["nodeid"].replace("\\", "/").split("/")
         mod = "Other"
         if "e2e" in parts:
@@ -138,7 +138,7 @@ class E2EReporter:
             mod = "Logging"
         return mod
 
-    def _generate_tables(self, module_results: Dict, all_tests: List[Dict]) -> Dict:
+    def _generate_tables(self, module_results: Dict[str, Any], all_tests: List[Dict[str, Any]]) -> Dict[str, Any]:
         mod_table = ""
         det_sections = ""
         
@@ -146,7 +146,7 @@ class E2EReporter:
             m_data = module_results[mod]
             m_pass_rate = (m_data["pass"] / m_data["total"] * 100) if m_data["total"] > 0 else 0
             m_grade = Grader.calculate_e2e_grade(m_pass_rate)
-            grade_color = "red" if m_grade in ["D", "F"] else ("orange" if m_grade == "C" else "green")
+            grade_color = Grader.get_grade_color(m_grade)
             grade_display = f'<span style="color:{grade_color}">{m_grade}</span>'
             
             mod_table += f"| {mod} | {m_data['total']} | {m_data['pass']} | {m_data['fail']} | {grade_display} |\n"
@@ -176,7 +176,8 @@ class E2EReporter:
             "failures_section": failures if failures else "*No Failures*"
         }
 
-    def _register_references(self):
+    def _register_references(self) -> None:
+        if not self.reference_collector: return
         # Figures
         self.reference_collector.add_figure(FigureReference(
             id="fig-e2e-status",
@@ -212,6 +213,6 @@ class E2EReporter:
             report_order=4
         ))
         # Nomenclature
-        self.reference_collector.add_nomenclature(NomenclatureItem(term="E2E Test", definition="An integrated test scenario verifying end-to-end system behavior", source_reports=["e2e"]))
-        self.reference_collector.add_nomenclature(NomenclatureItem(term="Scenario", definition="A specific test case or user flow in an E2E test", source_reports=["e2e"]))
-        self.reference_collector.add_nomenclature(NomenclatureItem(term="Pass Rate", definition="Percentage of tests that completed successfully without failures", source_reports=["e2e"]))
+        self.reference_collector.add_nomenclature(NomenclatureItem(term="E2E Test", definition="An integrated test scenario verifying end-to-end system behavior", source_reports=["e2e"])) # type: ignore
+        self.reference_collector.add_nomenclature(NomenclatureItem(term="Scenario", definition="A specific test case or user flow in an E2E test", source_reports=["e2e"])) # type: ignore
+        self.reference_collector.add_nomenclature(NomenclatureItem(term="Pass Rate", definition="Percentage of tests that completed successfully without failures", source_reports=["e2e"])) # type: ignore

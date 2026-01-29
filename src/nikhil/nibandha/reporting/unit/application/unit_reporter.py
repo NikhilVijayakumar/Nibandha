@@ -23,8 +23,8 @@ class UnitReporter:
         output_dir: Path, 
         templates_dir: Path, 
         docs_dir: Path,
-        template_engine: TemplateEngine = None,
-        viz_provider: VisualizationProvider = None,
+        template_engine: Optional[TemplateEngine] = None,
+        viz_provider: Optional[VisualizationProvider] = None,
         module_discovery: Optional["ModuleDiscoveryProtocol"] = None,
         source_root: Optional[Path] = None,
         reference_collector: Optional["ReferenceCollectorProtocol"] = None
@@ -47,7 +47,7 @@ class UnitReporter:
         self.source_root = source_root
         self.reference_collector = reference_collector
 
-    def generate(self, data: Dict[str, Any], cov_data: Dict[str, Any], timestamp: str, project_name: str = "Project"):
+    def generate(self, data: Dict[str, Any], cov_data: Dict[str, Any], timestamp: str, project_name: str = "Project") -> Dict[str, Any]:
         logger.info("Generating Unit Test Report...")
         report_data = self.data_builder.build(data, cov_data, timestamp)
         enriched_data = self._enrich_data_for_template(report_data, data, cov_data)
@@ -66,7 +66,7 @@ class UnitReporter:
         )
         return enriched_data
 
-    def _enrich_data_for_template(self, report_data: Dict, original_pytest: Dict, original_cov: Dict) -> Dict:
+    def _enrich_data_for_template(self, report_data: Dict[str, Any], original_pytest: Dict[str, Any], original_cov: Dict[str, Any]) -> Dict[str, Any]:
         logger.debug("Enriching report data with coverage and documentation metrics")
         data = report_data.copy()
         data["total"] = data["total_tests"]
@@ -98,7 +98,7 @@ class UnitReporter:
             # Grade
             module_pass_rate = (m_data['pass'] / m_data['total'] * 100) if m_data['total'] > 0 else 100
             module_grade = Grader.calculate_unit_grade(module_pass_rate, cov_val)
-            grade_color = "red" if module_grade in ["D", "F"] else ("orange" if module_grade == "C" else "green")
+            grade_color = Grader.get_grade_color(module_grade)
             
             # Tests
             tests_list = []
@@ -247,7 +247,7 @@ class UnitReporter:
             for nom_data in nomenclature_items:
                 self.reference_collector.add_nomenclature(NomenclatureItem(
                     term=nom_data["term"],
-                    definition=nom_data["def"],
+                    definition=nom_data["def"], # type: ignore
                     source_reports=["unit"]
                 ))
             
@@ -265,7 +265,7 @@ class UnitReporter:
         
         return data
 
-    def _group_results(self, data):
+    def _group_results(self, data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         module_results = self._initialize_module_buckets()
         
         for t in data.get("tests", []):
@@ -276,13 +276,13 @@ class UnitReporter:
             del module_results["Unknown"]
         return module_results
 
-    def _initialize_module_buckets(self):
+    def _initialize_module_buckets(self) -> Dict[str, Dict[str, Any]]:
         all_modules = utils.get_all_modules(self.source_root, self.module_discovery)
-        buckets = {mod: {"total": 0, "pass": 0, "fail": 0, "error": 0, "tests": []} for mod in all_modules}
+        buckets: Dict[str, Dict[str, Any]] = {mod: {"total": 0, "pass": 0, "fail": 0, "error": 0, "tests": []} for mod in all_modules}
         buckets["Unknown"] = {"total": 0, "pass": 0, "fail": 0, "error": 0, "tests": []}
         return buckets
 
-    def _determine_module_for_test(self, test_item):
+    def _determine_module_for_test(self, test_item: Dict[str, Any]) -> str:
         parts = test_item["nodeid"].replace("\\", "/").split("/")
         mod = "Unknown"
         
@@ -297,7 +297,7 @@ class UnitReporter:
             return "Logging"
         return mod
 
-    def _update_module_stats(self, results, mod, test_item):
+    def _update_module_stats(self, results: Dict[str, Dict[str, Any]], mod: str, test_item: Dict[str, Any]) -> None:
         if mod not in results:
             results[mod] = {"total": 0, "pass": 0, "fail": 0, "error": 0, "tests": []}
         

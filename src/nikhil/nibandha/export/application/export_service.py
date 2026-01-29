@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from ..domain.protocols.exporter import ExportFormat
 from ..infrastructure.html_exporter import HTMLExporter
@@ -107,7 +107,7 @@ class ExportService:
         detail_paths: List[Path],
         output_dir: Path,
         formats: List[str],
-        project_info: Optional[dict] = None
+        project_info: Optional[Dict[str, Any]] = None
     ) -> List[Path]:
         """
         Export unified report combining summary and details into single HTML/DOCX.
@@ -127,7 +127,7 @@ class ExportService:
         generated_files = []
         
         # Read and prepare sections
-        sections: List[dict] = []
+        sections: List[Dict[str, Any]] = []
         
         # Add summary
         if summary_path.exists():
@@ -201,7 +201,7 @@ class ExportService:
                     return '\n'.join(lines[i+1:])
         return content
     
-    def _load_metrics_cards(self, detail_path: Path) -> List[dict]:
+    def _load_metrics_cards(self, detail_path: Path) -> List[Dict[str, Any]]:
         """Load metrics cards from corresponding JSON file."""
         # Construct JSON path from detail markdown path
         # detail_path like: output_dir/details/unit_report.md
@@ -230,13 +230,13 @@ class ExportService:
             import json
             with open(json_path, 'r') as f:
                 data = json.load(f)
-                result: List[dict] = data.get("metrics_cards", [])
+                result: List[Dict[str, Any]] = data.get("metrics_cards", [])
                 return result
         except Exception as e:
             logger.warning(f"Failed to load metrics cards from {json_path}: {e}")
             return []
     
-    def _build_unified_markdown(self, sections: List[dict], project_info: Optional[dict] = None) -> str:
+    def _build_unified_markdown(self, sections: List[Dict[str, Any]], project_info: Optional[Dict[str, Any]] = None) -> str:
         """Build unified markdown with proper frontmatter."""
         from datetime import datetime
         

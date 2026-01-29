@@ -4,7 +4,7 @@ import subprocess
 import re
 import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional, TYPE_CHECKING
+from typing import Dict, Any, List, Optional, TYPE_CHECKING, Tuple
 import logging
 from ...shared.domain.grading import Grader
 from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer
@@ -24,10 +24,10 @@ class QualityReporter:
         self, 
         output_dir: Path, 
         templates_dir: Path,
-        template_engine: TemplateEngine = None,
-        viz_provider: VisualizationProvider = None,
-        reference_collector: "ReferenceCollectorProtocol" = None,
-        source_root: Path = None
+        template_engine: Optional[TemplateEngine] = None,
+        viz_provider: Optional[VisualizationProvider] = None,
+        reference_collector: Optional["ReferenceCollectorProtocol"] = None,
+        source_root: Optional[Path] = None
     ):
         self.output_dir = output_dir
         self.templates_dir = templates_dir
@@ -56,7 +56,7 @@ class QualityReporter:
         }
         return results
 
-    def generate(self, results: Dict[str, Any], project_name: str = "Project"):
+    def generate(self, results: Dict[str, Any], project_name: str = "Project") -> None:
         """Generates all quality reports using Template Engine."""
         logger.info("Generating Quality Reports (Architecture, Type Safety, Complexity)")
         # Architecture
@@ -66,7 +66,7 @@ class QualityReporter:
         # Complexity
         self._generate_complexity_report(results["complexity"], project_name)
 
-    def _generate_architecture_report(self, data, project_name="Project"):
+    def _generate_architecture_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
         # Grade Calculation
         status_pass = (data["status"] == "PASS")
         violation_count = 0 if status_pass else 1 # Simple boolean logic for now
@@ -139,14 +139,14 @@ class QualityReporter:
         # 3. Render
         self.template_engine.render("architecture_report_template.md", mapping, self.details_dir / "05_architecture_report.md")
 
-    def _generate_type_safety_report(self, data, project_name="Project"):
+    def _generate_type_safety_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
         # Grade
         total_errors = data["violation_count"]
         grade = Grader.calculate_quality_grade(total_errors)
         data["grade"] = grade
         
         # 1. Visualize
-        enriched_viz_data = {"errors_by_module": {}, "errors_by_category": {}}
+        enriched_viz_data: Dict[str, Any] = {"errors_by_module": {}, "errors_by_category": {}}
         errors_by_module, errors_by_category = self._parse_mypy_output(data["output"])
         enriched_viz_data["errors_by_module"] = errors_by_module
         enriched_viz_data["errors_by_category"] = errors_by_category
@@ -190,7 +190,7 @@ class QualityReporter:
             error_count = errors_by_module.get(module, 0)
             status_icon = "🔴" if error_count > 0 else "🟢"
             module_grade = Grader.calculate_quality_grade(error_count)
-            grade_color = "red" if module_grade in ["D", "F"] else ("orange" if module_grade == "C" else "green")
+            grade_color = Grader.get_grade_color(module_grade)
             module_table += f"| **{module}** | {status_icon} | {error_count} | <span style=\"color:{grade_color}\">{module_grade}</span> |\n"
         
         mapping["module_table"] = module_table
@@ -224,7 +224,7 @@ class QualityReporter:
         # 3. Render
         self.template_engine.render("type_safety_report_template.md", mapping, self.details_dir / "06_type_safety_report.md")
 
-    def _generate_complexity_report(self, data, project_name="Project"):
+    def _generate_complexity_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
         # Get violation count from data (already calculated in run_complexity_check)
         total_violations = data["violation_count"]
         grade = Grader.calculate_quality_grade(total_violations)
@@ -260,7 +260,7 @@ class QualityReporter:
             viol_count = violations_by_module.get(module, 0)
             status_icon = "🔴" if viol_count > 0 else "🟢"
             module_grade = Grader.calculate_quality_grade(viol_count)
-            grade_color = "red" if module_grade in ["D", "F"] else ("orange" if module_grade == "C" else "green")
+            grade_color = Grader.get_grade_color(module_grade)
             module_table += f"| **{module}** | {status_icon} | {viol_count} | <span style=\"color:{grade_color}\">{module_grade}</span> |\n"
         
         mapping["module_table"] = module_table
@@ -297,7 +297,7 @@ class QualityReporter:
             logger.warning(f"Executable {name} not found in PATH or Python bin.")
         return which if which else name
 
-    def _run_command(self, command: List[str], cwd: Path = None) -> (str, str, int):
+    def _run_command(self, command: List[str], cwd: Optional[Path] = None) -> Tuple[str, str, int]:
         try:
             result = subprocess.run(
                 command, capture_output=True, text=True, cwd=cwd or Path.cwd(), encoding='utf-8', errors='replace'
@@ -307,27 +307,27 @@ class QualityReporter:
             logger.error(f"Error running command {command}: {e}")
             return "", str(e), -1
 
-    def _run_architecture_check(self):
+    def _run_architecture_check(self) -> Dict[str, Any]:
         logger.info("Running Architecture Check...")
         cmd = [self._get_executable("lint-imports")]
         stdout, stderr, code = self._run_command(cmd)
         return {"tool": "import-linter", "status": "PASS" if code == 0 else "FAIL", "output": stdout + stderr}
 
-    def _run_type_check(self, target: str):
+    def _run_type_check(self, target: str) -> Dict[str, Any]:
         logger.info("Running Type Check...")
         cmd = [self._get_executable("mypy"), "--strict", target]
         stdout, stderr, code = self._run_command(cmd)
         return {"tool": "mypy", "status": "PASS" if code == 0 else "FAIL", "output": stdout + stderr, "violation_count": stdout.count("error:")}
 
-    def _run_complexity_check(self, target: str):
+    def _run_complexity_check(self, target: str) -> Dict[str, Any]:
         logger.info("Running Complexity Check...")
         cmd = [self._get_executable("ruff"), "check", "--select", "C901", target]
         stdout, stderr, code = self._run_command(cmd)
         return {"tool": "ruff", "status": "PASS" if code == 0 else "FAIL", "output": stdout + stderr, "violation_count": stdout.count("C901")}
 
-    def _parse_mypy_output(self, output):
-        mod_stats = {}
-        cat_stats = {}
+    def _parse_mypy_output(self, output: str) -> Tuple[Dict[str, int], Dict[str, int]]:
+        mod_stats: Dict[str, int] = {}
+        cat_stats: Dict[str, int] = {}
         pattern = re.compile(r"([^:]+):.*error:.*\[([^\]]+)\]")
         for line in output.splitlines():
             if "error:" not in line: continue
@@ -339,9 +339,9 @@ class QualityReporter:
                 cat_stats[match.group(2)] = cat_stats.get(match.group(2), 0) + 1
         return mod_stats, cat_stats
 
-    def _parse_ruff_output(self, output):
+    def _parse_ruff_output(self, output: str) -> Dict[str, int]:
         """Parse ruff C901 complexity output to extract violations per module."""
-        mod_stats = {}
+        mod_stats: Dict[str, int] = {}
         
         for line in output.splitlines():
             # Ruff format: "  --> src/nikhil/nibandha/MODULE/...path.py:244:9"

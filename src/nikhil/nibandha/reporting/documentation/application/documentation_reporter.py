@@ -177,7 +177,7 @@ class DocumentationReporter:
             # Calculate grade based on existence
             coverage = 100 if info["exists"] else 0
             grade = Grader.calculate_unit_grade(coverage, 100)
-            grade_color = "red" if grade in ["D", "F"] else ("orange" if grade == "C" else "green")
+            grade_color = Grader.get_grade_color(grade)
             grade_display = f"<span style=\"color:{grade_color}\">{grade}</span>"
             
             rows += f"| {mod} | {status} | {drift} | {grade_display} |\n"
@@ -197,7 +197,7 @@ class DocumentationReporter:
             if info["unit_exists"]: coverage += 50
             if info["e2e_exists"]: coverage += 50
             grade = Grader.calculate_unit_grade(coverage, 100)
-            grade_color = "red" if grade in ["D", "F"] else ("orange" if grade == "C" else "green")
+            grade_color = Grader.get_grade_color(grade)
             grade_display = f"<span style=\"color:{grade_color}\">{grade}</span>"
             
             rows += f"| {mod} | {unit} | {e2e} | {drift} | {grade_display} |\n"

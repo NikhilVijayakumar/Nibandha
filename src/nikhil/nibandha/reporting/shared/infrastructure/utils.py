@@ -26,7 +26,7 @@ def load_json(path: Path) -> Dict[str, Any]:
         logger.error(f"Error loading {path}: {e}")
         return {}
 
-def parse_outcome(data: dict) -> Tuple[int, int, int]:
+def parse_outcome(data: Dict[str, Any]) -> Tuple[int, int, int]:
     """Returns (passed, failed, total)."""
     summary = data.get("summary", {})
     passed = summary.get("passed", 0)
@@ -118,7 +118,7 @@ def run_pytest(target: str, json_path: Path, cov_target: Optional[str] = None) -
         logger.error(f"Error running pytest: {e}")
         return False
 
-def analyze_coverage(cov_data: dict, package_prefix: Optional[str] = None, known_modules: Optional[List[str]] = None) -> Tuple[Dict[str, float], float]:
+def analyze_coverage(cov_data: Dict[str, Any], package_prefix: Optional[str] = None, known_modules: Optional[List[str]] = None) -> Tuple[Dict[str, float], float]:
     """Analyze coverage json."""
     if not cov_data:
         return {}, 0.0
@@ -173,7 +173,7 @@ def _resolve_module_name(fpath: str, known_modules: List[str], package_prefix: s
         
     return None
 
-def _calculate_coverage_results(mod_stats: Dict, totals: Dict) -> Tuple[Dict[str, float], float]:
+def _calculate_coverage_results(mod_stats: Dict[str, Any], totals: Dict[str, Any]) -> Tuple[Dict[str, float], float]:
     results = {}
     total_hits = 0
     total_lines = 0

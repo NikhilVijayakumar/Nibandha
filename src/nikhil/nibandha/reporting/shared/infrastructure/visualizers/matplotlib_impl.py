@@ -5,13 +5,13 @@ from typing import Dict, Any, List, Optional, Tuple
 # Optional dependencies
 try:
     import seaborn as sns # type: ignore
-    import matplotlib.pyplot as plt # type: ignore
+    import matplotlib.pyplot as plt
     import pandas as pd # type: ignore
-    import numpy as np # type: ignore
+    import numpy as np
 except ImportError:
-    sns = None # type: ignore
+    sns = None
     plt = None # type: ignore
-    pd = None # type: ignore
+    pd = None
     np = None # type: ignore
 
 try:

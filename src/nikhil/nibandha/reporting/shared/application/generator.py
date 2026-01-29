@@ -302,7 +302,7 @@ class ReportGenerator:
         
         self._cleanup_individual_exports()
     
-    def _extract_project_info(self) -> dict:
+    def _extract_project_info(self) -> Dict[str, Any]:
         data_path = self.output_dir / "assets" / "data" / "summary_data.json"
         if data_path.exists():
             try:

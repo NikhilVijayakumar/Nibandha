@@ -276,7 +276,8 @@ class SummaryDataBuilder:
         overall = "🟢 HEALTHY"
         if actions: overall = "🟡 NEEDS ATTENTION"
         
-        is_crit = lambda s: "FAIL" in str(s)
+        def is_crit(s: Any) -> bool:
+            return "FAIL" in str(s)
         if is_crit(u["status"]) or is_crit(e["status"]) or is_crit(q["arch"].get("status")):
              overall = "🔴 CRITICAL"
              
