@@ -1,5 +1,5 @@
 import logging
-import yaml
+import yaml # type: ignore
 import traceback
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -62,7 +62,7 @@ class VerificationService:
         logger.info(f"=== Verification Complete. Overall Status: {'SUCCESS' if success else 'FAIL'} ===")
         return success
 
-    def _setup_logging(self, app_name: str, log_dir: Optional[str], config_dir: Optional[str], report_dir: Optional[str] = None):
+    def _setup_logging(self, app_name: str, log_dir: Optional[str], config_dir: Optional[str], report_dir: Optional[str] = None) -> None:
         logger.info("1. Initializing Nibandha Logging System...")
         
         # Default config path if not provided
@@ -100,7 +100,7 @@ class VerificationService:
         # This message will go to the file AND console if configured
         logger.info(f"Nibandha initialized. Log file: {self.app.current_log_file}")
 
-    def _setup_reporting(self, report_dir: Optional[str], template_dir: Optional[str], viz_provider):
+    def _setup_reporting(self, report_dir: Optional[str], template_dir: Optional[str], viz_provider: Optional[Any]) -> None:
         logger.info("2. Initializing Report Generator...")
         
         # Determine output dir
@@ -108,7 +108,7 @@ class VerificationService:
         # But ReportGenerator needs explicit output_dir if defaulting.
         # nb.report_dir defaults to .Nibandha/App/Report.
         
-        out_dir = str(self.app.report_dir) if self.app else report_dir
+        out_dir = str(self.app.config.report_dir) if self.app and self.app.config.report_dir else report_dir
         
         self.generator = ReportGenerator(
             output_dir=out_dir,
@@ -117,18 +117,26 @@ class VerificationService:
         )
         logger.info(f"Report Output Directory: {self.generator.output_dir}")
 
-    def _generate_reports(self, unit, e2e, pkg):
+    def _generate_reports(self, unit: str, e2e: str, pkg: str) -> None:
         logger.info("3. Generating Reports...")
+        if not self.generator:
+             logger.error("Report generator not initialized")
+             return
+
         self.generator.generate_all(
             unit_target=unit,
             e2e_target=e2e,
-            package_target=pkg,
+            quality_target=pkg,
             project_root=str(self.project_root)
         )
         logger.info("Generation routine completed.")
 
     def _verify_artifacts(self) -> bool:
         logger.info("4. Verifying Artifacts...")
+        if not self.generator:
+            logger.error("Report generator not initialized")
+            return False
+
         base = self.generator.output_dir
         
         expected = [

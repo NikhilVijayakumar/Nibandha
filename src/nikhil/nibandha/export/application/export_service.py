@@ -15,7 +15,7 @@ class ExportService:
     Handles dependencies between formats (e.g., DOCX requires HTML).
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.html_exporter = HTMLExporter()
         self.docx_exporter = DOCXExporter()
         self.dashboard_exporter = ModernDashboardExporter()
@@ -107,7 +107,7 @@ class ExportService:
         detail_paths: List[Path],
         output_dir: Path,
         formats: List[str],
-        project_info: dict = None
+        project_info: Optional[dict] = None
     ) -> List[Path]:
         """
         Export unified report combining summary and details into single HTML/DOCX.
@@ -127,7 +127,7 @@ class ExportService:
         generated_files = []
         
         # Read and prepare sections
-        sections = []
+        sections: List[dict] = []
         
         # Add summary
         if summary_path.exists():
@@ -227,14 +227,16 @@ class ExportService:
         
         try:
             import json
+            import json
             with open(json_path, 'r') as f:
                 data = json.load(f)
-                return data.get("metrics_cards", [])
+                result: List[dict] = data.get("metrics_cards", [])
+                return result
         except Exception as e:
             logger.warning(f"Failed to load metrics cards from {json_path}: {e}")
             return []
     
-    def _build_unified_markdown(self, sections: List[dict], project_info: dict = None) -> str:
+    def _build_unified_markdown(self, sections: List[dict], project_info: Optional[dict] = None) -> str:
         """Build unified markdown with proper frontmatter."""
         from datetime import datetime
         

@@ -3,7 +3,7 @@ Modern tab-based HTML exporter for unified reports.
 Creates interactive dashboard-style HTML with navigation tabs.
 """
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 import markdown2
 import logging
 
@@ -17,7 +17,7 @@ class TabBasedHTMLExporter:
         self,
         markdown_sections: List[Dict[str, str]],
         output_path: Path,
-        project_info: Dict[str, str] = None
+        project_info: Optional[Dict[str, str]] = None
     ) -> Path:
         """
         Export markdown sections to tab-based HTML.
@@ -69,8 +69,8 @@ class TabBasedHTMLExporter:
     
     def _build_html_document(
         self, 
-        sections: List[Dict], 
-        project_info: Dict
+        sections: List[Dict[str, str]], 
+        project_info: Dict[str, str]
     ) -> str:
         """Build complete HTML document with tabs."""
         

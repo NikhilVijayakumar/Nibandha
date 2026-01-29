@@ -3,7 +3,7 @@ Modern sidebar-based HTML dashboard exporter.
 Replaces tab-based layout with sidebar + card-based metrics dashboard.
 """
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional, Any
 import markdown2
 import logging
 
@@ -15,9 +15,9 @@ class ModernDashboardExporter:
     
     def export(
         self,
-        markdown_sections: List[Dict[str, str]],
+        markdown_sections: List[Dict[str, Any]],
         output_path: Path,
-        project_info: Dict[str, str] = None
+        project_info: Optional[Dict[str, str]] = None
     ) -> Path:
         """
         Export markdown sections to modern dashboard HTML.
@@ -71,8 +71,8 @@ class ModernDashboardExporter:
     
     def _build_html_document(
         self, 
-        sections: List[Dict], 
-        project_info: Dict
+        sections: List[Dict[str, Any]], 
+        project_info: Dict[str, str]
     ) -> str:
         """Build complete HTML document with sidebar and cards."""
         

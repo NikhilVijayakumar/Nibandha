@@ -2,7 +2,7 @@
 import logging
 import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, List
 
 from ...unit.application import unit_reporter
 from ...e2e.application import e2e_reporter
@@ -56,7 +56,7 @@ class ReportGenerator:
         # 6. Initialize Export Service
         self._initialize_export_service(config)
 
-    def _resolve_configuration(self, config, output_dir, template_dir, docs_dir):
+    def _resolve_configuration(self, config: Optional[Any], output_dir: Optional[str], template_dir: Optional[str], docs_dir: str) -> None:
         self.config = config
         self.module_discovery = None
         self.unit_target_default = "tests/unit"
@@ -76,29 +76,29 @@ class ReportGenerator:
             self.docs_dir = Path(docs_dir).resolve()
             self.templates_dir = Path(template_dir).resolve() if template_dir else self.default_templates_dir
 
-    def _configure_from_app_config(self, config):
+    def _configure_from_app_config(self, config: "AppConfig") -> None:
         raw_out = config.report_dir or ".Nibandha/Report"
         self.output_dir = Path(raw_out).resolve()
         self.docs_dir = Path("docs/test").resolve()
         self.templates_dir = self.default_templates_dir
         self.project_name = config.name
 
-    def _configure_from_reporting_config(self, config):
+    def _configure_from_reporting_config(self, config: "ReportingConfig") -> None:
         self.output_dir = config.output_dir
         self.docs_dir = config.docs_dir
         self.templates_dir = config.template_dir or self.default_templates_dir
-        self.module_discovery = config.module_discovery
+        self.module_discovery = config.module_discovery # type: ignore
         self.project_name = config.project_name
         self.quality_target_default = config.quality_target
-        self.package_roots_default = config.package_roots if config.package_roots else None
+        self.package_roots_default = config.package_roots if config.package_roots else None # type: ignore
 
-    def _setup_template_engine(self):
+    def _setup_template_engine(self) -> None:
         if self.templates_dir != self.default_templates_dir:
              self.template_engine = TemplateEngine(self.templates_dir, defaults_dir=self.default_templates_dir)
         else:
              self.template_engine = TemplateEngine(self.templates_dir)
 
-    def _determine_source_root(self):
+    def _determine_source_root(self) -> Path:
         if self.quality_target_default and self.quality_target_default != "src":
              return Path(self.quality_target_default).resolve()
         elif self.module_discovery:
@@ -112,7 +112,7 @@ class ReportGenerator:
                  return candidate
         return base_src
 
-    def _initialize_reporters(self, source_root):
+    def _initialize_reporters(self, source_root: Path) -> None:
         self.intro_reporter = introduction_reporter.IntroductionReporter(
             self.output_dir, self.templates_dir, self.template_engine
         )
@@ -141,7 +141,7 @@ class ReportGenerator:
         )
         self._initialize_doc_reporter(source_root)
 
-    def _initialize_doc_reporter(self, source_root):
+    def _initialize_doc_reporter(self, source_root: Path) -> None:
         doc_paths = {
             "functional": Path("docs/modules"), 
             "technical": Path("docs/technical"), 
@@ -156,7 +156,7 @@ class ReportGenerator:
             self.module_discovery, source_root, self.reference_collector
         )
 
-    def _initialize_export_service(self, config):
+    def _initialize_export_service(self, config: Optional[Any]) -> None:
         self.export_formats = ["md"]
         if config and isinstance(config, ReportingConfig):
             self.export_formats = config.export_formats
@@ -170,11 +170,11 @@ class ReportGenerator:
                  logger.warning(f"Failed to init ExportService: {e}")
 
     def generate_all(self, 
-                     unit_target: str = None, 
-                     e2e_target: str = None, 
-                     quality_target: str = None,
-                     project_root: str = None
-                    ):
+                     unit_target: Optional[str] = None, 
+                     e2e_target: Optional[str] = None, 
+                     quality_target: Optional[str] = None,
+                     project_root: Optional[str] = None
+                    ) -> None:
         """Run all tests and checks and generate unified report."""
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         logger.info(f"Starting unified report generation at {timestamp}")
@@ -253,7 +253,7 @@ class ReportGenerator:
 
         logger.info("Report generation complete.")
         
-    def _export_reports(self):
+    def _export_reports(self) -> None:
         """Export all generated reports in strict order."""
         if not self.export_service:
             return
@@ -318,11 +318,11 @@ class ReportGenerator:
                 logger.warning(f"Failed to load summary data: {e}")
         return {"name": self.project_name, "grade": "N/A", "status": "Complete"}
     
-    def _cleanup_individual_exports(self):
+    def _cleanup_individual_exports(self) -> None:
         logger.info("Cleaning up output dir exports...")
         pass 
 
-    def _generate_global_references(self, timestamp: str):
+    def _generate_global_references(self, timestamp: str) -> None:
         logger.info("Generating global references document")
         references = self.reference_collector.get_all_references()
         data = {
@@ -336,7 +336,7 @@ class ReportGenerator:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         self.template_engine.render("global_references_template.md", data, output_path)
         
-    def run_unit_Tests(self, target: str, timestamp: str) -> Dict:
+    def run_unit_Tests(self, target: str, timestamp: str) -> Dict[str, Any]:
         logger.info(f"Running unit tests on target: {target}")
         json_path = self.output_dir / "assets" / "data" / "unit.json"
         json_path.parent.mkdir(parents=True, exist_ok=True)
@@ -355,7 +355,7 @@ class ReportGenerator:
         cov_data = utils.load_json(Path("coverage.json"))
         return self.unit_reporter.generate(data, cov_data, timestamp, project_name=self.project_name) or {}
         
-    def run_e2e_Tests(self, target: str, timestamp: str) -> Dict:
+    def run_e2e_Tests(self, target: str, timestamp: str) -> Dict[str, Any]:
         logger.info(f"Running E2E tests on target: {target}")
         json_path = self.output_dir / "assets" / "data" / "e2e.json"
         json_path.parent.mkdir(parents=True, exist_ok=True)
@@ -364,16 +364,16 @@ class ReportGenerator:
         data = utils.load_json(json_path)
         return self.e2e_reporter.generate(data, timestamp, project_name=self.project_name) or {}
 
-    def run_quality_checks(self, target_package: str) -> Dict:
+    def run_quality_checks(self, target_package: str) -> Dict[str, Any]:
         logger.info(f"Running quality checks on package: {target_package}")
         results = self.quality_reporter.run_checks(target_package)
         self.quality_reporter.generate(results, project_name=self.project_name)
         return results
 
-    def run_dependency_checks(self, source_root: Path, package_roots: list = None) -> Dict:
+    def run_dependency_checks(self, source_root: Path, package_roots: Optional[List[str]] = None) -> Dict[str, Any]:
         logger.info(f"Running dependency checks on source: {source_root}")
         return self.dep_reporter.generate(source_root, package_roots, project_name=self.project_name)
 
-    def run_package_checks(self, project_root: Path) -> Dict:
+    def run_package_checks(self, project_root: Path) -> Dict[str, Any]:
         logger.info(f"Running package checks on project: {project_root}")
         return self.pkg_reporter.generate(project_root, project_name=self.project_name)

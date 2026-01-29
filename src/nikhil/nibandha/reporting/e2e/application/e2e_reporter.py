@@ -25,9 +25,9 @@ class E2EReporter:
         docs_dir: Path,
         template_engine: TemplateEngine = None,
         viz_provider: VisualizationProvider = None,
-        module_discovery: "ModuleDiscoveryProtocol" = None,
-        source_root: Path = None,
-        reference_collector: "ReferenceCollectorProtocol" = None
+        module_discovery: Optional["ModuleDiscoveryProtocol"] = None,
+        source_root: Optional[Path] = None,
+        reference_collector: Optional["ReferenceCollectorProtocol"] = None
     ):
         self.output_dir = output_dir
         self.templates_dir = templates_dir

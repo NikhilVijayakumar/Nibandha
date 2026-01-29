@@ -20,11 +20,11 @@ class DocumentationReporter:
         output_dir: Path, 
         templates_dir: Path,
         doc_paths: Dict[str, Path],
-        template_engine: TemplateEngine = None,
-        viz_provider: VisualizationProvider = None,
-        module_discovery: "ModuleDiscoveryProtocol" = None,
-        source_root: Path = None,
-        reference_collector: "ReferenceCollectorProtocol" = None
+        template_engine: Optional[TemplateEngine] = None,
+        viz_provider: Optional[VisualizationProvider] = None,
+        module_discovery: Optional["ModuleDiscoveryProtocol"] = None,
+        source_root: Optional[Path] = None,
+        reference_collector: Optional["ReferenceCollectorProtocol"] = None
     ):
         self.output_dir = output_dir
         self.templates_dir = templates_dir
@@ -44,7 +44,7 @@ class DocumentationReporter:
         self.module_discovery = module_discovery
         self.source_root = source_root
         
-    def generate(self, project_root: Path, project_name: str = "Project"):
+    def generate(self, project_root: Path, project_name: str = "Project") -> Dict[str, Any]:
         """Generates the documentation report."""
         logger.info("Generating Documentation Report...")
         
@@ -72,7 +72,7 @@ class DocumentationReporter:
         
         return all_data
 
-    def _render_report(self, data, charts, project_name="Project"):
+    def _render_report(self, data: Dict[str, Any], charts: Dict[str, str], project_name: str ="Project") -> None:
         func = data["functional"]
         tech = data["technical"]
         test = data["test"]
@@ -145,12 +145,12 @@ class DocumentationReporter:
         
         self.template_engine.render("documentation_report_template.md", mapping, self.details_dir / "10_documentation_report.md")
 
-    def _calc_pct(self, section_data):
+    def _calc_pct(self, section_data: Dict[str, Any]) -> float:
         stats = section_data["stats"]
         total = stats["documented"] + stats["missing"]
         return (stats["documented"] / total * 100) if total > 0 else 0
 
-    def _render_charts_section(self, charts):
+    def _render_charts_section(self, charts: Dict[str, str]) -> str:
         md = ""
         if charts and "doc_coverage" in charts:
             rel_cov = Path(charts['doc_coverage']).name
@@ -165,7 +165,7 @@ class DocumentationReporter:
                 md += f"![**Figure 2:** Documentation drift analysis]({img_base}/{rel_drift})\n"
         return md
 
-    def _build_doc_table(self, data):
+    def _build_doc_table(self, data: Dict[str, Any]) -> str:
         """Build documentation table with grades per module."""
         rows = ""
         for mod, info in data["modules"].items():
@@ -183,7 +183,7 @@ class DocumentationReporter:
             rows += f"| {mod} | {status} | {drift} | {grade_display} |\n"
         return rows
 
-    def _build_test_table(self, data):
+    def _build_test_table(self, data: Dict[str, Any]) -> str:
         """Build test documentation table with grades per module."""
         rows = ""
         for mod, info in data["modules"].items():
@@ -203,7 +203,7 @@ class DocumentationReporter:
             rows += f"| {mod} | {unit} | {e2e} | {drift} | {grade_display} |\n"
         return rows
         
-    def _build_missing_section(self, data):
+    def _build_missing_section(self, data: Dict[str, Any]) -> str:
         missing = []
         for cat in ["functional", "technical", "test"]:
              for mod, info in data[cat]["modules"].items():
@@ -217,7 +217,7 @@ class DocumentationReporter:
             return "All modules are documented! 🎉"
         return ", ".join(missing)
 
-    def _check_functional(self, root, modules):
+    def _check_functional(self, root: Path, modules: List[str]) -> Dict[str, Any]:
         results = {}
         documented = 0
         missing = 0
@@ -240,7 +240,7 @@ class DocumentationReporter:
         
         return {"stats": {"documented": documented, "missing": missing}, "modules": results, "drift_map": drift_map}
 
-    def _check_technical(self, root, modules):
+    def _check_technical(self, root: Path, modules: List[str]) -> Dict[str, Any]:
         results = {}
         documented = 0
         missing = 0
@@ -262,7 +262,7 @@ class DocumentationReporter:
         
         return {"stats": {"documented": documented, "missing": missing}, "modules": results, "drift_map": drift_map}
 
-    def _check_test(self, root, modules):
+    def _check_test(self, root: Path, modules: List[str]) -> Dict[str, Any]:
         results = {}
         documented = 0
         missing = 0
@@ -280,13 +280,13 @@ class DocumentationReporter:
             unit_exists = unit_path.exists() or unit_path_alt.exists()
             e2e_exists = e2e_path.exists() or e2e_path_alt.exists()
             
-            unit_ts = 0
+            unit_ts = 0.0
             if unit_exists:
-                unit_ts = unit_path.stat().st_mtime if unit_path.exists() else unit_path_alt.stat().st_mtime
+                unit_ts = float(unit_path.stat().st_mtime if unit_path.exists() else unit_path_alt.stat().st_mtime)
             
-            e2e_ts = 0
+            e2e_ts = 0.0
             if e2e_exists:
-                e2e_ts = e2e_path.stat().st_mtime if e2e_path.exists() else e2e_path_alt.stat().st_mtime
+                e2e_ts = float(e2e_path.stat().st_mtime if e2e_path.exists() else e2e_path_alt.stat().st_mtime)
             
             exists = unit_exists or e2e_exists
             if exists: documented += 1
@@ -302,12 +302,12 @@ class DocumentationReporter:
             
         return {"stats": {"documented": documented, "missing": missing}, "modules": results, "drift_map": drift_map}
 
-    def _scan_generic(self, root, modules, base_path, suffix, is_dir=False):
+    def _scan_generic(self, root: Path, modules: List[str], base_path: Path, suffix: str, is_dir: bool = False) -> None:
         # ... logic as before (not verified used in Generate but seems helper)
         # keeping implementation simple to mirror original
         pass # Skipping re-implementation as it's cleaner to stick to generate logic
 
-    def _get_code_timestamp(self, root, mod_name):
+    def _get_code_timestamp(self, root: Path, mod_name: str) -> float:
         mod_path = (self.source_root or root / "src") / mod_name.lower()
         if not mod_path.exists(): 
              # Fallback to older default if self.source_root not set/found
@@ -315,15 +315,15 @@ class DocumentationReporter:
         if not mod_path.exists(): return datetime.datetime.now().timestamp()
         return self._get_dir_timestamp(mod_path)
 
-    def _get_dir_timestamp(self, path):
-        if not path.exists(): return 0
-        latest = 0
+    def _get_dir_timestamp(self, path: Path) -> float:
+        if not path.exists(): return 0.0
+        latest = 0.0
         for p in path.rglob("*"):
             if p.is_file():
-                latest = max(latest, p.stat().st_mtime)
+                latest = max(latest, float(p.stat().st_mtime))
         return latest
 
-    def _calc_drift_days(self, doc_ts, code_ts):
+    def _calc_drift_days(self, doc_ts: float, code_ts: float) -> int:
         if doc_ts >= code_ts: return 0 
         diff = code_ts - doc_ts
         return int(diff / 86400)

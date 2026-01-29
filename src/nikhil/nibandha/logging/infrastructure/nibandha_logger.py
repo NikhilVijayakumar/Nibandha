@@ -22,7 +22,7 @@ class NibandhaLogger:
             
         self._setup_handlers()
 
-    def _setup_handlers(self):
+    def _setup_handlers(self) -> None:
         formatter = logging.Formatter(
             '%(asctime)s | %(levelname)s | [%(name)s] | %(message)s'
         )

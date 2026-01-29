@@ -57,7 +57,7 @@ class TemplateEngine:
         
         return content
     
-    def save_data(self, data: Dict[str, Any], data_path: Path):
+    def save_data(self, data: Dict[str, Any], data_path: Path) -> None:
         """
         Save report data as JSON for reference and debugging.
         

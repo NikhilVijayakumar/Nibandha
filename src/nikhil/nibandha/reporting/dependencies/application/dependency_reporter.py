@@ -1,7 +1,7 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, List, Optional, TYPE_CHECKING
+from typing import Dict, Any, List, Optional, TYPE_CHECKING, Tuple
 from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer
 from ...shared.infrastructure import utils
 from ...dependencies.infrastructure.analysis.module_scanner import ModuleScanner
@@ -19,8 +19,8 @@ class DependencyReporter:
         self, 
         output_dir: Path, 
         templates_dir: Path,
-        template_engine: TemplateEngine = None,
-        reference_collector: "ReferenceCollectorProtocol" = None
+        template_engine: Optional[TemplateEngine] = None,
+        reference_collector: Optional["ReferenceCollectorProtocol"] = None
     ):
         self.output_dir = output_dir
         self.templates_dir = templates_dir
@@ -32,7 +32,7 @@ class DependencyReporter:
         self.template_engine = template_engine or TemplateEngine(templates_dir)
         self.reference_collector = reference_collector
 
-    def generate(self, source_root: Path, package_roots: List[str] = None, project_name: str = "Project") -> Dict:
+    def generate(self, source_root: Path, package_roots: Optional[List[str]] = None, project_name: str = "Project") -> Dict[str, Any]:
         """Generates module dependency report."""
         logger.info(f"Scanning dependencies in {source_root}...")
         
@@ -62,7 +62,7 @@ class DependencyReporter:
             "circular_count": len(circular_deps)
         }
 
-    def _generate_report(self, dependencies, circular, most_imported, most_dependent, isolated, project_name="Project"):
+    def _generate_report(self, dependencies: Dict[str, Any], circular: List[Any], most_imported: List[Any], most_dependent: List[Any], isolated: List[str], project_name: str = "Project") -> None:
         # Calculate Metrics & Grades
         module_grades = self._calculate_module_grades(dependencies, circular)
         
@@ -79,7 +79,7 @@ class DependencyReporter:
         
         self.template_engine.render("module_dependency_template.md", mapping, self.report_dir / "08_module_dependency_report.md")
 
-    def _calculate_module_grades(self, dependencies, circular_pairs):
+    def _calculate_module_grades(self, dependencies: Dict[str, Any], circular_pairs: List[Any]) -> List[Dict[str, Any]]:
         module_grades = []
         circular_modules = {a for pair in circular_pairs for a in pair}
         
@@ -90,7 +90,7 @@ class DependencyReporter:
             f_in = fan_in.get(mod, 0)
             
             grade, reason = self._determine_grade(mod, f_out, circular_modules)
-            color = Grader.get_grade_color(grade)
+            color = Grader.get_grade_color(grade) # type: ignore
             grade_html = f'<span style="color:{color}; font-weight:bold">{grade}</span>'
             
             module_grades.append({
@@ -101,7 +101,7 @@ class DependencyReporter:
         module_grades.sort(key=lambda x: (x["grade"], x["name"]))
         return module_grades
 
-    def _calculate_fan_in(self, dependencies):
+    def _calculate_fan_in(self, dependencies: Dict[str, Any]) -> Dict[str, int]:
         fan_in = {}
         for mod, deps in dependencies.items():
             if mod not in fan_in: fan_in[mod] = 0
@@ -109,7 +109,7 @@ class DependencyReporter:
                 fan_in[dep] = fan_in.get(dep, 0) + 1
         return fan_in
 
-    def _determine_grade(self, mod, f_out, circular_modules):
+    def _determine_grade(self, mod: str, f_out: int, circular_modules: Any) -> Tuple[str, str]:
         if mod in circular_modules:
             return "F", "Circular Dependency"
         elif f_out > 12:
@@ -120,7 +120,7 @@ class DependencyReporter:
             return "B", "Low Coupling (4-7)"
         return "A", "Clean"
 
-    def _prepare_report_data(self, dependencies, circular, isolated, most_imported, most_dependent, module_grades, project_name):
+    def _prepare_report_data(self, dependencies: Dict[str, Any], circular: List[Any], isolated: List[str], most_imported: List[Any], most_dependent: List[Any], module_grades: List[Dict[str, Any]], project_name: str) -> Dict[str, Any]:
         import datetime
         
         grade = Grader.calculate_dependency_grade(len(circular))
@@ -161,7 +161,8 @@ class DependencyReporter:
             "project_name": project_name
         }
 
-    def _register_references(self):
+    def _register_references(self) -> None:
+        if not self.reference_collector: return
         self.reference_collector.add_figure(FigureReference(
             id="fig-module-deps",
             title="Module dependency graph",

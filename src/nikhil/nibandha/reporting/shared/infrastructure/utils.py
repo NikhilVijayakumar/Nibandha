@@ -3,7 +3,7 @@ import shutil
 import sys
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, TYPE_CHECKING
+from typing import Dict, List, Tuple, Optional, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..domain.protocols.module_discovery import ModuleDiscoveryProtocol
@@ -14,13 +14,14 @@ if TYPE_CHECKING:
 import logging
 logger = logging.getLogger("nibandha.reporting")
 
-def load_json(path: Path) -> dict:
+def load_json(path: Path) -> Dict[str, Any]:
     """Safe JSON load."""
     if not path.exists():
         return {}
     try:
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data: Dict[str, Any] = json.load(f)
+            return data
     except Exception as e:
         logger.error(f"Error loading {path}: {e}")
         return {}
@@ -46,8 +47,8 @@ def get_module_doc(docs_dir: Path, module_name: str, report_type: str = "unit") 
     return "*No documentation found for this module.*"
 
 def get_all_modules(
-    source_root: Path = None,
-    discovery: "ModuleDiscoveryProtocol" = None
+    source_root: Optional[Path] = None,
+    discovery: Optional["ModuleDiscoveryProtocol"] = None
 ) -> List[str]:
     """
     Discover modules using provided protocol or default logic.
@@ -88,7 +89,7 @@ def get_all_modules(
         logger.error(f"Error finding modules: {e}")
         return []
 
-def run_pytest(target: str, json_path: Path, cov_target: str = None) -> bool:
+def run_pytest(target: str, json_path: Path, cov_target: Optional[str] = None) -> bool:
     """
     Run pytest and save to json_path.
     Returns True if execution finished (regardless of test failures), False on crash.
@@ -117,7 +118,7 @@ def run_pytest(target: str, json_path: Path, cov_target: str = None) -> bool:
         logger.error(f"Error running pytest: {e}")
         return False
 
-def analyze_coverage(cov_data: dict, package_prefix: str = None, known_modules: List[str] = None) -> Tuple[Dict[str, float], float]:
+def analyze_coverage(cov_data: dict, package_prefix: Optional[str] = None, known_modules: Optional[List[str]] = None) -> Tuple[Dict[str, float], float]:
     """Analyze coverage json."""
     if not cov_data:
         return {}, 0.0
@@ -131,7 +132,7 @@ def analyze_coverage(cov_data: dict, package_prefix: str = None, known_modules: 
 
     for fpath, stats in files.items():
         fpath = fpath.replace("\\", "/")
-        mod_name = _resolve_module_name(fpath, known_modules, package_prefix)
+        mod_name = _resolve_module_name(fpath, known_modules or [], package_prefix)
         
         if not mod_name: 
              logger.debug(f"Coverage mismatch for: {fpath} (Known: {known_modules})")
@@ -192,7 +193,7 @@ def _calculate_coverage_results(mod_stats: Dict, totals: Dict) -> Tuple[Dict[str
             
     return results, total_pct
 
-def save_report(path: Path, content: str):
+def save_report(path: Path, content: str) -> None:
     """Saves content to path."""
     path.parent.mkdir(parents=True, exist_ok=True)
     try:

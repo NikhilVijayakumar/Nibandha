@@ -1,40 +1,41 @@
 import logging
 from pathlib import Path
+from typing import Dict, Any, List, Optional, Tuple
 
 # Optional dependencies
 try:
-    import seaborn as sns
-    import matplotlib.pyplot as plt
-    import pandas as pd
-    import numpy as np
+    import seaborn as sns # type: ignore
+    import matplotlib.pyplot as plt # type: ignore
+    import pandas as pd # type: ignore
+    import numpy as np # type: ignore
 except ImportError:
-    sns = None
-    plt = None
-    pd = None
-    np = None
+    sns = None # type: ignore
+    plt = None # type: ignore
+    pd = None # type: ignore
+    np = None # type: ignore
 
 try:
-    import networkx as nx
+    import networkx as nx # type: ignore
     HAS_NETWORKX = True
 except ImportError:
     HAS_NETWORKX = False
 
 logger = logging.getLogger("nibandha.reporting")
 
-def _check_dependencies():
+def _check_dependencies() -> bool:
     if not (sns and plt and pd):
         logger.warning("Visualization libraries (seaborn, matplotlib, pandas) not installed. Skipping plots.")
         return False
     return True
 
-def setup_style():
+def setup_style() -> None:
     """Set the aesthetic style of the plots."""
     if not _check_dependencies(): return
     sns.set_theme(style="whitegrid")
     plt.rcParams["figure.figsize"] = (10, 6)
     plt.rcParams["font.size"] = 12
 
-def plot_module_outcomes(module_data, output_path: Path):
+def plot_module_outcomes(module_data: Dict[str, Any], output_path: Path) -> None:
     """Generate a stacked bar chart of Pass/Fail/Error counts per module."""
     if not _check_dependencies(): return
     setup_style()
@@ -72,7 +73,7 @@ def plot_module_outcomes(module_data, output_path: Path):
         logger.debug(f"Saved plot: {output_path}")
     plt.close()
 
-def plot_coverage(module_data, output_path: Path):
+def plot_coverage(module_data: Dict[str, float], output_path: Path) -> None:
     """Generate a bar chart for coverage percentage per module."""
     if not _check_dependencies(): return
     setup_style()
@@ -101,7 +102,7 @@ def plot_coverage(module_data, output_path: Path):
     logger.debug(f"Saved plot: {output_path}")
     plt.close()
 
-def plot_test_duration_distribution(test_durations, output_path: Path):
+def plot_test_duration_distribution(test_durations: List[float], output_path: Path) -> None:
     """Generate a histogram of test durations."""
     if not _check_dependencies(): return
     setup_style()
@@ -117,7 +118,7 @@ def plot_test_duration_distribution(test_durations, output_path: Path):
     plt.savefig(output_path, dpi=100)
     plt.close()
 
-def plot_e2e_outcome(counts, output_path: Path):
+def plot_e2e_outcome(counts: Dict[str, int], output_path: Path) -> None:
     """Generate a pie chart for E2E outcomes."""
     if not _check_dependencies(): return
     setup_style()
@@ -143,7 +144,7 @@ def plot_e2e_outcome(counts, output_path: Path):
     logger.debug(f"Saved plot: {output_path}")
     plt.close()
 
-def plot_e2e_durations(scenarios, output_path: Path):
+def plot_e2e_durations(scenarios: List[Dict[str, Any]], output_path: Path) -> None:
     """Bar chart of duration per scenario."""
     if not _check_dependencies(): return
     setup_style()
@@ -161,7 +162,7 @@ def plot_e2e_durations(scenarios, output_path: Path):
     plt.savefig(output_path, dpi=100)
     plt.close()
 
-def plot_type_errors_by_module(module_errors, output_path: Path):
+def plot_type_errors_by_module(module_errors: Dict[str, Any], output_path: Path) -> None:
     """Generate a bar chart showing type errors per module."""
     if not _check_dependencies(): return
     setup_style()
@@ -189,7 +190,7 @@ def plot_type_errors_by_module(module_errors, output_path: Path):
     plt.savefig(output_path, dpi=100)
     plt.close()
 
-def plot_error_categories(category_stats, output_path: Path):
+def plot_error_categories(category_stats: Dict[str, int], output_path: Path) -> None:
     """Generate a pie chart showing error distribution by category."""
     if not _check_dependencies(): return
     setup_style()
@@ -205,7 +206,7 @@ def plot_error_categories(category_stats, output_path: Path):
     
     labels = list(top_cats.keys())
     sizes = list(top_cats.values())
-    colors = plt.cm.Set3(range(len(labels)))
+    colors = plt.cm.Set3(range(len(labels))) # type: ignore
     
     plt.figure(figsize=(10, 8))
     plt.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
@@ -214,7 +215,7 @@ def plot_error_categories(category_stats, output_path: Path):
     plt.savefig(output_path, dpi=100)
     plt.close()
 
-def plot_complexity_distribution(complexity_violations, output_path: Path):
+def plot_complexity_distribution(complexity_violations: Dict[str, int], output_path: Path) -> None:
     """Generate visualization for complexity violations."""
     if not _check_dependencies(): return
     setup_style()
@@ -242,7 +243,7 @@ def plot_complexity_distribution(complexity_violations, output_path: Path):
     plt.savefig(output_path, dpi=100)
     plt.close()
 
-def plot_architecture_status(status, output_path: Path):
+def plot_architecture_status(status: str, output_path: Path) -> None:
     """Generate a simple status indicator for architecture."""
     if not _check_dependencies(): return
     setup_style()
@@ -263,7 +264,7 @@ def plot_architecture_status(status, output_path: Path):
     plt.savefig(output_path, dpi=100)
     plt.close()
 
-def plot_dependency_graph(dependencies, output_path: Path, circular_deps=None):
+def plot_dependency_graph(dependencies: Dict[str, Any], output_path: Path, circular_deps: Optional[List[Any]] = None) -> None:
     """Generate a visual dependency graph."""
     if not _check_dependencies(): return
     if not HAS_NETWORKX:
@@ -294,20 +295,20 @@ def plot_dependency_graph(dependencies, output_path: Path, circular_deps=None):
     logger.debug(f"Saved plot: {output_path}")
     plt.close()
 
-def _save_fallback_graph_image(output_path: Path):
+def _save_fallback_graph_image(output_path: Path) -> None:
     plt.figure(figsize=(12, 8))
     plt.text(0.5, 0.5, "Graph Visualization requires 'networkx'", ha='center', va='center', fontsize=14)
     plt.axis('off')
     plt.savefig(output_path)
     plt.close()
 
-def _calculate_graph_layout(G):
+def _calculate_graph_layout(G: Any) -> Any:
     try:
         return nx.spring_layout(G, k=2, iterations=50, seed=42)
     except:
         return nx.circular_layout(G)
 
-def _draw_graph_nodes(G, pos):
+def _draw_graph_nodes(G: Any, pos: Any) -> None:
     node_colors = []
     for node in G.nodes():
         n = node.lower()
@@ -320,7 +321,7 @@ def _draw_graph_nodes(G, pos):
 
     nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=2000, alpha=0.9, edgecolors="black")
 
-def _highlight_circular_deps(G, pos, circular_deps):
+def _highlight_circular_deps(G: Any, pos: Any, circular_deps: List[Any]) -> None:
     circ_edges = []
     for a, b in circular_deps:
         if G.has_edge(a, b): circ_edges.append((a, b))
@@ -328,7 +329,7 @@ def _highlight_circular_deps(G, pos, circular_deps):
     if circ_edges:
         nx.draw_networkx_edges(G, pos, edgelist=circ_edges, edge_color="#e74c3c", width=2, arrowsize=20)
 
-def plot_dependency_matrix(dependencies, output_path: Path):
+def plot_dependency_matrix(dependencies: Dict[str, Any], output_path: Path) -> None:
     """Create a dependency matrix heatmap."""
     if not _check_dependencies(): return
     if not np: return
@@ -351,7 +352,7 @@ def plot_dependency_matrix(dependencies, output_path: Path):
     plt.savefig(output_path, dpi=100)
     plt.close()
 
-def plot_documentation_stats(coverage_stats, drift_stats, output_path: Path, output_path_drift: Path):
+def plot_documentation_stats(coverage_stats: Dict[str, int], drift_stats: Dict[str, int], output_path: Path, output_path_drift: Path) -> None:
     """
     Generate charts for documentation.
     """

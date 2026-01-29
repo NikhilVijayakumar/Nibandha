@@ -6,7 +6,7 @@ import subprocess
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any, Set
 from packaging import version as pkg_version
 import logging
 
@@ -19,7 +19,7 @@ class PackageScanner:
         self.project_root = project_root
         self.pyproject_path = project_root / "pyproject.toml"
         
-    def analyze(self) -> Dict:
+    def analyze(self) -> Dict[str, Any]:
         """Run full analysis."""
         installed = self.get_installed_packages()
         outdated = self.get_outdated_packages()
@@ -61,7 +61,7 @@ class PackageScanner:
             logger.error(f"Failed to run pip list: {e}")
             return {}
 
-    def get_outdated_packages(self) -> List[Dict]:
+    def get_outdated_packages(self) -> List[Dict[str, str]]:
         """Get packages that have updates available (only for declared dependencies)."""
         declared = self.parse_pyproject_dependencies()
         if not declared: return []
@@ -97,7 +97,7 @@ class PackageScanner:
                 lines = result.stdout.splitlines()
                 for line in lines:
                     if "Available versions:" in line or package_name in line:
-                         vers = re.findall(r'\d+\.\d+(?:\.\d+)?(?:\.\w+)?', line)
+                         vers: List[str] = re.findall(r'\d+\.\d+(?:\.\d+)?(?:\.\w+)?', line)
                          if vers: return vers[0]
         except Exception:
             pass
@@ -128,7 +128,7 @@ class PackageScanner:
         return self._parse_dependencies_from_content(content)
 
     def _parse_dependencies_from_content(self, content: str) -> Dict[str, str]:
-        dependencies = {}
+        dependencies: Dict[str, str] = {}
         in_deps = False
         in_dev_deps = False
         
@@ -152,7 +152,7 @@ class PackageScanner:
                 
         return dependencies
 
-    def _add_dependency(self, dependencies: Dict, line: str):
+    def _add_dependency(self, dependencies: Dict[str, str], line: str) -> None:
         dep = line.strip(' ",')
         if not dep: return
         
@@ -189,8 +189,8 @@ class PackageScanner:
                 unused.append(dep)
         return unused
 
-    def _extract_imports_from_file(self, file_path: Path) -> set:
-        imports = set()
+    def _extract_imports_from_file(self, file_path: Path) -> Set[str]:
+        imports: Set[str] = set()
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 for line in f:

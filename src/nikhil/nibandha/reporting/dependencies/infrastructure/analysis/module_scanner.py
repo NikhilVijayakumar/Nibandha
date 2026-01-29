@@ -4,13 +4,13 @@ Module Dependency Scanner.
 
 import ast
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set, Tuple, Optional
 from collections import defaultdict
 
 class ModuleScanner:
     """Scans source code to build module import graph."""
     
-    def __init__(self, source_root: Path, package_roots: List[str] = None):
+    def __init__(self, source_root: Path, package_roots: Optional[List[str]] = None):
         """
         Args:
             source_root: Path to source code root.
@@ -76,7 +76,7 @@ class ModuleScanner:
         return self._extract_imports_from_tree(tree)
 
     def _extract_imports_from_tree(self, tree: ast.AST) -> Set[str]:
-        imports = set()
+        imports: Set[str] = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 self._process_import_node(node, imports)
@@ -84,12 +84,12 @@ class ModuleScanner:
                 self._process_import_from_node(node, imports)
         return imports
 
-    def _process_import_node(self, node: ast.Import, imports: Set[str]):
+    def _process_import_node(self, node: ast.Import, imports: Set[str]) -> None:
         for alias in node.names:
             module = alias.name.split(".")[0]
             imports.add(module)
 
-    def _process_import_from_node(self, node: ast.ImportFrom, imports: Set[str]):
+    def _process_import_from_node(self, node: ast.ImportFrom, imports: Set[str]) -> None:
         if not node.module: return
         
         parts = node.module.split(".")
@@ -107,7 +107,7 @@ class ModuleScanner:
                     imports.add(parts[len(root_parts)].capitalize())
                 break
     
-    def _filter_internal_dependencies(self):
+    def _filter_internal_dependencies(self) -> None:
         """Keep only dependencies to modules we know about."""
         known_modules = set(self.module_files.keys())
         
@@ -118,17 +118,17 @@ class ModuleScanner:
             }
     
     def find_circular_dependencies(self) -> List[Tuple[str, str]]:
-        circular = []
+        circular: List[Tuple[str, str]] = []
         for module_a in self.dependencies:
             for module_b in self.dependencies[module_a]:
                 if module_a in self.dependencies.get(module_b, set()):
-                    pair = tuple(sorted([module_a, module_b]))
+                    pair = (min(module_a, module_b), max(module_a, module_b))
                     if pair not in circular:
                         circular.append(pair)
         return circular
     
     def get_most_imported(self, top_n: int = 5) -> List[Tuple[str, int]]:
-        import_counts = defaultdict(int)
+        import_counts: Dict[str, int] = defaultdict(int)
         for deps in self.dependencies.values():
             for dep in deps:
                 import_counts[dep] += 1

@@ -2,7 +2,7 @@
 Unified Report Builder - Combines multiple markdown reports into single document.
 """
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 import logging
 
 logger = logging.getLogger("nibandha.reporting.unified")
@@ -34,7 +34,7 @@ class UnifiedReportBuilder:
         """
         logger.info(f"Building unified markdown from {len(detail_paths) + 1} sections")
         
-        sections = []
+        sections: List[Tuple[str, str]] = []
         
         # Read summary
         if summary_path.exists():
@@ -92,7 +92,7 @@ lot: true
 
 """
     
-    def collect_report_paths(self) -> Dict[str, Path]:
+    def collect_report_paths(self) -> Dict[str, Any]:
         """
         Collect paths to all generated markdown reports.
         

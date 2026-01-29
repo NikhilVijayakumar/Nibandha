@@ -11,7 +11,7 @@ class StandardConfigLoader:
     def __init__(
         self, 
         name: str, 
-        custom_folders: List[str] = None, 
+        custom_folders: Optional[List[str]] = None, 
         log_level: str = "INFO",
         log_dir: Optional[str] = None,
         report_dir: Optional[str] = None,

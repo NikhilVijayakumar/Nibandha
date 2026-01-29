@@ -7,16 +7,16 @@ from ..domain.protocols.exporter import ExporterProtocol
 
 logger = logging.getLogger("nibandha.export.docx")
 
-class DOCXExporter(ExporterProtocol):
+class DOCXExporter:
     """
     Exports content to DOCX format using Pandoc (via pypandoc).
     Requires 'pypandoc' library and 'pandoc' executable installed.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._check_dependencies()
         
-    def _check_dependencies(self):
+    def _check_dependencies(self) -> None:
         """Check if pypandoc and pandoc are available."""
         self.pypandoc_available = False
         try:

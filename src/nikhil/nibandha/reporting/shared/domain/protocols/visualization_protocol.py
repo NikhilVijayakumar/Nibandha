@@ -57,3 +57,11 @@ class VisualizationProvider(Protocol):
     ) -> Dict[str, str]:
         """Generate architecture charts."""
         ...
+
+    def generate_documentation_charts(
+        self,
+        data: Dict[str, Any],
+        output_dir: Path
+    ) -> Dict[str, str]:
+        """Generate documentation charts."""
+        ...

@@ -19,8 +19,8 @@ class PackageReporter:
         self, 
         output_dir: Path, 
         templates_dir: Path,
-        template_engine: TemplateEngine = None,
-        reference_collector: "ReferenceCollectorProtocol" = None
+        template_engine: Optional[TemplateEngine] = None,
+        reference_collector: Optional["ReferenceCollectorProtocol"] = None
     ):
         self.output_dir = output_dir
         self.templates_dir = templates_dir
@@ -30,7 +30,7 @@ class PackageReporter:
         self.template_engine = template_engine or TemplateEngine(templates_dir)
         self.reference_collector = reference_collector
 
-    def generate(self, project_root: Path, project_name: str = "Project") -> Dict:
+    def generate(self, project_root: Path, project_name: str = "Project") -> Dict[str, Any]:
         """Generates package dependency report."""
         logger.info(f"Analyzing packages in {project_root}...")
         
@@ -53,7 +53,7 @@ class PackageReporter:
             "health_score": score
         }
 
-    def _generate_report(self, analysis, project_name="Project"):
+    def _generate_report(self, analysis: Dict[str, Any], project_name: str = "Project") -> None:
         outdated_rows = ""
         for p in analysis["outdated_packages"]:
             icon = "🔴" if p["update_type"] == "MAJOR" else ("🟡" if p["update_type"] == "MINOR" else "🟢")

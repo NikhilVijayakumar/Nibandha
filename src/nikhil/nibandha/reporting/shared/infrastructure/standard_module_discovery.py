@@ -6,7 +6,7 @@ are organized as top-level subdirectories under a source root.
 """
 
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 import logging
 
 logger = logging.getLogger("nibandha.reporting")
@@ -29,7 +29,7 @@ class StandardModuleDiscovery:
     Would discover: ["Configuration", "Logging", "Reporting", "Utils"]
     """
     
-    def __init__(self, exclude_patterns: List[str] = None):
+    def __init__(self, exclude_patterns: Optional[List[str]] = None):
         """
         Initialize the standard module discovery.
         

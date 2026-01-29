@@ -3,7 +3,7 @@ from typing import Optional, Dict, TYPE_CHECKING, List
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
-    from ...reporting.shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
+    from nibandha.reporting.shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
 
 class ReportingConfig(BaseModel):
     """

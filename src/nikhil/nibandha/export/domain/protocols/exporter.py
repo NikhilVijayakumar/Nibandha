@@ -16,7 +16,7 @@ class ExportFormat(Enum):
     HTML = "html"
     DOCX = "docx"
     
-    def __str__(self):
+    def __str__(self) -> str:
         return self.value
 
 

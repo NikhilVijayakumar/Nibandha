@@ -17,7 +17,8 @@ class Nibandha:
     Application Facade (Clean Architecture).
     Orchestrates the binding of configuration, filesystem, and logging.
     """
-    def __init__(self, config: AppConfig, root_name: str = ".Nibandha", binder: RootBinderProtocol = None):
+
+    def __init__(self, config: AppConfig, root_name: str = ".Nibandha", binder: Optional[RootBinderProtocol] = None):
         self.config = config
         self.root_name = root_name
         self.binder = binder or FileSystemBinder()
@@ -53,7 +54,7 @@ class Nibandha:
     def log_base(self) -> Path:
         return self.context.log_base if self.context else (self.app_root / "logs")  # Fallback?
 
-    def bind(self, interactive_setup: bool = False):
+    def bind(self, interactive_setup: bool = False) -> "Nibandha":
         """Creates the structure and binds the logger."""
         
         # 1. Initialize Rotation Manager early to load config (needed for Binder)

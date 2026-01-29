@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 from datetime import datetime
 import json
@@ -46,14 +46,14 @@ class UnitDataBuilder:
             "durations": self._extract_durations(pytest_data)
         }
         
-    def _build_module_breakdown(self, pytest_data, coverage_data):
+    def _build_module_breakdown(self, pytest_data: Dict[str, Any], coverage_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Aggregates coverage data by module."""
         files = coverage_data.get("files", {})
         module_stats = self._aggregate_file_stats(files)
         return self._format_module_stats(module_stats)
 
-    def _aggregate_file_stats(self, files: Dict) -> Dict:
-        stats = {}
+    def _aggregate_file_stats(self, files: Dict[str, Any]) -> Dict[str, Dict[str, int]]:
+        stats: Dict[str, Dict[str, int]] = {}
         for file_path, f_stats in files.items():
             mod_name = self._extract_module_from_path(file_path)
             if not mod_name: continue
@@ -86,7 +86,7 @@ class UnitDataBuilder:
             module_name = "root"
         return module_name
 
-    def _format_module_stats(self, module_stats: Dict) -> List[Dict]:
+    def _format_module_stats(self, module_stats: Dict[str, Dict[str, int]]) -> List[Dict[str, Any]]:
         breakdown = []
         for name, data in module_stats.items():
             total = data["stmts"]
@@ -111,12 +111,13 @@ class UnitDataBuilder:
             
         return sorted(breakdown, key=lambda x: x["name"])
 
-    def _build_outcomes_by_module(self, pytest_data):
+    def _build_outcomes_by_module(self, pytest_data: Dict[str, Any]) -> Dict[str, Dict[str, int]]:
         # We can simulate this from pytest 'tests' list
-        outcomes = {}
+        outcomes: Dict[str, Dict[str, int]] = {}
         for test in pytest_data.get("tests", []):
             # nodeid example: tests/unit/reporting/test_foo.py::test_bar
-            path_parts = test.get("nodeid", "").split("::")[0].split("/")
+            nodeid = test.get("nodeid", "")
+            path_parts = nodeid.split("::")[0].split("/")
             # Attempt to guess module: tests/unit/reporting -> reporting
             if len(path_parts) > 2 and path_parts[1] == "unit":
                  module = path_parts[2]
@@ -136,18 +137,18 @@ class UnitDataBuilder:
             
         return outcomes
 
-    def _extract_failures(self, pytest_data):
+    def _extract_failures(self, pytest_data: Dict[str, Any]) -> List[Dict[str, str]]:
         failures = []
         for test in pytest_data.get("tests", []):
             if test.get("outcome") in ["failed", "error"]:
                 failures.append({
-                    "test_name": test.get("nodeid"),
+                    "test_name": test.get("nodeid", "Unknown"),
                     "error": test.get("call", {}).get("crash", {}).get("message", "Unknown error"),
                     "traceback": test.get("call", {}).get("longrepr", "")
                 })
         return failures
 
-    def _extract_durations(self, pytest_data):
+    def _extract_durations(self, pytest_data: Dict[str, Any]) -> List[float]:
         durations = []
         for t in pytest_data.get("tests", []):
             if "duration" in t:
@@ -185,7 +186,7 @@ class E2EDataBuilder:
 class QualityDataBuilder:
     """Builds quality report data."""
     # Placeholder implementation
-    def build_type_safety(self, errors: List[Dict], timestamp: str) -> Dict[str, Any]:
+    def build_type_safety(self, errors: List[Dict[str, Any]], timestamp: str) -> Dict[str, Any]:
         return {
             "date": timestamp,
             "total_errors": len(errors),
@@ -197,7 +198,16 @@ class QualityDataBuilder:
 
 class SummaryDataBuilder:
     """Aggregates all data for summary report."""
-    def build(self, unit_data: Dict, e2e_data: Dict, quality_data: Dict, documentation_data: Dict = None, dependency_data: Dict = None, package_data: Dict = None, project_name="Nibandha") -> Dict[str, Any]:
+    def build(
+        self, 
+        unit_data: Dict[str, Any], 
+        e2e_data: Dict[str, Any], 
+        quality_data: Dict[str, Any], 
+        documentation_data: Optional[Dict[str, Any]] = None, 
+        dependency_data: Optional[Dict[str, Any]] = None, 
+        package_data: Optional[Dict[str, Any]] = None, 
+        project_name: str = "Nibandha"
+    ) -> Dict[str, Any]:
         """Build data dictionary for unified overview report."""
         logger.info("Building Summary Data for Overview")
         
@@ -220,7 +230,7 @@ class SummaryDataBuilder:
         
         return result
 
-    def _aggregate_metrics(self, u_data, e_data, q_data):
+    def _aggregate_metrics(self, u_data: Dict[str, Any], e_data: Dict[str, Any], q_data: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "unit": {
                 "status": u_data.get("status", "UNKNOWN"),
@@ -246,7 +256,7 @@ class SummaryDataBuilder:
             }
         }
 
-    def _generate_actions_and_status(self, metrics):
+    def _generate_actions_and_status(self, metrics: Dict[str, Any]) -> tuple[List[str], str]:
         u = metrics["unit"]
         e = metrics["e2e"]
         q = metrics["quality"]
@@ -272,17 +282,17 @@ class SummaryDataBuilder:
              
         return actions, overall
 
-    def _calculate_unified_grade(self, metrics):
+    def _calculate_unified_grade(self, metrics: Dict[str, Any]) -> str:
         grades = [
-            metrics["unit"]["grade"],
-            metrics["e2e"]["grade"],
-            metrics["quality"]["arch"].get("grade", "F"),
-            metrics["quality"]["type"].get("grade", "F"),
-            metrics["quality"]["cplx"].get("grade", "F")
+            str(metrics["unit"]["grade"]),
+            str(metrics["e2e"]["grade"]),
+            str(metrics["quality"]["arch"].get("grade", "F")),
+            str(metrics["quality"]["type"].get("grade", "F")),
+            str(metrics["quality"]["cplx"].get("grade", "F"))
         ]
-        return Grader.calculate_overall_grade(grades)
+        return Grader.calculate_overall_grade(grades)  # type: ignore
 
-    def _construct_base_result(self, metrics, actions, overall, grade):
+    def _construct_base_result(self, metrics: Dict[str, Any], actions: List[str], overall: str, grade: str) -> Dict[str, Any]:
         u = metrics["unit"]
         e = metrics["e2e"]
         q = metrics["quality"]
@@ -292,7 +302,7 @@ class SummaryDataBuilder:
             "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "overall_status": overall,
             "display_grade": grade,
-            "grade_color": Grader.get_grade_color(grade),
+            "grade_color": Grader.get_grade_color(grade),  # type: ignore
             
             "unit_status": "🟢 PASS" if u["status"] == "PASS" else "🔴 FAIL",
             "unit_passed": u["passed"], "unit_failed": u["failed"], 
@@ -317,7 +327,7 @@ class SummaryDataBuilder:
             "action_items": "\n".join(actions) if actions else "- No urgent actions required."
         }
 
-    def _enrich_documentation(self, result, doc_data):
+    def _enrich_documentation(self, result: Dict[str, Any], doc_data: Optional[Dict[str, Any]]) -> None:
         if not doc_data:
             result.update({"doc_coverage": "N/A", "doc_status": "⚪ Not Run",
                            "func_doc_pct": "N/A", "tech_doc_pct": "N/A", "test_doc_pct": "N/A"})
@@ -334,12 +344,12 @@ class SummaryDataBuilder:
         result["tech_doc_pct"] = f"{tech:.1f}"
         result["test_doc_pct"] = f"{test:.1f}"
 
-    def _calc_doc_pct(self, section_data):
+    def _calc_doc_pct(self, section_data: Dict[str, Any]) -> float:
         stats = section_data.get("stats", {})
         total = stats.get("documented", 0) + stats.get("missing", 0)
-        return (stats.get("documented", 0) / total * 100) if total > 0 else 0
+        return (stats.get("documented", 0) / total * 100) if total > 0 else 0.0
 
-    def _enrich_dependencies(self, result, dep_data):
+    def _enrich_dependencies(self, result: Dict[str, Any], dep_data: Optional[Dict[str, Any]]) -> None:
         if dep_data:
             result.update({
                 "dep_status": dep_data.get("status", "⚪ Not Run"),
@@ -351,7 +361,7 @@ class SummaryDataBuilder:
              result.update({"dep_status": "⚪ Not Run", "dep_total_modules": "N/A", 
                             "dep_total_deps": "N/A", "dep_circular": "N/A"})
 
-    def _enrich_package(self, result, pkg_data):
+    def _enrich_package(self, result: Dict[str, Any], pkg_data: Optional[Dict[str, Any]]) -> None:
         if pkg_data:
             result.update({
                 "pkg_status": pkg_data.get("status", "⚪ Not Run"),
@@ -362,4 +372,3 @@ class SummaryDataBuilder:
         else:
              result.update({"pkg_status": "⚪ Not Run", "pkg_total": "N/A", 
                             "pkg_outdated": "N/A", "pkg_health_score": "N/A"})
-

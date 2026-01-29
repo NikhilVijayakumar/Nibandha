@@ -31,7 +31,7 @@ class ReferenceCollector:
     - Source tracking for cross-referencing
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the reference collector with empty collections."""
         self._figures: List[FigureReference] = []
         self._tables: List[TableReference] = []
@@ -96,7 +96,7 @@ class ReferenceCollector:
             GlobalReferences object ready for template rendering
         """
         # Group figures by report_order and assign hierarchical numbers
-        figures_by_report = {}
+        figures_by_report: Dict[int, List[FigureReference]] = {}
         for fig in self._figures:
             if fig.report_order not in figures_by_report:
                 figures_by_report[fig.report_order] = []
@@ -110,7 +110,7 @@ class ReferenceCollector:
                 fig.global_number = idx  # Also set for backward compat
         
         # Group tables by report_order and assign hierarchical numbers
-        tables_by_report = {}
+        tables_by_report: Dict[int, List[TableReference]] = {}
         for tab in self._tables:
             if tab.report_order not in tables_by_report:
                 tables_by_report[tab.report_order] = []

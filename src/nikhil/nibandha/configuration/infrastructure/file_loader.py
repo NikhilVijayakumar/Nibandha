@@ -1,4 +1,4 @@
-import yaml
+import yaml  # type: ignore
 import json
 from pathlib import Path
 from typing import Type, TypeVar, Union

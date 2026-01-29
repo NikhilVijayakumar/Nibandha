@@ -16,7 +16,7 @@ logger = logging.getLogger("nibandha.export")
 class HTMLExporter:
     """Converts Markdown to professionally styled, DOCX-friendly HTML."""
     
-    def __init__(self, style_dir: Path = None):
+    def __init__(self, style_dir: Optional[Path] = None):
         """
         Initialize HTML exporter.
         

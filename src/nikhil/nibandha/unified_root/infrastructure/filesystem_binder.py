@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from nibandha.configuration.domain.models.app_config import AppConfig
 from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
 from ..domain.models.root_context import RootContext
@@ -9,7 +9,7 @@ class FileSystemBinder:
     """
     Standard implementation of RootBinderProtocol that works on the real filesystem.
     """
-    def __init__(self, rotation_config: LogRotationConfig = None):
+    def __init__(self, rotation_config: Optional[LogRotationConfig] = None):
         self.rotation_config = rotation_config
 
     def bind(self, config: AppConfig, root_name: str = ".Nibandha") -> RootContext:
@@ -31,7 +31,7 @@ class FileSystemBinder:
         )
         
         # Calculate folders to create
-        folders_to_create: List[Path] = [
+        folders_to_create: List[Optional[Path]] = [
             context.config_dir,
             context.report_dir, # Note: Pydantic models use dot notation usually, but keeping simple
             context.log_base if not self.rotation_config else None

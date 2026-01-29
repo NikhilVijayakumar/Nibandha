@@ -3,16 +3,15 @@ import logging
 import time
 from pathlib import Path
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
 from nibandha.configuration.infrastructure.file_loader import FileConfigLoader
-from ..domain.protocols.logger import LoggerProtocol
 
 class RotationManager:
     """Manages log rotation configuration and operations."""
     
-    def __init__(self, config_dir: Path, app_root: Path, logger: LoggerProtocol):
+    def __init__(self, config_dir: Path, app_root: Path, logger: logging.Logger):
         self.config_dir = config_dir
         self.app_root = app_root
         self.logger = logger
@@ -263,8 +262,11 @@ class RotationManager:
         
         return deleted_count
 
-    def _cleanup_dated_archives(self, archive_dir: Path, cutoff_date) -> int:
+    def _cleanup_dated_archives(self, archive_dir: Path, cutoff_date: date) -> int:
         """Handle cleanup of date-structured archive folders."""
+        if not self.config:
+            return 0
+
         deleted_count = 0
         for date_folder in archive_dir.iterdir():
             if not date_folder.is_dir():
@@ -286,7 +288,7 @@ class RotationManager:
                 deleted_count += self._enforce_folder_backup_limit(date_folder)
         return deleted_count
 
-    def _delete_archive_folder(self, folder: Path, folder_date) -> int:
+    def _delete_archive_folder(self, folder: Path, folder_date: date) -> int:
         """Delete an entire archive folder."""
         try:
             file_count = len(list(folder.glob("*.log*")))
@@ -300,6 +302,9 @@ class RotationManager:
 
     def _enforce_folder_backup_limit(self, folder: Path) -> int:
         """Keep only N most recent files in the folder."""
+        if not self.config:
+            return 0
+
         log_files = sorted(
             folder.glob("*.log*"),
             key=lambda f: f.stat().st_mtime,
@@ -314,6 +319,9 @@ class RotationManager:
 
     def _cleanup_legacy_archives(self, archive_dir: Path) -> int:
         """Handle cleanup of flat files in the archive root."""
+        if not self.config:
+            return 0
+
         deleted_count = 0
         flat_files = [f for f in archive_dir.glob("*.log*") if f.is_file()]
         
