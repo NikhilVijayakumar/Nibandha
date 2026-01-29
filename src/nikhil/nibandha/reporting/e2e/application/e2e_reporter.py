@@ -79,36 +79,33 @@ class E2EReporter:
         """Enrich data with markdown tables for the simple template."""
         logger.debug("Enriching E2E data for template")
         data = report_data.copy()
-        data["total"] = data["total_scenarios"]
         
-        # Calculate Grade
+        self._enrich_grades(data)
+        
+        e_tests = original_pytest.get("tests", [])
+        module_results = self._group_tests_by_module(e_tests)
+        
+        data.update(self._generate_tables(module_results, e_tests))
+        
+        if self.reference_collector:
+            self._register_references()
+            
+        return data
+
+    def _enrich_grades(self, data: Dict):
+        data["total"] = data["total_scenarios"]
         pass_rate = data.get("pass_rate", 0)
         grade = Grader.calculate_e2e_grade(pass_rate)
         data["grade"] = grade
         data["grade_color"] = Grader.get_grade_color(grade)
-        
-        # Group logic
-        e_tests = original_pytest.get("tests", [])
-        
+
+    def _group_tests_by_module(self, tests: List[Dict]) -> Dict:
         # Initialize all modules with default values
         all_modules = utils.get_all_modules(self.source_root, self.module_discovery)
         module_results = {mod: {"total": 0, "pass": 0, "fail": 0, "tests": []} for mod in all_modules}
         
-        for t in e_tests:
-            parts = t["nodeid"].replace("\\", "/").split("/")
-            mod = "Other"
-            if "e2e" in parts:
-                idx = parts.index("e2e")
-                if idx + 1 < len(parts):
-                    mod = parts[idx + 1].capitalize()
-            elif "domain" in parts: # Legacy
-                idx = parts.index("domain")
-                if idx + 1 < len(parts):
-                    mod = parts[idx + 1].capitalize()
-            
-            # Remap Rotation -> Logging (same as Unit)
-            if mod == "Rotation":
-                mod = "Logging"
+        for t in tests:
+            mod = self._resolve_test_module(t)
             
             if mod not in module_results:
                 # If a test belongs to a module we didn't discover, add it
@@ -122,13 +119,31 @@ class E2EReporter:
         # Clean up 'Other' if empty
         if "Other" in module_results and module_results["Other"]["total"] == 0:
             del module_results["Other"]
+        return module_results
 
+    def _resolve_test_module(self, test_item: Dict) -> str:
+        parts = test_item["nodeid"].replace("\\", "/").split("/")
+        mod = "Other"
+        if "e2e" in parts:
+            idx = parts.index("e2e")
+            if idx + 1 < len(parts):
+                mod = parts[idx + 1].capitalize()
+        elif "domain" in parts: # Legacy
+            idx = parts.index("domain")
+            if idx + 1 < len(parts):
+                mod = parts[idx + 1].capitalize()
+        
+        # Remap Rotation -> Logging (same as Unit)
+        if mod == "Rotation":
+            mod = "Logging"
+        return mod
+
+    def _generate_tables(self, module_results: Dict, all_tests: List[Dict]) -> Dict:
         mod_table = ""
         det_sections = ""
+        
         for mod in sorted(module_results.keys()):
             m_data = module_results[mod]
-            
-            # Calculate module grade
             m_pass_rate = (m_data["pass"] / m_data["total"] * 100) if m_data["total"] > 0 else 0
             m_grade = Grader.calculate_e2e_grade(m_pass_rate)
             grade_color = "red" if m_grade in ["D", "F"] else ("orange" if m_grade == "C" else "green")
@@ -148,57 +163,55 @@ class E2EReporter:
             else:
                 det_sections += "*No scenarios executed.*\n\n"
         
-        data["module_table"] = mod_table
-        data["detailed_sections"] = det_sections
-        
         failures = ""
-        for t in e_tests:
+        for t in all_tests:
              if t["outcome"] != "passed":
                 longrepr = t.get("longrepr", "No Traceback")
                 if isinstance(longrepr, dict): longrepr = json.dumps(longrepr, indent=2)
                 failures += f"### {t['nodeid']}\n```\n{longrepr}\n```\n"
 
-        data["failures_section"] = failures if failures else "*No Failures*"
-        
-        # Register References (Phase 2 Hierarchical Numbering)
-        if self.reference_collector:
-            # Figures
-            self.reference_collector.add_figure(FigureReference(
-                id="fig-e2e-status",
-                title="E2E test pass/fail status across all scenarios",
-                path="../assets/images/e2e_status.png",
-                type="bar_chart",
-                description="Distribution of pass/fail status across all E2E scenarios",
-                source_report="e2e",
-                report_order=4
-            ))
-            self.reference_collector.add_figure(FigureReference(
-                id="fig-e2e-durations",
-                title="E2E test execution time by scenario",
-                path="../assets/images/e2e_durations.png",
-                type="histogram",
-                description="Execution time distribution for E2E scenarios",
-                source_report="e2e",
-                report_order=4
-            ))
-            # Tables
-            self.reference_collector.add_table(TableReference(
-                id="table-e2e-modules",
-                title="E2E test results by module",
-                description="Breakdown of test results passing/failing by module",
-                source_report="e2e",
-                report_order=4
-            ))
-            self.reference_collector.add_table(TableReference(
-                id="table-e2e-failures",
-                title="Failed E2E tests requiring investigation",
-                description="List of failed tests with traceback snippets",
-                source_report="e2e",
-                report_order=4
-            ))
-            # Nomenclature
-            self.reference_collector.add_nomenclature(NomenclatureItem(term="E2E Test", definition="An integrated test scenario verifying end-to-end system behavior", source_reports=["e2e"]))
-            self.reference_collector.add_nomenclature(NomenclatureItem(term="Scenario", definition="A specific test case or user flow in an E2E test", source_reports=["e2e"]))
-            self.reference_collector.add_nomenclature(NomenclatureItem(term="Pass Rate", definition="Percentage of tests that completed successfully without failures", source_reports=["e2e"]))
-        
-        return data
+        return {
+            "module_table": mod_table,
+            "detailed_sections": det_sections,
+            "failures_section": failures if failures else "*No Failures*"
+        }
+
+    def _register_references(self):
+        # Figures
+        self.reference_collector.add_figure(FigureReference(
+            id="fig-e2e-status",
+            title="E2E test pass/fail status across all scenarios",
+            path="../assets/images/e2e_status.png",
+            type="bar_chart",
+            description="Distribution of pass/fail status across all E2E scenarios",
+            source_report="e2e",
+            report_order=4
+        ))
+        self.reference_collector.add_figure(FigureReference(
+            id="fig-e2e-durations",
+            title="E2E test execution time by scenario",
+            path="../assets/images/e2e_durations.png",
+            type="histogram",
+            description="Execution time distribution for E2E scenarios",
+            source_report="e2e",
+            report_order=4
+        ))
+        # Tables
+        self.reference_collector.add_table(TableReference(
+            id="table-e2e-modules",
+            title="E2E test results by module",
+            description="Breakdown of test results passing/failing by module",
+            source_report="e2e",
+            report_order=4
+        ))
+        self.reference_collector.add_table(TableReference(
+            id="table-e2e-failures",
+            title="Failed E2E tests requiring investigation",
+            description="List of failed tests with traceback snippets",
+            source_report="e2e",
+            report_order=4
+        ))
+        # Nomenclature
+        self.reference_collector.add_nomenclature(NomenclatureItem(term="E2E Test", definition="An integrated test scenario verifying end-to-end system behavior", source_reports=["e2e"]))
+        self.reference_collector.add_nomenclature(NomenclatureItem(term="Scenario", definition="A specific test case or user flow in an E2E test", source_reports=["e2e"]))
+        self.reference_collector.add_nomenclature(NomenclatureItem(term="Pass Rate", definition="Percentage of tests that completed successfully without failures", source_reports=["e2e"]))

@@ -63,131 +63,127 @@ class DependencyReporter:
         }
 
     def _generate_report(self, dependencies, circular, most_imported, most_dependent, isolated, project_name="Project"):
-        # Format lists
-        imp_rows = "\n".join([f"| {m} | {c} |" for m, c in most_imported])
-        dep_rows = "\n".join([f"| {m} | {c} |" for m, c in most_dependent])
-        iso_list = ", ".join(isolated) if isolated else "None"
+        # Calculate Metrics & Grades
+        module_grades = self._calculate_module_grades(dependencies, circular)
         
-        circ_text = "None detected."
-        if circular:
-            circ_text = "\n".join([f"- {a} <-> {b}" for a, b in circular])
+        # Prepare Report Data
+        mapping = self._prepare_report_data(
+            dependencies, circular, isolated, 
+            most_imported, most_dependent, 
+            module_grades, project_name
+        )
+        
+        # Register References
+        if self.reference_collector:
+            self._register_references()
+        
+        self.template_engine.render("module_dependency_template.md", mapping, self.report_dir / "08_module_dependency_report.md")
 
-        # Calculate Per-Module Grades
+    def _calculate_module_grades(self, dependencies, circular_pairs):
         module_grades = []
-        circular_modules = set()
-        for a, b in circular:
-            circular_modules.add(a)
-            circular_modules.add(b)
+        circular_modules = {a for pair in circular_pairs for a in pair}
+        
+        fan_in = self._calculate_fan_in(dependencies)
+        
+        for mod, deps in dependencies.items():
+            f_out = len(deps)
+            f_in = fan_in.get(mod, 0)
             
+            grade, reason = self._determine_grade(mod, f_out, circular_modules)
+            color = Grader.get_grade_color(grade)
+            grade_html = f'<span style="color:{color}; font-weight:bold">{grade}</span>'
+            
+            module_grades.append({
+                "name": mod, "fan_out": f_out, "fan_in": f_in,
+                "grade": grade, "grade_html": grade_html, "reason": reason
+            })
+            
+        module_grades.sort(key=lambda x: (x["grade"], x["name"]))
+        return module_grades
+
+    def _calculate_fan_in(self, dependencies):
         fan_in = {}
         for mod, deps in dependencies.items():
             if mod not in fan_in: fan_in[mod] = 0
             for dep in deps:
                 fan_in[dep] = fan_in.get(dep, 0) + 1
+        return fan_in
+
+    def _determine_grade(self, mod, f_out, circular_modules):
+        if mod in circular_modules:
+            return "F", "Circular Dependency"
+        elif f_out > 12:
+            return "D", "High Coupling (12+)"
+        elif f_out > 7:
+            return "C", "Moderate Coupling (8-12)"
+        elif f_out > 3:
+            return "B", "Low Coupling (4-7)"
+        return "A", "Clean"
+
+    def _prepare_report_data(self, dependencies, circular, isolated, most_imported, most_dependent, module_grades, project_name):
+        import datetime
         
-        for mod, deps in dependencies.items():
-            f_out = len(deps)
-            f_in = fan_in.get(mod, 0)
-            is_circular = mod in circular_modules
-            
-            if is_circular:
-                grade = "F"
-                reason = "Circular Dependency"
-            elif f_out > 12:
-                grade = "D"
-                reason = "High Coupling (12+)"
-            elif f_out > 7:
-                grade = "C"
-                reason = "Moderate Coupling (8-12)"
-            elif f_out > 3:
-                grade = "B"
-                reason = "Low Coupling (4-7)"
-            else:
-                grade = "A"
-                reason = "Clean"
-                
-            color = Grader.get_grade_color(grade)
-            grade_html = f'<span style="color:{color}; font-weight:bold">{grade}</span>'
-            
-            module_grades.append({
-                "name": mod,
-                "fan_out": f_out,
-                "fan_in": f_in,
-                "grade": grade,
-                "grade_html": grade_html,
-                "reason": reason
-            })
-            
-        module_grades.sort(key=lambda x: (x["grade"], x["name"]))
+        grade = Grader.calculate_dependency_grade(len(circular))
+        avg_deps = round(sum(len(deps) for deps in dependencies.values()) / len(dependencies), 2) if dependencies else 0
+        
+        # Tables
+        imp_rows = "\n".join([f"| {m} | {c} |" for m, c in most_imported]) if most_imported else "| None | - | - |"
+        dep_rows = "\n".join([f"| {m} | {c} |" for m, c in most_dependent]) if most_dependent else "| None | - | - |"
         
         grade_rows = ""
         for m in module_grades:
             grade_rows += f"| {m['name']} | {m['fan_out']} | {m['fan_in']} | {m['reason']} | {m['grade_html']} |\n"
-            
-        if not grade_rows:
-            grade_rows = "| No modules found | - | - | - | - |"
+        if not grade_rows: grade_rows = "| No modules found | - | - | - | - |"
 
-        grade = Grader.calculate_dependency_grade(len(circular))
-        
-        avg_deps = round(sum(len(deps) for deps in dependencies.values()) / len(dependencies), 2) if dependencies else 0
-        overall_status = "Healthy" if not circular and len(isolated) == 0 else "Needs Attention"
-        circ_status = "🔴 Critical" if circular else "🟢 None"
-        iso_status = "🟡 Warning" if isolated else "🟢 None"
+        circ_text = "\n".join([f"- {a} <-> {b}" for a, b in circular]) if circular else "None detected."
+        iso_list = ", ".join(isolated) if isolated else "None"
 
-        import datetime
-        mapping = {
+        return {
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
-            "overall_status": overall_status,
+            "overall_status": "Healthy" if not circular and not isolated else "Needs Attention",
             "display_grade": grade,
             "grade_color": Grader.get_grade_color(grade),
-            
             "total_modules": len(dependencies),
             "total_deps": sum(len(deps) for deps in dependencies.values()),
             "circular_deps": len(circular),
-            "circular_status": circ_status,
+            "circular_status": "🔴 Critical" if circular else "🟢 None",
             "isolated": len(isolated),
-            "isolated_status": iso_status,
+            "isolated_status": "🟡 Warning" if isolated else "🟢 None",
             "avg_deps": avg_deps,
-            
-            "top_imported": imp_rows if imp_rows else "| None | - | - |",
-            "top_importers": dep_rows if dep_rows else "| None | - | - |",
+            "top_imported": imp_rows,
+            "top_importers": dep_rows,
             "module_grades_table": grade_rows,
-            
             "circular_deps_list": circ_text,
             "isolated_modules_list": iso_list,
             "detailed_dependency_list": "\n".join([f"- **{m}**: {', '.join(d)}" for m, d in dependencies.items()]),
-            
             "high_priority_items": "None generated.",
             "recommendations": "None generated.",
             "project_name": project_name
         }
-        
-        # Register References (Order 8)
-        if self.reference_collector:
-            self.reference_collector.add_figure(FigureReference(
-                id="fig-module-deps",
-                title="Module dependency graph",
-                path="../assets/images/dependencies/module_dependencies.png",
-                type="network_graph",
-                description="Visual representation of module inter-dependencies",
-                source_report="dependencies",
-                report_order=8
-            ))
-            self.reference_collector.add_figure(FigureReference(
-                id="fig-dep-matrix",
-                title="Dependency matrix",
-                path="../assets/images/dependencies/dependency_matrix.png",
-                type="matrix",
-                description="Adjacency matrix of module dependencies",
-                source_report="dependencies",
-                report_order=8
-            ))
-            self.reference_collector.add_table(TableReference(
-                id="table-module-grades",
-                title="Module coupling grades",
-                description="Assessment of module coupling (fan-in/fan-out) and cyclomatic dependencies",
-                source_report="dependencies",
-                report_order=8
-            ))
-        
-        self.template_engine.render("module_dependency_template.md", mapping, self.report_dir / "08_module_dependency_report.md")
+
+    def _register_references(self):
+        self.reference_collector.add_figure(FigureReference(
+            id="fig-module-deps",
+            title="Module dependency graph",
+            path="../assets/images/dependencies/module_dependencies.png",
+            type="network_graph",
+            description="Visual representation of module inter-dependencies",
+            source_report="dependencies",
+            report_order=8
+        ))
+        self.reference_collector.add_figure(FigureReference(
+            id="fig-dep-matrix",
+            title="Dependency matrix",
+            path="../assets/images/dependencies/dependency_matrix.png",
+            type="matrix",
+            description="Adjacency matrix of module dependencies",
+            source_report="dependencies",
+            report_order=8
+        ))
+        self.reference_collector.add_table(TableReference(
+            id="table-module-grades",
+            title="Module coupling grades",
+            description="Assessment of module coupling (fan-in/fan-out) and cyclomatic dependencies",
+            source_report="dependencies",
+            report_order=8
+        ))

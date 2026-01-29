@@ -37,10 +37,28 @@ class ReportGenerator:
         self.default_templates_dir = Path(__file__).parent.parent.parent / "templates"
         
         # 1. Resolve Configuration
+        self._resolve_configuration(config, output_dir, template_dir, docs_dir)
+
+        # 2. Setup Template Engine
+        self._setup_template_engine()
+        
+        # 3. Initialize Shared Services
+        self.viz_provider = visualization_provider or DefaultVisualizationProvider()
+        self.summary_builder = SummaryDataBuilder()
+        self.reference_collector = ReferenceCollector()
+        
+        # 4. Determine Source Root
+        source_root = self._determine_source_root()
+        
+        # 5. Initialize Reporters
+        self._initialize_reporters(source_root)
+        
+        # 6. Initialize Export Service
+        self._initialize_export_service(config)
+
+    def _resolve_configuration(self, config, output_dir, template_dir, docs_dir):
         self.config = config
         self.module_discovery = None
-        
-        # Default targets
         self.unit_target_default = "tests/unit"
         self.e2e_target_default = "tests/e2e"
         self.quality_target_default = "src"
@@ -49,115 +67,96 @@ class ReportGenerator:
         
         if config:
             if isinstance(config, AppConfig):
-                raw_out = config.report_dir or ".Nibandha/Report"
-                self.output_dir = Path(raw_out).resolve()
-                self.docs_dir = Path("docs/test").resolve()
-                self.templates_dir = self.default_templates_dir
-                self.project_name = config.name
-                # AppConfig doesn't have quality targets usually, stick to defaults
+                self._configure_from_app_config(config)
             elif isinstance(config, ReportingConfig):
-                self.output_dir = config.output_dir
-                self.docs_dir = config.docs_dir
-                self.templates_dir = config.template_dir or self.default_templates_dir
-                self.module_discovery = config.module_discovery
-                self.project_name = config.project_name
-                self.quality_target_default = config.quality_target
-                self.package_roots_default = config.package_roots if config.package_roots else None
+                self._configure_from_reporting_config(config)
         else:
             out = output_dir or ".Nibandha/Report"
             self.output_dir = Path(out).resolve()
             self.docs_dir = Path(docs_dir).resolve()
             self.templates_dir = Path(template_dir).resolve() if template_dir else self.default_templates_dir
 
-        # 2. Setup Template Engine
+    def _configure_from_app_config(self, config):
+        raw_out = config.report_dir or ".Nibandha/Report"
+        self.output_dir = Path(raw_out).resolve()
+        self.docs_dir = Path("docs/test").resolve()
+        self.templates_dir = self.default_templates_dir
+        self.project_name = config.name
+
+    def _configure_from_reporting_config(self, config):
+        self.output_dir = config.output_dir
+        self.docs_dir = config.docs_dir
+        self.templates_dir = config.template_dir or self.default_templates_dir
+        self.module_discovery = config.module_discovery
+        self.project_name = config.project_name
+        self.quality_target_default = config.quality_target
+        self.package_roots_default = config.package_roots if config.package_roots else None
+
+    def _setup_template_engine(self):
         if self.templates_dir != self.default_templates_dir:
              self.template_engine = TemplateEngine(self.templates_dir, defaults_dir=self.default_templates_dir)
         else:
              self.template_engine = TemplateEngine(self.templates_dir)
-        
-        # Initialize Shared Services
-        self.viz_provider = visualization_provider or DefaultVisualizationProvider()
-        self.summary_builder = SummaryDataBuilder()
-        self.reference_collector = ReferenceCollector()
-        
-        # Determine Source Root for Module Discovery
-        # Prefer quality_target (which points to package root), else src
+
+    def _determine_source_root(self):
         if self.quality_target_default and self.quality_target_default != "src":
-             source_root = Path(self.quality_target_default).resolve()
+             return Path(self.quality_target_default).resolve()
         elif self.module_discovery:
-             source_root = Path.cwd() / "src"
-        else:
-             # Fallback to src, but attempt to drill down if nested namespaces exist
-             base_src = Path.cwd() / "src"
-             if base_src.exists():
-                 # Check for nikhil/nibandha structure or generic single-packages
-                 # Heuristic: If src contains only 1 dir, and that dir contains 1 dir... drill down.
-                 # Specifically for Nibandha: src/nikhil/nibandha
-                 candidate = base_src / "nikhil" / "nibandha"
-                 if candidate.exists():
-                     source_root = candidate
-                 else:
-                     source_root = base_src
-             else:
-                 source_root = base_src
+             return Path.cwd() / "src"
         
-        # Initialize Reporters with DI
-        # 1. Introduction
+        # Fallback to src, but attempt to drill down if nested namespaces exist
+        base_src = Path.cwd() / "src"
+        if base_src.exists():
+             candidate = base_src / "nikhil" / "nibandha"
+             if candidate.exists():
+                 return candidate
+        return base_src
+
+    def _initialize_reporters(self, source_root):
         self.intro_reporter = introduction_reporter.IntroductionReporter(
             self.output_dir, self.templates_dir, self.template_engine
         )
-        
-        # 3. Unit
         self.unit_reporter = unit_reporter.UnitReporter(
             self.output_dir, self.templates_dir, self.docs_dir, 
             self.template_engine, self.viz_provider,
             self.module_discovery, source_root, self.reference_collector
         )
-        
-        # 4. E2E
         self.e2e_reporter = e2e_reporter.E2EReporter(
             self.output_dir, self.templates_dir, self.docs_dir,
             self.template_engine, self.viz_provider,
             self.module_discovery, source_root, self.reference_collector
         )
-        
-        # 5,6,7. Quality
         self.quality_reporter = quality_reporter.QualityReporter(
             self.output_dir, self.templates_dir,
             self.template_engine, self.viz_provider,
-            self.reference_collector,
-            source_root=source_root
+            self.reference_collector, source_root=source_root
         )
-        
-        # 8. Dependency
         self.dep_reporter = dependency_reporter.DependencyReporter(
             self.output_dir, self.templates_dir,
             self.template_engine, self.reference_collector
         )
-        
-        # 9. Package
         self.pkg_reporter = package_reporter.PackageReporter(
             self.output_dir, self.templates_dir,
             self.template_engine, self.reference_collector
         )
-        
-        # 10. Documentation
+        self._initialize_doc_reporter(source_root)
+
+    def _initialize_doc_reporter(self, source_root):
         doc_paths = {
             "functional": Path("docs/modules"), 
             "technical": Path("docs/technical"), 
             "test": Path("docs/test")
         }
-        # Override with config if available
-        if isinstance(config, ReportingConfig) and config.doc_paths:
-            doc_paths = config.doc_paths
+        if isinstance(self.config, ReportingConfig) and self.config.doc_paths:
+            doc_paths = self.config.doc_paths
             
         self.doc_reporter = documentation_reporter.DocumentationReporter(
             self.output_dir, self.templates_dir, doc_paths,
             self.template_engine, self.viz_provider,
             self.module_discovery, source_root, self.reference_collector
         )
-        
-        # Initialize Export Service
+
+    def _initialize_export_service(self, config):
         self.export_formats = ["md"]
         if config and isinstance(config, ReportingConfig):
             self.export_formats = config.export_formats
@@ -167,10 +166,8 @@ class ReportGenerator:
              try:
                  from ....export import ExportService
                  self.export_service = ExportService()
-             except ImportError as e:
-                 logger.warning(f"Failed to import ExportService: {e}")
              except Exception as e:
-                 logger.warning(f"Failed to init ExportService (General): {e}")
+                 logger.warning(f"Failed to init ExportService: {e}")
 
     def generate_all(self, 
                      unit_target: str = None, 

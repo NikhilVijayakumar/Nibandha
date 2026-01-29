@@ -47,40 +47,46 @@ class UnitDataBuilder:
         }
         
     def _build_module_breakdown(self, pytest_data, coverage_data):
-        """
-        Aggregates coverage data by module.
-        Assumes file paths like .../src/nikhil/nibandha/<module>/...
-        """
-        module_stats = {}
+        """Aggregates coverage data by module."""
         files = coverage_data.get("files", {})
+        module_stats = self._aggregate_file_stats(files)
+        return self._format_module_stats(module_stats)
 
-        for file_path, stats in files.items():
-            # Normalize path
-            # Expected pattern: .../src/nikhil/nibandha/MODULENAME/file.py
-            parts = file_path.split("src/nikhil/nibandha/")
-            if len(parts) < 2:
-                # Try relative path or verification environment paths
-                if "src/nikhil/nibandha" in file_path:
-                   parts = file_path.split("src/nikhil/nibandha/")
-                else: 
-                   continue
-
-            subpath = parts[1]
-            module_name = subpath.split("/")[0]
+    def _aggregate_file_stats(self, files: Dict) -> Dict:
+        stats = {}
+        for file_path, f_stats in files.items():
+            mod_name = self._extract_module_from_path(file_path)
+            if not mod_name: continue
             
-            # Skip root files like __init__.py if they are not in a submodule
-            if ".py" in module_name:
-                module_name = "root"
-
-            if module_name not in module_stats:
-                module_stats[module_name] = {"stmts": 0, "covered": 0, "missed": 0}
+            if mod_name not in stats:
+                stats[mod_name] = {"stmts": 0, "covered": 0, "missed": 0}
             
-            summary = stats.get("summary", {})
-            module_stats[module_name]["stmts"] += summary.get("num_statements", 0)
-            module_stats[module_name]["covered"] += summary.get("covered_lines", 0)
-            module_stats[module_name]["missed"] += summary.get("missing_lines", 0)
+            s = f_stats.get("summary", {})
+            stats[mod_name]["stmts"] += s.get("num_statements", 0)
+            stats[mod_name]["covered"] += s.get("covered_lines", 0)
+            stats[mod_name]["missed"] += s.get("missing_lines", 0)
+        return stats
 
-        # Convert to list
+    def _extract_module_from_path(self, file_path: str) -> Optional[str]:
+        # Normalize path
+        # Expected pattern: .../src/nikhil/nibandha/MODULENAME/file.py
+        parts = file_path.split("src/nikhil/nibandha/")
+        if len(parts) < 2:
+            # Try relative path or verification environment paths
+            if "src/nikhil/nibandha" in file_path:
+               parts = file_path.split("src/nikhil/nibandha/")
+            else: 
+               return None
+
+        subpath = parts[1]
+        module_name = subpath.split("/")[0]
+        
+        # Skip root files like __init__.py if they are not in a submodule
+        if ".py" in module_name:
+            module_name = "root"
+        return module_name
+
+    def _format_module_stats(self, module_stats: Dict) -> List[Dict]:
         breakdown = []
         for name, data in module_stats.items():
             total = data["stmts"]
@@ -192,157 +198,168 @@ class QualityDataBuilder:
 class SummaryDataBuilder:
     """Aggregates all data for summary report."""
     def build(self, unit_data: Dict, e2e_data: Dict, quality_data: Dict, documentation_data: Dict = None, dependency_data: Dict = None, package_data: Dict = None, project_name="Nibandha") -> Dict[str, Any]:
-        """
-        Build data dictionary for unified overview report.
-        Expects enriched data from other builders.
-        """
+        """Build data dictionary for unified overview report."""
         logger.info("Building Summary Data for Overview")
         
-        # Unit Checks
-        u_status = unit_data.get("status", "UNKNOWN")
-        u_total = unit_data.get("total", 0)
-        u_passed = unit_data.get("passed", 0)
-        u_failed = unit_data.get("failed", 0) - unit_data.get("skipped", 0) # Adjust if needed
-        u_rate = unit_data.get("pass_rate", 0)
+        # 1. Aggregate Core Metrics
+        metrics = self._aggregate_metrics(unit_data, e2e_data, quality_data)
         
-        # E2E Checks
-        e_status = e2e_data.get("status", "UNKNOWN")
-        e_total = e2e_data.get("total", 0)
-        e_passed = e2e_data.get("status_counts", {}).get("pass", 0)
-        e_failed = e2e_data.get("status_counts", {}).get("fail", 0)
-        e_rate = e2e_data.get("pass_rate", 0)
-        
-        # Coverage
-        cov_total = unit_data.get("coverage_total", 0)
-        cov_status = "GOOD" if cov_total > 80 else "NEEDS IMPROVEMENT"
-        
-        # Quality
-        arch = quality_data.get("architecture", {})
-        type_ = quality_data.get("type_safety", {})
-        cplx = quality_data.get("complexity", {})
-        
-        arch_status = arch.get("status", "UNKNOWN")
-        type_status = type_.get("status", "UNKNOWN")
-        cplx_status = cplx.get("status", "UNKNOWN")
-        
-        # Action Items
-        actions = []
-        if u_status != "PASS": actions.append(f"- Fix {u_failed} failing unit tests")
-        if e_status != "PASS": actions.append(f"- Fix {e_failed} failing E2E scenarios")
-        if cov_total < 80: actions.append(f"- Improve code coverage (currently {cov_total}%)")
-        if type_status != "PASS": actions.append(f"- Resolve {type_.get('violation_count', 0)} type safety errors")
-        if cplx_status != "PASS": actions.append(f"- Refactor {cplx.get('violation_count', 0)} complex functions")
-        if arch_status != "PASS": actions.append("- Fix architecture violations")
-        
-        overall = "🟢 HEALTHY"
-        if actions:
-             overall = "🟡 NEEDS ATTENTION"
-        if "FAIL" in u_status or "FAIL" in e_status or "FAIL" in arch_status:
-             overall = "🔴 CRITICAL"
+        # 2. Generate Action Items and Status
+        actions, overall_status = self._generate_actions_and_status(metrics)
 
-        if "FAIL" in u_status or "FAIL" in e_status or "FAIL" in arch_status:
-             overall = "🔴 CRITICAL"
+        # 3. Calculate Unified Grade
+        unified_grade = self._calculate_unified_grade(metrics)
 
-        # Unified Grade
-        grade_list = [
-            unit_data.get("grade", "F"),
-            e2e_data.get("grade", "F"),
-            arch.get("grade", "F"),
-            type_.get("grade", "F"),
-            cplx.get("grade", "F")
-        ]
-        unified_grade = Grader.calculate_overall_grade(grade_list)
+        # 4. Construct Base Result
+        result = self._construct_base_result(metrics, actions, overall_status, unified_grade)
 
-        result = {
-            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "overall_status": overall,
-            "display_grade": unified_grade,
-            "grade_color": Grader.get_grade_color(unified_grade),
-            
-            # Unit
-            "unit_status": "🟢 PASS" if u_status == "PASS" else "🔴 FAIL",
-            "unit_passed": u_passed,
-            "unit_failed": unit_data.get("failed", 0),
-            "unit_total": u_total,
-            "unit_pass_rate": u_rate,
-            
-            # E2E
-            "e2e_status": "🟢 PASS" if e_status == "PASS" else "🔴 FAIL",
-            "e2e_passed": e_passed,
-            "e2e_failed": e_failed,
-            "e2e_total": e_total,
-            "e2e_pass_rate": e_rate,
-            
-            # Coverage
-            "coverage_status": f"🟢 {cov_status}" if cov_status == "GOOD" else f"🟡 {cov_status}",
-            "coverage_total": cov_total,
-            
-            # Quality
-            "type_status": "🟢 PASS" if type_status == "PASS" else "🔴 FAIL",
-            "type_violations": type_.get("violation_count", 0),
-            
-            "complexity_status": "🟢 PASS" if cplx_status == "PASS" else "🔴 FAIL",
-            "complexity_violations": cplx.get("violation_count", 0),
-            
-            "arch_status": "🟢 PASS" if arch_status == "PASS" else "🔴 FAIL",
-            "arch_message": "Clean" if arch_status == "PASS" else "Violations Detected",
-            
-            "action_items": "\n".join(actions) if actions else "- No urgent actions required.",
-            
-            # Documentation defaults (will be overwritten if data provided)
-            "doc_coverage": "N/A",
-            "doc_status": "⚪ Not Run",  
-            "func_doc_pct": "N/A",
-            "tech_doc_pct": "N/A",
-            "test_doc_pct": "N/A"
-        }
-        
-        # Add documentation data if provided
-        if documentation_data:
-            func_stats = documentation_data.get("functional", {}).get("stats", {})
-            tech_stats = documentation_data.get("technical", {}).get("stats", {})
-            test_stats = documentation_data.get("test", {}).get("stats", {})
-            
-            func_total = func_stats.get("documented", 0) + func_stats.get("missing", 0)
-            func_pct = (func_stats.get("documented", 0) / func_total * 100) if func_total > 0 else 0
-            
-            tech_total = tech_stats.get("documented", 0) + tech_stats.get("missing", 0)
-            tech_pct = (tech_stats.get("documented", 0) / tech_total * 100) if tech_total > 0 else 0
-            
-            test_total = test_stats.get("documented", 0) + test_stats.get("missing", 0)
-            test_pct = (test_stats.get("documented", 0) / test_total * 100) if test_total > 0 else 0
-            
-            avg_doc_coverage = (func_pct + tech_pct + test_pct) / 3
-            
-            result["doc_coverage"] = f"{avg_doc_coverage:.1f}"
-            result["doc_status"] = "🟢 GOOD" if avg_doc_coverage > 80 else "🟡 NEEDS IMPROVEMENT"
-            result["func_doc_pct"] = f"{func_pct:.1f}"
-            result["tech_doc_pct"] = f"{tech_pct:.1f}"
-            result["test_doc_pct"] = f"{test_pct:.1f}"
-        
-        # Add dependency data if provided
-        if dependency_data:
-            result["dep_status"] = dependency_data.get("status", "⚪ Not Run")
-            result["dep_total_modules"] = dependency_data.get("total_modules", 0)
-            result["dep_total_deps"] = dependency_data.get("total_dependencies", 0)
-            result["dep_circular"] = dependency_data.get("circular_count", 0)
-        else:
-            result["dep_status"] = "⚪ Not Run"
-            result["dep_total_modules"] = "N/A"
-            result["dep_total_deps"] = "N/A"
-            result["dep_circular"] = "N/A"
-        
-        # Add package data if provided
-        if package_data:
-            result["pkg_status"] = package_data.get("status", "⚪ Not Run")
-            result["pkg_total"] = package_data.get("total_packages", 0)
-            result["pkg_outdated"] = package_data.get("outdated_count", 0)
-            result["pkg_health_score"] = package_data.get("health_score", 0)
-        else:
-            result["pkg_status"] = "⚪ Not Run"
-            result["pkg_total"] = "N/A"
-            result["pkg_outdated"] = "N/A"
-            result["pkg_health_score"] = "N/A"
+        # 5. Enrich with Optional Data
+        self._enrich_documentation(result, documentation_data)
+        self._enrich_dependencies(result, dependency_data)
+        self._enrich_package(result, package_data)
         
         return result
+
+    def _aggregate_metrics(self, u_data, e_data, q_data):
+        return {
+            "unit": {
+                "status": u_data.get("status", "UNKNOWN"),
+                "total": u_data.get("total", 0),
+                "passed": u_data.get("passed", 0),
+                "failed": u_data.get("failed", 0) - u_data.get("skipped", 0),
+                "rate": u_data.get("pass_rate", 0),
+                "grade": u_data.get("grade", "F"),
+                "cov_total": u_data.get("coverage_total", 0)
+            },
+            "e2e": {
+                "status": e_data.get("status", "UNKNOWN"),
+                "total": e_data.get("total", 0),
+                "passed": e_data.get("status_counts", {}).get("pass", 0),
+                "failed": e_data.get("status_counts", {}).get("fail", 0),
+                "rate": e_data.get("pass_rate", 0),
+                "grade": e_data.get("grade", "F")
+            },
+            "quality": {
+                "arch": q_data.get("architecture", {}),
+                "type": q_data.get("type_safety", {}),
+                "cplx": q_data.get("complexity", {})
+            }
+        }
+
+    def _generate_actions_and_status(self, metrics):
+        u = metrics["unit"]
+        e = metrics["e2e"]
+        q = metrics["quality"]
+        
+        actions = []
+        if u["status"] != "PASS": actions.append(f"- Fix {u['failed']} failing unit tests")
+        if e["status"] != "PASS": actions.append(f"- Fix {e['failed']} failing E2E scenarios")
+        if u["cov_total"] < 80: actions.append(f"- Improve code coverage (currently {u['cov_total']}%)")
+        
+        if q["type"].get("status") != "PASS": 
+            actions.append(f"- Resolve {q['type'].get('violation_count', 0)} type safety errors")
+        if q["cplx"].get("status") != "PASS": 
+            actions.append(f"- Refactor {q['cplx'].get('violation_count', 0)} complex functions")
+        if q["arch"].get("status") != "PASS": 
+            actions.append("- Fix architecture violations")
+            
+        overall = "🟢 HEALTHY"
+        if actions: overall = "🟡 NEEDS ATTENTION"
+        
+        is_crit = lambda s: "FAIL" in str(s)
+        if is_crit(u["status"]) or is_crit(e["status"]) or is_crit(q["arch"].get("status")):
+             overall = "🔴 CRITICAL"
+             
+        return actions, overall
+
+    def _calculate_unified_grade(self, metrics):
+        grades = [
+            metrics["unit"]["grade"],
+            metrics["e2e"]["grade"],
+            metrics["quality"]["arch"].get("grade", "F"),
+            metrics["quality"]["type"].get("grade", "F"),
+            metrics["quality"]["cplx"].get("grade", "F")
+        ]
+        return Grader.calculate_overall_grade(grades)
+
+    def _construct_base_result(self, metrics, actions, overall, grade):
+        u = metrics["unit"]
+        e = metrics["e2e"]
+        q = metrics["quality"]
+        cov_status = "GOOD" if u["cov_total"] > 80 else "NEEDS IMPROVEMENT"
+        
+        return {
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "overall_status": overall,
+            "display_grade": grade,
+            "grade_color": Grader.get_grade_color(grade),
+            
+            "unit_status": "🟢 PASS" if u["status"] == "PASS" else "🔴 FAIL",
+            "unit_passed": u["passed"], "unit_failed": u["failed"], 
+            "unit_total": u["total"], "unit_pass_rate": u["rate"],
+            
+            "e2e_status": "🟢 PASS" if e["status"] == "PASS" else "🔴 FAIL",
+            "e2e_passed": e["passed"], "e2e_failed": e["failed"],
+            "e2e_total": e["total"], "e2e_pass_rate": e["rate"],
+            
+            "coverage_status": f"🟢 {cov_status}" if cov_status == "GOOD" else f"🟡 {cov_status}",
+            "coverage_total": u["cov_total"],
+            
+            "type_status": "🟢 PASS" if q["type"].get("status") == "PASS" else "🔴 FAIL",
+            "type_violations": q["type"].get("violation_count", 0),
+            
+            "complexity_status": "🟢 PASS" if q["cplx"].get("status") == "PASS" else "🔴 FAIL",
+            "complexity_violations": q["cplx"].get("violation_count", 0),
+            
+            "arch_status": "🟢 PASS" if q["arch"].get("status") == "PASS" else "🔴 FAIL",
+            "arch_message": "Clean" if q["arch"].get("status") == "PASS" else "Violations Detected",
+            
+            "action_items": "\n".join(actions) if actions else "- No urgent actions required."
+        }
+
+    def _enrich_documentation(self, result, doc_data):
+        if not doc_data:
+            result.update({"doc_coverage": "N/A", "doc_status": "⚪ Not Run",
+                           "func_doc_pct": "N/A", "tech_doc_pct": "N/A", "test_doc_pct": "N/A"})
+            return
+
+        func = self._calc_doc_pct(doc_data.get("functional", {}))
+        tech = self._calc_doc_pct(doc_data.get("technical", {}))
+        test = self._calc_doc_pct(doc_data.get("test", {}))
+        
+        avg = (func + tech + test) / 3
+        result["doc_coverage"] = f"{avg:.1f}"
+        result["doc_status"] = "🟢 GOOD" if avg > 80 else "🟡 NEEDS IMPROVEMENT"
+        result["func_doc_pct"] = f"{func:.1f}"
+        result["tech_doc_pct"] = f"{tech:.1f}"
+        result["test_doc_pct"] = f"{test:.1f}"
+
+    def _calc_doc_pct(self, section_data):
+        stats = section_data.get("stats", {})
+        total = stats.get("documented", 0) + stats.get("missing", 0)
+        return (stats.get("documented", 0) / total * 100) if total > 0 else 0
+
+    def _enrich_dependencies(self, result, dep_data):
+        if dep_data:
+            result.update({
+                "dep_status": dep_data.get("status", "⚪ Not Run"),
+                "dep_total_modules": dep_data.get("total_modules", 0),
+                "dep_total_deps": dep_data.get("total_dependencies", 0),
+                "dep_circular": dep_data.get("circular_count", 0)
+            })
+        else:
+             result.update({"dep_status": "⚪ Not Run", "dep_total_modules": "N/A", 
+                            "dep_total_deps": "N/A", "dep_circular": "N/A"})
+
+    def _enrich_package(self, result, pkg_data):
+        if pkg_data:
+            result.update({
+                "pkg_status": pkg_data.get("status", "⚪ Not Run"),
+                "pkg_total": pkg_data.get("total_packages", 0),
+                "pkg_outdated": pkg_data.get("outdated_count", 0),
+                "pkg_health_score": pkg_data.get("health_score", 0)
+            })
+        else:
+             result.update({"pkg_status": "⚪ Not Run", "pkg_total": "N/A", 
+                            "pkg_outdated": "N/A", "pkg_health_score": "N/A"})
 

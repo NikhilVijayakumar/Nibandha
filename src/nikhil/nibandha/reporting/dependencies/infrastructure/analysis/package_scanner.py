@@ -121,46 +121,48 @@ class PackageScanner:
 
     def parse_pyproject_dependencies(self) -> Dict[str, str]:
         if not self.pyproject_path.exists(): return {}
-        
-        dependencies = {}
         try:
             content = self.pyproject_path.read_text(encoding="utf-8")
         except:
             return {}
-            
+        return self._parse_dependencies_from_content(content)
+
+    def _parse_dependencies_from_content(self, content: str) -> Dict[str, str]:
+        dependencies = {}
         in_deps = False
         in_dev_deps = False
         
         for line in content.splitlines():
             stripped = line.strip()
+            
+            # State transitions
             if "dependencies = [" in stripped:
-                in_deps = True
-                continue
+                in_deps = True; continue
             elif "optional-dependencies]" in stripped:
-                in_deps = False
-                continue
+                in_deps = False; continue
             elif stripped.startswith("dev = ["):
-                in_dev_deps = True
-                continue
-                
+                in_dev_deps = True; continue
+            
             if (in_deps or in_dev_deps) and "]" in stripped:
-                in_deps = False
-                in_dev_deps = False
-                continue
+                in_deps = False; in_dev_deps = False; continue
                 
+            # Content parsing
             if (in_deps or in_dev_deps) and stripped and not stripped.startswith("#"):
-                dep = stripped.strip(' ",')
-                if not dep: continue
-                
-                name = dep
-                if "@" in dep: name = dep.split("@")[0].strip()
-                elif "==" in dep: name = dep.split("==")[0].strip()
-                elif ">=" in dep: name = dep.split(">=")[0].strip()
-                elif "<" in dep: name = dep.split("<")[0].strip()
-                
-                dependencies[name.lower()] = "latest"
+                self._add_dependency(dependencies, stripped)
                 
         return dependencies
+
+    def _add_dependency(self, dependencies: Dict, line: str):
+        dep = line.strip(' ",')
+        if not dep: return
+        
+        name = dep
+        if "@" in dep: name = dep.split("@")[0].strip()
+        elif "==" in dep: name = dep.split("==")[0].strip()
+        elif ">=" in dep: name = dep.split(">=")[0].strip()
+        elif "<" in dep: name = dep.split("<")[0].strip()
+        
+        dependencies[name.lower()] = "latest"
 
     def find_unused_dependencies(self) -> List[str]:
         declared = set(self.parse_pyproject_dependencies().keys())

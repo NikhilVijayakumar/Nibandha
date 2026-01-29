@@ -252,9 +252,20 @@ class RotationManager:
         
         deleted_count = 0
         
-        # 1. Apply time-based retention: delete entire date folders older than retention period
+        # Apply time-based retention: delete entire date folders older than retention period
         cutoff_date = datetime.now().date() - timedelta(days=self.config.archive_retention_days)
         
+        deleted_count += self._cleanup_dated_archives(archive_dir, cutoff_date)
+        deleted_count += self._cleanup_legacy_archives(archive_dir)
+        
+        if deleted_count > 0:
+            self.logger.info(f"Cleanup complete: {deleted_count} old archive(s) deleted")
+        
+        return deleted_count
+
+    def _cleanup_dated_archives(self, archive_dir: Path, cutoff_date) -> int:
+        """Handle cleanup of date-structured archive folders."""
+        deleted_count = 0
         for date_folder in archive_dir.iterdir():
             if not date_folder.is_dir():
                 continue
@@ -269,65 +280,74 @@ class RotationManager:
             
             # Delete folders older than retention period
             if folder_date < cutoff_date:
-                try:
-                    # Count files before deletion
-                    file_count = len(list(date_folder.glob("*.log*")))
-                    shutil.rmtree(date_folder)
-                    deleted_count += file_count
-                    days_old = (datetime.now().date() - folder_date).days
-                    self.logger.info(f"Deleted old archive folder (age: {days_old} days): {date_folder.name}/ ({file_count} file(s))")
-                except Exception as e:
-                    self.logger.error(f"Failed to delete archive folder {date_folder.name}: {e}")
+                deleted_count += self._delete_archive_folder(date_folder, folder_date)
             else:
-                # 2. For folders within retention period, apply backup_count limit per folder
-                log_files = sorted(
-                    date_folder.glob("*.log*"),
-                    key=lambda f: f.stat().st_mtime,
-                    reverse=True
-                )
-                
-                if len(log_files) > self.config.backup_count:
-                    for log_file in log_files[self.config.backup_count:]:
-                        try:
-                            log_file.unlink()
-                            deleted_count += 1
-                            self.logger.info(f"Deleted old archive (backup limit in {date_folder.name}/): {log_file.name}")
-                        except Exception as e:
-                            self.logger.error(f"Failed to delete {log_file}: {e}")
-        
-        # 3. Handle legacy flat files in archive root (backward compatibility)
-        # These are files NOT in date folders - apply simple backup_count
-        flat_files = [f for f in archive_dir.glob("*.log*") if f.is_file()]
-        if flat_files:
-            self.logger.info(f"Found {len(flat_files)} legacy flat archive files")
-            flat_files_sorted = sorted(flat_files, key=lambda f: f.stat().st_mtime, reverse=True)
-            
-            # Apply backup_count to flat files
-            if len(flat_files_sorted) > self.config.backup_count:
-                for log_file in flat_files_sorted[self.config.backup_count:]:
-                    try:
-                        log_file.unlink()
-                        deleted_count += 1
-                        self.logger.info(f"Deleted old legacy archive (backup limit): {log_file.name}")
-                    except Exception as e:
-                        self.logger.error(f"Failed to delete {log_file}: {e}")
-            
-            # Also apply time-based retention to flat files
-            cutoff_datetime = datetime.now() - timedelta(days=self.config.archive_retention_days)
-            for log_file in archive_dir.glob("*.log*"):
-                if not log_file.is_file() or not log_file.exists():
-                    continue
-                file_mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
-                if file_mtime < cutoff_datetime:
-                    try:
-                        log_file.unlink()
-                        deleted_count += 1
-                        days_old = (datetime.now() - file_mtime).days
-                        self.logger.info(f"Deleted old legacy archive (age: {days_old} days): {log_file.name}")
-                    except Exception as e:
-                        self.logger.error(f"Failed to delete {log_file}: {e}")
-        
-        if deleted_count > 0:
-            self.logger.info(f"Cleanup complete: {deleted_count} old archive(s) deleted")
-        
+                # For folders within retention period, apply backup_count limit per folder
+                deleted_count += self._enforce_folder_backup_limit(date_folder)
         return deleted_count
+
+    def _delete_archive_folder(self, folder: Path, folder_date) -> int:
+        """Delete an entire archive folder."""
+        try:
+            file_count = len(list(folder.glob("*.log*")))
+            shutil.rmtree(folder)
+            days_old = (datetime.now().date() - folder_date).days
+            self.logger.info(f"Deleted old archive folder (age: {days_old} days): {folder.name}/ ({file_count} file(s))")
+            return file_count
+        except Exception as e:
+            self.logger.error(f"Failed to delete archive folder {folder.name}: {e}")
+            return 0
+
+    def _enforce_folder_backup_limit(self, folder: Path) -> int:
+        """Keep only N most recent files in the folder."""
+        log_files = sorted(
+            folder.glob("*.log*"),
+            key=lambda f: f.stat().st_mtime,
+            reverse=True
+        )
+        
+        deleted_count = 0
+        if len(log_files) > self.config.backup_count:
+            for log_file in log_files[self.config.backup_count:]:
+                deleted_count += self._delete_file(log_file, f"backup limit in {folder.name}/")
+        return deleted_count
+
+    def _cleanup_legacy_archives(self, archive_dir: Path) -> int:
+        """Handle cleanup of flat files in the archive root."""
+        deleted_count = 0
+        flat_files = [f for f in archive_dir.glob("*.log*") if f.is_file()]
+        
+        if not flat_files:
+            return 0
+            
+        self.logger.info(f"Found {len(flat_files)} legacy flat archive files")
+        
+        # 1. Apply backup count
+        flat_files_sorted = sorted(flat_files, key=lambda f: f.stat().st_mtime, reverse=True)
+        if len(flat_files_sorted) > self.config.backup_count:
+            for log_file in flat_files_sorted[self.config.backup_count:]:
+                deleted_count += self._delete_file(log_file, "legacy backup limit")
+        
+        # 2. Apply retention time
+        cutoff_datetime = datetime.now() - timedelta(days=self.config.archive_retention_days)
+        # Re-check existence as some might have been deleted above (though list is static, file might be gone)
+        for log_file in archive_dir.glob("*.log*"):
+            if not log_file.exists(): 
+                continue
+                
+            file_mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
+            if file_mtime < cutoff_datetime:
+                days_old = (datetime.now() - file_mtime).days
+                deleted_count += self._delete_file(log_file, f"age: {days_old} days")
+                
+        return deleted_count
+
+    def _delete_file(self, file_path: Path, reason: str) -> int:
+        """Helper to delete a single file safely."""
+        try:
+            file_path.unlink()
+            self.logger.info(f"Deleted old archive ({reason}): {file_path.name}")
+            return 1
+        except Exception as e:
+            self.logger.error(f"Failed to delete {file_path}: {e}")
+            return 0

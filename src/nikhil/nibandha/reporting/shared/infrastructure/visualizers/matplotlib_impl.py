@@ -267,12 +267,7 @@ def plot_dependency_graph(dependencies, output_path: Path, circular_deps=None):
     """Generate a visual dependency graph."""
     if not _check_dependencies(): return
     if not HAS_NETWORKX:
-        # Fallback text
-        plt.figure(figsize=(12, 8))
-        plt.text(0.5, 0.5, "Graph Visualization requires 'networkx'", ha='center', va='center', fontsize=14)
-        plt.axis('off')
-        plt.savefig(output_path)
-        plt.close()
+        _save_fallback_graph_image(output_path)
         return
 
     G = nx.DiGraph()
@@ -282,13 +277,37 @@ def plot_dependency_graph(dependencies, output_path: Path, circular_deps=None):
             G.add_edge(mod, neighbor)
             
     plt.figure(figsize=(12, 10))
-    # Layout
+    pos = _calculate_graph_layout(G)
+    
+    _draw_graph_nodes(G, pos)
+    
+    nx.draw_networkx_edges(G, pos, edge_color="#95a5a6", arrows=True, arrowsize=15)
+    nx.draw_networkx_labels(G, pos, font_size=9, font_weight="bold", font_color="white")
+    
+    if circular_deps:
+        _highlight_circular_deps(G, pos, circular_deps)
+             
+    plt.title("Module Dependency Graph", fontsize=16, fontweight='bold')
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=100)
+    logger.debug(f"Saved plot: {output_path}")
+    plt.close()
+
+def _save_fallback_graph_image(output_path: Path):
+    plt.figure(figsize=(12, 8))
+    plt.text(0.5, 0.5, "Graph Visualization requires 'networkx'", ha='center', va='center', fontsize=14)
+    plt.axis('off')
+    plt.savefig(output_path)
+    plt.close()
+
+def _calculate_graph_layout(G):
     try:
-        pos = nx.spring_layout(G, k=2, iterations=50, seed=42)
+        return nx.spring_layout(G, k=2, iterations=50, seed=42)
     except:
-        pos = nx.circular_layout(G)
-        
-    # Heuristic Coloring
+        return nx.circular_layout(G)
+
+def _draw_graph_nodes(G, pos):
     node_colors = []
     for node in G.nodes():
         n = node.lower()
@@ -300,23 +319,14 @@ def plot_dependency_graph(dependencies, output_path: Path, circular_deps=None):
         node_colors.append(c)
 
     nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=2000, alpha=0.9, edgecolors="black")
-    nx.draw_networkx_edges(G, pos, edge_color="#95a5a6", arrows=True, arrowsize=15)
-    nx.draw_networkx_labels(G, pos, font_size=9, font_weight="bold", font_color="white")
-    
-    if circular_deps:
-        circ_edges = []
-        for a, b in circular_deps:
-            if G.has_edge(a, b): circ_edges.append((a, b))
-            if G.has_edge(b, a): circ_edges.append((b, a))
-        if circ_edges:
-             nx.draw_networkx_edges(G, pos, edgelist=circ_edges, edge_color="#e74c3c", width=2, arrowsize=20)
-             
-    plt.title("Module Dependency Graph", fontsize=16, fontweight='bold')
-    plt.axis('off')
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=100)
-    logger.debug(f"Saved plot: {output_path}")
-    plt.close()
+
+def _highlight_circular_deps(G, pos, circular_deps):
+    circ_edges = []
+    for a, b in circular_deps:
+        if G.has_edge(a, b): circ_edges.append((a, b))
+        if G.has_edge(b, a): circ_edges.append((b, a))
+    if circ_edges:
+        nx.draw_networkx_edges(G, pos, edgelist=circ_edges, edge_color="#e74c3c", width=2, arrowsize=20)
 
 def plot_dependency_matrix(dependencies, output_path: Path):
     """Create a dependency matrix heatmap."""

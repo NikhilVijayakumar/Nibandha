@@ -73,37 +73,39 @@ class ModuleScanner:
         except Exception:
             return set()
         
+        return self._extract_imports_from_tree(tree)
+
+    def _extract_imports_from_tree(self, tree: ast.AST) -> Set[str]:
         imports = set()
-        
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
-                for alias in node.names:
-                    module = alias.name.split(".")[0]
-                    imports.add(module)
-                    
+                self._process_import_node(node, imports)
             elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    parts = node.module.split(".")
-                    # Check if it matches any package root
-                    is_internal = False
-                    for root in self.package_roots:
-                        if root in parts:
-                            is_internal = True
-                            break
-                    
-                    if is_internal:
-                        # Extract root module only (e.g., nikhil.pravaha.logging.domain... -> Logging)
-                        # We need to find the segment after the package root.
-                        # Assuming package root is like 'nikhil.nibandha'
-                        for root in self.package_roots:
-                            root_parts = root.split(".")
-                            # If parts starts with root_parts
-                            if parts[:len(root_parts)] == root_parts:
-                                if len(parts) > len(root_parts):
-                                    imports.add(parts[len(root_parts)].capitalize())
-                                break
-
+                self._process_import_from_node(node, imports)
         return imports
+
+    def _process_import_node(self, node: ast.Import, imports: Set[str]):
+        for alias in node.names:
+            module = alias.name.split(".")[0]
+            imports.add(module)
+
+    def _process_import_from_node(self, node: ast.ImportFrom, imports: Set[str]):
+        if not node.module: return
+        
+        parts = node.module.split(".")
+        
+        # Check if internal
+        is_internal = any(root in parts for root in self.package_roots)
+        if not is_internal: return
+
+        # Extract root module (e.g., nikhil.pravaha.logging.domain... -> Logging)
+        for root in self.package_roots:
+            root_parts = root.split(".")
+            # If parts starts with root_parts
+            if parts[:len(root_parts)] == root_parts:
+                if len(parts) > len(root_parts):
+                    imports.add(parts[len(root_parts)].capitalize())
+                break
     
     def _filter_internal_dependencies(self):
         """Keep only dependencies to modules we know about."""

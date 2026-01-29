@@ -266,33 +266,48 @@ class UnitReporter:
         return data
 
     def _group_results(self, data):
-        # Helper to group by module
-        all_modules = utils.get_all_modules(self.source_root, self.module_discovery)
-        module_results = {mod: {"total": 0, "pass": 0, "fail": 0, "error": 0, "tests": []} for mod in all_modules}
-        module_results["Unknown"] = {"total": 0, "pass": 0, "fail": 0, "error": 0, "tests": []}
+        module_results = self._initialize_module_buckets()
         
         for t in data.get("tests", []):
-            parts = t["nodeid"].replace("\\", "/").split("/")
-            mod = "Unknown"
-            if "unit" in parts and "unit" in parts:
-                idx = parts.index("unit")
-                if idx + 1 < len(parts): mod = parts[idx + 1].capitalize()
-            elif "domain" in parts: 
-                idx = parts.index("domain")
-                if idx + 1 < len(parts): mod = parts[idx + 1].capitalize()
+            mod = self._determine_module_for_test(t)
+            self._update_module_stats(module_results, mod, t)
             
-            # Remap Rotation -> Logging
-            if mod == "Rotation":
-                mod = "Logging"
-            
-            if mod not in module_results:
-                module_results[mod] = {"total": 0, "pass": 0, "fail": 0, "error": 0, "tests": []}
-            
-            module_results[mod]["total"] += 1
-            if t["outcome"] == "passed": module_results[mod]["pass"] += 1
-            elif "error" in t.get("keywords", []): module_results[mod]["error"] += 1
-            else: module_results[mod]["fail"] += 1
-            module_results[mod]["tests"].append(t)
-            
-        if module_results["Unknown"]["total"] == 0: del module_results["Unknown"]
+        if module_results["Unknown"]["total"] == 0: 
+            del module_results["Unknown"]
         return module_results
+
+    def _initialize_module_buckets(self):
+        all_modules = utils.get_all_modules(self.source_root, self.module_discovery)
+        buckets = {mod: {"total": 0, "pass": 0, "fail": 0, "error": 0, "tests": []} for mod in all_modules}
+        buckets["Unknown"] = {"total": 0, "pass": 0, "fail": 0, "error": 0, "tests": []}
+        return buckets
+
+    def _determine_module_for_test(self, test_item):
+        parts = test_item["nodeid"].replace("\\", "/").split("/")
+        mod = "Unknown"
+        
+        if "unit" in parts:
+            idx = parts.index("unit")
+            if idx + 1 < len(parts): mod = parts[idx + 1].capitalize()
+        elif "domain" in parts: 
+            idx = parts.index("domain")
+            if idx + 1 < len(parts): mod = parts[idx + 1].capitalize()
+        
+        if mod == "Rotation":
+            return "Logging"
+        return mod
+
+    def _update_module_stats(self, results, mod, test_item):
+        if mod not in results:
+            results[mod] = {"total": 0, "pass": 0, "fail": 0, "error": 0, "tests": []}
+        
+        stats = results[mod]
+        stats["total"] += 1
+        stats["tests"].append(test_item)
+        
+        if test_item["outcome"] == "passed": 
+            stats["pass"] += 1
+        elif "error" in test_item.get("keywords", []): 
+            stats["error"] += 1
+        else: 
+            stats["fail"] += 1
