@@ -18,6 +18,7 @@ try:
     import networkx as nx # type: ignore
     HAS_NETWORKX = True
 except ImportError:
+    nx = None
     HAS_NETWORKX = False
 
 logger = logging.getLogger("nibandha.reporting")

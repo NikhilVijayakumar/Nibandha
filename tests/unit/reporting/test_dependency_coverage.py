@@ -77,7 +77,7 @@ class TestDependencyReporter:
             "Messy": ["A", "B", "C", "D", "E", "F", "G", "H", "I"], # FanOut 9 -> C
             "Cycle": ["Clean"]
         }
-        circular = { "Cycle" } # Set of module names
+        circular = [("Cycle", "Cycle")] # Self-reference to keep Clean innocent
         
         grades = reporter._calculate_module_grades(deps, circular)
         

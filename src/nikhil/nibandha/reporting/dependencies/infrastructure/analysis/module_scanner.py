@@ -86,17 +86,38 @@ class ModuleScanner:
 
     def _process_import_node(self, node: ast.Import, imports: Set[str]) -> None:
         for alias in node.names:
-            module = alias.name.split(".")[0]
-            imports.add(module)
+            parts = alias.name.split(".")
+            found = False
+            
+            # Internal Check
+            for root in self.package_roots:
+                root_parts = root.split(".")
+                if parts[:len(root_parts)] == root_parts:
+                    if len(parts) > len(root_parts):
+                        imports.add(parts[len(root_parts)].capitalize())
+                    found = True
+                    break
+            
+            # External Check
+            if not found:
+                imports.add(parts[0])
 
     def _process_import_from_node(self, node: ast.ImportFrom, imports: Set[str]) -> None:
         if not node.module: return
         
         parts = node.module.split(".")
+        found = False
         
-        # Check if internal
-        is_internal = any(root in parts for root in self.package_roots)
-        if not is_internal: return
+        # Internal Check
+        for root in self.package_roots:
+            root_parts = root.split(".")
+            if parts[:len(root_parts)] == root_parts:
+                if len(parts) > len(root_parts):
+                    imports.add(parts[len(root_parts)].capitalize())
+                found = True
+                break
+        
+        if not found: return
 
         # Extract root module (e.g., nikhil.pravaha.logging.domain... -> Logging)
         for root in self.package_roots:

@@ -137,7 +137,14 @@ class PackageScanner:
             
             # State transitions
             if "dependencies = [" in stripped:
-                in_deps = True; continue
+                in_deps = True
+                # Check for inline content
+                match = re.search(r'\[(.*)\]', stripped)
+                if match and match.group(1).strip():
+                     parts = match.group(1).split(",")
+                     for p in parts:
+                         self._add_dependency(dependencies, p)
+                continue
             elif "optional-dependencies]" in stripped:
                 in_deps = False; continue
             elif stripped.startswith("dev = ["):

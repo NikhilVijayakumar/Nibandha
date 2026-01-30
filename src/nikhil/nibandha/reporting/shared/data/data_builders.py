@@ -22,7 +22,10 @@ class UnitDataBuilder:
         status = "PASS" if failed == 0 and total > 0 else "FAIL"
         
         # Coverage
-        cov_totals = coverage_data.get("totals", {})
+        cov_totals = {}
+        if coverage_data:
+            cov_totals = coverage_data.get("totals", {})
+        
         cov_percent = cov_totals.get("percent_covered", 0.0)
         
         # Breakdown
@@ -46,8 +49,13 @@ class UnitDataBuilder:
             "durations": self._extract_durations(pytest_data)
         }
         
+        pass
+
     def _build_module_breakdown(self, pytest_data: Dict[str, Any], coverage_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Aggregates coverage data by module."""
+        if not coverage_data:
+            return []
+        
         files = coverage_data.get("files", {})
         module_stats = self._aggregate_file_stats(files)
         return self._format_module_stats(module_stats)
