@@ -144,10 +144,13 @@ class E2EReporter:
         
         for mod in sorted(module_results.keys()):
             m_data = module_results[mod]
-            m_pass_rate = (m_data["pass"] / m_data["total"] * 100) if m_data["total"] > 0 else 0
-            m_grade = Grader.calculate_e2e_grade(m_pass_rate)
-            grade_color = Grader.get_grade_color(m_grade)
-            grade_display = f'<span style="color:{grade_color}">{m_grade}</span>'
+            if m_data['total'] > 0:
+                m_pass_rate = (m_data["pass"] / m_data["total"] * 100)
+                m_grade = Grader.calculate_e2e_grade(m_pass_rate)
+                grade_color = Grader.get_grade_color(m_grade)
+                grade_display = f'<span style="color:{grade_color}">{m_grade}</span>'
+            else:
+                grade_display = "-"
             
             mod_table += f"| {mod} | {m_data['total']} | {m_data['pass']} | {m_data['fail']} | {grade_display} |\n"
             

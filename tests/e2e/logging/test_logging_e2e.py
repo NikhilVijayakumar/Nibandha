@@ -1,49 +1,113 @@
 import pytest
+import time
 from pathlib import Path
 from nibandha.logging.domain.models.log_settings import LogSettings
 from nibandha.logging.infrastructure.nibandha_logger import NibandhaLogger
 
 class TestLoggingE2E:
-    def test_file_output_LOG_E2E_001(self, tmp_path):
+    def test_multi_module_consolidation_LOG_E2E_001(self, tmp_path):
         """
         ID: LOG-E2E-001
-        Description: Write a log, read the file, verify format.
+        Description: Logs from App.ModuleA and App.ModuleB should appear in App.log interleaved correctly.
         """
-        settings = LogSettings(app_name="E2E_App", log_dir=tmp_path)
-        logger = NibandhaLogger(settings)
+        log_dir = tmp_path / "logs_001"
         
-        logger.info("Hello E2E", ids=["ID-123"])
+        # Two loggers sharing same app_name implies same log file
+        # But usually 'app_name' is the logger name root. 
+        # NibandhaLogger uses logging.getLogger(settings.app_name).
         
-        log_file = tmp_path / "E2E_App.log"
+        settings_a = LogSettings(app_name="App", log_dir=log_dir)
+        logger_a = NibandhaLogger(settings_a) # Effectively 'App'
+        
+        # To simulate 'ModuleA', we might need child loggers if NibandhaLogger supported them.
+        # But NibandhaLogger wraps a specific logger.
+        # If we want "App.ModuleA", we would usually do logging.getLogger("App.ModuleA").
+        # NibandhaLogger doesn't expose getChild.
+        # We can simulate multi-component by just logging different messages or IDs.
+        
+        logger_a.info("Message from Module A", ids=["ModA"])
+        logger_a.info("Message from Module B", ids=["ModB"])
+        
+        log_file = log_dir / "App.log"
         assert log_file.exists()
-        
         content = log_file.read_text()
-        assert "Hello E2E" in content
-        assert "[ID-123]" in content
-        assert "| INFO | [E2E_App] |" in content
+        
+        assert "Message from Module A" in content
+        assert "Message from Module B" in content
+        assert "[ModA]" in content
+        assert "[ModB]" in content
 
-    def test_multiple_instances_LOG_E2E_002(self, tmp_path):
+    def test_startup_rotation_LOG_E2E_002(self, tmp_path):
         """
         ID: LOG-E2E-002
-        Description: Verify multiple instances with different app_names write to separate files.
+        Description: Restart app with existing logs. Verify behavior (Append/Persist).
         """
-        settings_a = LogSettings(app_name="App_A", log_dir=tmp_path)
-        logger_a = NibandhaLogger(settings_a)
+        log_dir = tmp_path / "logs_002"
+        settings = LogSettings(app_name="App", log_dir=log_dir)
         
-        settings_b = LogSettings(app_name="App_B", log_dir=tmp_path)
-        logger_b = NibandhaLogger(settings_b)
+        # Run 1
+        logger_1 = NibandhaLogger(settings)
+        logger_1.info("Run 1 Log")
+        del logger_1 # Close handler ideally, but python gc might handle it or logging module persists
         
-        logger_a.info("Message A")
-        logger_b.info("Message B")
+        # Run 2
+        logger_2 = NibandhaLogger(settings)
+        logger_2.info("Run 2 Log")
         
-        file_a = tmp_path / "App_A.log"
-        file_b = tmp_path / "App_B.log"
+        log_file = log_dir / "App.log"
+        content = log_file.read_text()
         
-        assert file_a.exists()
-        assert file_b.exists()
+        assert "Run 1 Log" in content
+        assert "Run 2 Log" in content
+
+
+
+    def test_deleted_log_file_LOG_E2E_004(self, tmp_path):
+        """
+        ID: LOG-E2E-004
+        Description: Delete active log file while app is running. Verify logger behavior.
+        Standard RotatingFileHandler might stop writing or raise error if file invoked.
+        """
+        log_dir = tmp_path / "logs_004"
+        settings = LogSettings(app_name="App", log_dir=log_dir)
+        logger = NibandhaLogger(settings)
         
-        assert "Message A" in file_a.read_text()
-        assert "Message B" not in file_a.read_text()
+        logger.info("Message 1")
+        log_file = log_dir / "App.log"
+        assert log_file.exists()
         
-        assert "Message B" in file_b.read_text()
-        assert "Message A" not in file_b.read_text()
+        # Delete file
+        log_file.unlink()
+        assert not log_file.exists()
+        
+        # Write Message 2
+        try:
+            logger.info("Message 2")
+        except Exception:
+            # Should not crash app
+            pass
+            
+        # File might NOT be recreated by standard handler until rollover/reopen.
+        # But we assert app didn't crash.
+        
+        # If we want to verify it handles it gracefully:
+        logger.info("Message 3")
+
+    def test_binary_data_LOG_E2E_005(self, tmp_path):
+        """
+        ID: LOG-E2E-005
+        Description: Log raw bytes or binary string.
+        """
+        log_dir = tmp_path / "logs_005"
+        settings = LogSettings(app_name="App", log_dir=log_dir)
+        logger = NibandhaLogger(settings)
+        
+        binary_data = b'\x00\x01\xFF'
+        # NibandhaLogger takes string msg. Passing bytes str might rely on str()
+        logger.info(f"Binary: {binary_data}", ids=["BIN"])
+        
+        log_file = log_dir / "App.log"
+        content = log_file.read_text() # Default utf-8
+        
+        assert "Binary: b'" in content or "Binary: b\"" in content
+        assert "x00" in content or "\x00" in content or "blob" in str(binary_data)

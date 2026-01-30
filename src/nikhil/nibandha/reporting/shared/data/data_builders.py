@@ -179,7 +179,22 @@ class E2EDataBuilder:
         failed = total - passed
         
         pass_rate = (passed / total * 100) if total > 0 else 0.0
-        
+
+        processed_scenarios = []
+        for s in scenarios:
+            # Flatten structure for visualization
+            nodeid = s.get("nodeid", "unknown")
+            name = nodeid.split("::")[-1]
+            if "[" in name: # Handle parameterized tests
+                 name = name.split("[")[0] + "..."
+            
+            dur = s.get("call", {}).get("duration", 0) or s.get("setup", {}).get("duration", 0)
+            
+            s_flat = s.copy()
+            s_flat["name"] = name
+            s_flat["duration"] = dur
+            processed_scenarios.append(s_flat)
+
         return {
             "date": timestamp,
             "total_scenarios": total,
@@ -188,7 +203,7 @@ class E2EDataBuilder:
             "pass_rate": round(pass_rate, 1),
             "status": "PASS" if failed == 0 and total > 0 else "FAIL",
             "status_counts": {"pass": passed, "fail": failed},
-            "scenarios": scenarios
+            "scenarios": processed_scenarios
         }
 
 class QualityDataBuilder:
