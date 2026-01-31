@@ -12,6 +12,7 @@ lot: true
 
 **Date:** {{ date }}  
 **Overall Status:** {{ overall_status }}
+**Grade:** <span style="color:{{ grade_color }}; font-size: 1.5em; font-weight: bold;">{{ display_grade }}</span>
 
 ---
 

@@ -58,6 +58,19 @@ class Grader:
         if circular_count <= 2:
             return "B"
         return "F"
+
+    @staticmethod
+    def calculate_package_grade(health_score: int) -> Grade:
+        """
+        A: Health Score >= 90
+        B: Health Score >= 70
+        F: Health Score < 70
+        """
+        if health_score >= 90:
+            return "A"
+        if health_score >= 70:
+            return "B"
+        return "F"
         
     @staticmethod
     def calculate_overall_grade(grades: List[Grade]) -> Grade:

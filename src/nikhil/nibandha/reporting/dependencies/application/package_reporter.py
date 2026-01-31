@@ -6,6 +6,7 @@ from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer
 from ...shared.infrastructure import utils
 from ...dependencies.infrastructure.analysis.package_scanner import PackageScanner
 from ...shared.rendering.template_engine import TemplateEngine
+from ...shared.domain.grading import Grader
 from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
 import datetime
 
@@ -45,9 +46,11 @@ class PackageReporter:
         score = max(0, score)
         
         status = "PASS" if score > 80 else "FAIL"
+        grade = Grader.calculate_package_grade(score)
         
         return {
             "status": status,
+            "grade": grade,
             "total_packages": analysis.get("installed_count", 0),
             "outdated_count": analysis.get("outdated_count", 0),
             "health_score": score
@@ -76,12 +79,15 @@ class PackageReporter:
         score -= (analysis["minor_updates"] * 5)
         score = max(0, score)
         
+        grade = Grader.calculate_package_grade(score)
         overall = "Healthy" if score > 80 else ("Needs Attention" if score > 50 else "Critical")
         
         full_list = "\n".join([f"- {name} ({ver})" for name, ver in analysis.get('installed_packages', {}).items()])
 
         mapping = {
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
+            "display_grade": grade,
+            "grade_color": Grader.get_grade_color(grade),
             "overall_status": overall,
             
             "installed_count": analysis["installed_count"],

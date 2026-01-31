@@ -73,12 +73,6 @@ class UnitReporter:
         data["total"] = data["total_tests"]
         data["duration"] = sum(data.get("durations", []))
         
-        # Calculate Grade
-        pass_rate = data.get("pass_rate", 0)
-        coverage_rate = data.get("coverage_rate", 0) # Assuming this key exists from DataBuilder
-        grade = Grader.calculate_unit_grade(pass_rate, coverage_rate)
-        data["grade"] = grade
-        data["grade_color"] = Grader.get_grade_color(grade)
         
         prefix = f"{str(self.source_root)}/" if self.source_root else "src/"
         all_modules = utils.get_all_modules(self.source_root, self.module_discovery)
@@ -88,6 +82,12 @@ class UnitReporter:
         # Override data builder coverage with our more accurate calculation
         coverage_rate = total_cov
         data["coverage_rate"] = total_cov
+
+        # Calculate Grade (using accurate coverage)
+        pass_rate = data.get("pass_rate", 0)
+        grade = Grader.calculate_unit_grade(pass_rate, coverage_rate)
+        data["grade"] = grade
+        data["grade_color"] = Grader.get_grade_color(grade)
         
         modules_list = []
         
