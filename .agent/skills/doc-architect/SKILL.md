@@ -19,7 +19,7 @@ You are the System Architect. Your goal is to define...
 ## 2. Documentation Strategy (The Trinity)
 You must mandate the creation of three types of documentation for every module, aligning with the `DocumentationReporter`:
 
-### A. Functional Documentation (`docs/modules/{module}/functional/`)
+### A. Functional Documentation (`docs/features/{module}/functional/`)
 - **Audience:** Users / Product Owners
 - **Content:**
     - **Overview:** What problem does this module solve?
@@ -27,7 +27,7 @@ You must mandate the creation of three types of documentation for every module, 
     - **Usage:** Plain English description of how to use it.
 - **Output:** `README.md` in the functional folder.
 
-### B. Technical Documentation (`docs/modules/{module}/technical/`)
+### B. Technical Documentation (`docs/features/{module}/technical/`)
 - **Audience:** Developers / Maintainers
 - **Content:**
     - **Design Decisions:** Why was this approach chosen?
@@ -35,7 +35,7 @@ You must mandate the creation of three types of documentation for every module, 
     - **Contracts:** Schema definitions and interface diagrams.
 - **Output:** Architecture notes (e.g., `design.md`, `contracts.md`).
 
-### C. Test Documentation (`docs/modules/{module}/test/`)
+### C. Test Documentation (`docs/features/{module}/test/`)
 - **Audience:** QA / Automation Engineers
 - **Content:**
     - **Unit Scenarios:** Isolated logic sets (`unit_test_scenarios.md`).

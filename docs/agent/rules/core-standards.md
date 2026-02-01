@@ -27,4 +27,4 @@
 
 ## ✅ Quality Standards
 - **Testing:** Every new module must have a corresponding test file in `tests/unit/` and a scenario entry in `docs/test/`.
-- **Documentation:** New features must include a Markdown file in `docs/modules/` and a reference in `docs/modules/README.md`.
+- **Documentation:** New features must include a Markdown file in `docs/features/` and a reference in `docs/features/README.md`.

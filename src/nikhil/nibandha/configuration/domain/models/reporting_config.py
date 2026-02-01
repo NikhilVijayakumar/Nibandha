@@ -22,7 +22,7 @@ class ReportingConfig(BaseModel):
     
     doc_paths: Dict[str, Path] = Field(
         default_factory=lambda: {
-            "functional": Path("docs/modules"), 
+            "functional": Path("docs/features"), 
             "technical": Path("docs/technical"), 
             "test": Path("docs/test")
         },

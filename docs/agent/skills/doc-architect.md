@@ -44,4 +44,4 @@ The documentation is complete when a developer (human or AI) can implement the f
     1. **Code Harvest:** Extract Pydantic models and logic gates from `src/{module}`.
     2. **Agnostic Translation:** Convert Python types to language-neutral schemas.
     3. **ID Injection:** Create the `[PREFIX]-UT-00X` mapping based on existing code paths.
-    4. **Artifact Creation:** Populate `docs/modules/` and `docs/test/`.
+    4. **Artifact Creation:** Populate `docs/features/` and `docs/test/`.

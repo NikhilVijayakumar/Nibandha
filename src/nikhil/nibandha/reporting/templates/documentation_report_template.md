@@ -34,7 +34,7 @@ Overview of documentation coverage and drift.
 
 ## 📦 Detailed Breakdown
 
-### Functional Documentation (`docs/modules`)
+### Functional Documentation (`docs/features`)
 Coverage: {{ func_coverage }}%
 
 : **Table 2:** Functional documentation status per module

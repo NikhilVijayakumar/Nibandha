@@ -350,7 +350,7 @@ After running `generate_all()`, you'll find these reports in your `output_dir`:
 
 All reports include visualizations (charts) and are saved as Markdown files.
 
-For detailed documentation, see [docs/modules/reporting.md](docs/modules/reporting.md).
+For detailed documentation, see [docs/features/reporting.md](docs/features/reporting.md).
 
 ---
 
@@ -367,14 +367,14 @@ Nibandha can be configured globally using environment variables via a `.env` fil
 
 For comprehensive guides and detailed documentation, see:
 
-- **[Module Documentation](docs/modules/README.md)** - Complete module reference
-  - [Overview](docs/modules/overview.md) - Architecture and core principles
-  - [Unified Root](docs/modules/unified-root.md) - Workspace structure details
-  - [Logging Module](docs/modules/logging.md) - Logger internals and configuration
-  - [Log Rotation](docs/modules/log-rotation.md) - Rotation setup and troubleshooting
-  - [Reporting Module](docs/modules/reporting.md) - Quality reporting system
-  - [Configuration](docs/modules/configuration.md) - Config system reference
-  - [Client Integration](docs/modules/client-integration.md) - Integration examples
+- **[Feature Documentation](docs/features/README.md)** - Complete module reference
+  - [Overview](docs/features/overview.md) - Architecture and core principles
+  - [Unified Root](docs/features/unified-root.md) - Workspace structure details
+  - [Logging Module](docs/features/logging.md) - Logger internals and configuration
+  - [Log Rotation](docs/features/log-rotation.md) - Rotation setup and troubleshooting
+  - [Reporting Module](docs/features/reporting.md) - Quality reporting system
+  - [Configuration](docs/features/configuration.md) - Config system reference
+  - [Client Integration](docs/features/client-integration.md) - Integration examples
 
 - **[Testing Strategy](docs/test/testing_strategy.md)** - Testing conventions and standards
 - **[Test Scenarios](docs/test/)** - Detailed test scenario documentation

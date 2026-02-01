@@ -14,7 +14,7 @@ All test files MUST follow the pattern: `test_{id}_{slug}.py`
 
 ## 3. Workflow: Documentation-First
 Before creating or modifying a test:
-1.  **Read/Update Documentation:** Check `docs/modules/<module>/test/unit_test_scenarios.md` (or `e2e`).
+1.  **Read/Update Documentation:** Check `docs/features/<module>/test/unit_test_scenarios.md` (or `e2e`).
 2.  **Verify ID:** Ensure the `{id}` in the filename matches the ID in the documentation table.
 3.  **Implement:** The code must map 1:1 to the documented scenario.
 

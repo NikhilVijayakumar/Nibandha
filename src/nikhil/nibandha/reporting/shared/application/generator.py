@@ -143,7 +143,7 @@ class ReportGenerator:
 
     def _initialize_doc_reporter(self, source_root: Path) -> None:
         doc_paths = {
-            "functional": Path("docs/modules"), 
+            "functional": Path("docs/features"), 
             "technical": Path("docs/technical"), 
             "test": Path("docs/test")
         }

@@ -8,7 +8,7 @@ priority: critical
 Once the **Doc-Architect** has defined the components, the Scaffolder generates the "Red Phase" infrastructure.
 
 ## 1. Discovery & Count ($N$)
-- **Analyze Documentation:** Identify how many sub-modules ($N$) were defined in `docs/modules/`.
+- **Analyze Documentation:** Identify how many sub-modules ($N$) were defined in `docs/features/`.
 - **Identify Integration:** Identify the primary entry point (the "Glue") that coordinates the sub-modules.
 
 ## 2. Dynamic Scaffolding Rules

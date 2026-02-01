@@ -58,8 +58,8 @@ def create_project_docs(root_path: str, module_name: str, sub_modules: list):
     mod_lower = module_name.lower()
     logger.info("🏗️ Building 'Trinity' Documentation for: **%s**", module_name)
 
-    # Base path: docs/modules/{module}/
-    base_doc_path = root / "docs" / "modules" / mod_lower
+    # Base path: docs/features/{module}/
+    base_doc_path = root / "docs" / "features" / mod_lower
     
     # 1. Functional Docs
     func_dir = base_doc_path / "functional"

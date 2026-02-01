@@ -3,13 +3,13 @@ from pathlib import Path
 
 def verify_documentation_structure(root_path: str):
     """
-    Verifies that all modules in docs/modules follow the Trinity structure:
+    Verifies that all modules in docs/features follow the Trinity structure:
     - functional/
     - technical/
     - test/
     """
     root = Path(root_path)
-    docs_modules = root / "docs" / "modules"
+    docs_modules = root / "docs" / "features"
     
     if not docs_modules.exists():
         print(f"❌ Docs root not found: {docs_modules}")
