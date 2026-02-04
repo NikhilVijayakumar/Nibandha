@@ -217,6 +217,15 @@ class DocumentationReporter:
             return "All modules are documented! 🎉"
         return ", ".join(missing)
 
+    def _resolve_doc_path(self, root: Path, module: str, category: str) -> Path:
+        """Resolves documentation path, checking 'docs/features' then 'docs/modules'."""
+        features_path = root / "docs" / "features" / module.lower() / category
+        modules_path = root / "docs" / "modules" / module.lower() / category
+        
+        if features_path.exists():
+            return features_path
+        return modules_path
+
     def _check_functional(self, root: Path, modules: List[str]) -> Dict[str, Any]:
         results = {}
         documented = 0
@@ -225,7 +234,7 @@ class DocumentationReporter:
         
         for mod in modules:
             code_ts = self._get_code_timestamp(root, mod)
-            mod_func_dir = root / "docs" / "modules" / mod.lower() / "functional"
+            mod_func_dir = self._resolve_doc_path(root, mod, "functional")
             func_path = mod_func_dir / "README.md"
             
             exists = func_path.exists()
@@ -248,7 +257,7 @@ class DocumentationReporter:
         
         for mod in modules:
             code_ts = self._get_code_timestamp(root, mod)
-            mod_tech_dir = root / "docs" / "modules" / mod.lower() / "technical"
+            mod_tech_dir = self._resolve_doc_path(root, mod, "technical")
             
             exists = mod_tech_dir.exists() and any(mod_tech_dir.glob("*.md"))
             if exists: documented += 1
@@ -270,7 +279,7 @@ class DocumentationReporter:
         
         for mod in modules:
             code_ts = self._get_code_timestamp(root, mod)
-            mod_test_dir = root / "docs" / "modules" / mod.lower() / "test"
+            mod_test_dir = self._resolve_doc_path(root, mod, "test")
             
             unit_path = mod_test_dir / "unit_test_scenarios.md"
             e2e_path = mod_test_dir / "e2e_test_scenarios.md"
