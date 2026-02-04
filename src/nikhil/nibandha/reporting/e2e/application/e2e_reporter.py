@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, List, TYPE_CHECKING, Optional
 import logging
+import re
 from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer
 from ...shared.infrastructure import utils
 from ...shared.rendering.template_engine import TemplateEngine
@@ -124,6 +125,13 @@ class E2EReporter:
     def _resolve_test_module(self, test_item: Dict[str, Any]) -> str:
         parts = test_item["nodeid"].replace("\\", "/").split("/")
         mod = "Other"
+        
+        # Check for flattened integration pattern: tests/integration/test_{module}_integration.py
+        filename = parts[-1]
+        match = re.search(r"test_([a-z]+)_integration", filename)
+        if match:
+             return match.group(1).capitalize()
+
         if "e2e" in parts:
             idx = parts.index("e2e")
             if idx + 1 < len(parts):

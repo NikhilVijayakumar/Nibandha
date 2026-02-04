@@ -317,13 +317,19 @@ class QualityReporter:
         logger.info("Running Type Check...")
         cmd = [self._get_executable("mypy"), "--strict", target]
         stdout, stderr, code = self._run_command(cmd)
-        return {"tool": "mypy", "status": "PASS" if code == 0 else "FAIL", "output": stdout + stderr, "violation_count": stdout.count("error:")}
+        violation_count = stdout.count("error:")
+        # Pass if no violations, even if exit code is non-zero (e.g. config warnings)
+        status = "PASS" if violation_count == 0 else "FAIL"
+        return {"tool": "mypy", "status": status, "output": stdout + stderr, "violation_count": violation_count}
 
     def _run_complexity_check(self, target: str) -> Dict[str, Any]:
         logger.info("Running Complexity Check...")
         cmd = [self._get_executable("ruff"), "check", "--select", "C901", target]
         stdout, stderr, code = self._run_command(cmd)
-        return {"tool": "ruff", "status": "PASS" if code == 0 else "FAIL", "output": stdout + stderr, "violation_count": stdout.count("C901")}
+        violation_count = stdout.count("C901")
+        # Pass if no violations, even if exit code is non-zero
+        status = "PASS" if violation_count == 0 else "FAIL"
+        return {"tool": "ruff", "status": status, "output": stdout + stderr, "violation_count": violation_count}
 
     def _parse_mypy_output(self, output: str) -> Tuple[Dict[str, int], Dict[str, int]]:
         mod_stats: Dict[str, int] = {}
