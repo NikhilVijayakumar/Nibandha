@@ -336,18 +336,17 @@ class ReportGenerator:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         self.template_engine.render("global_references_template.md", data, output_path)
         
-    def run_unit_Tests(self, target: str, timestamp: str) -> Dict[str, Any]:
+    def run_unit_Tests(self, target: str, timestamp: str, cov_target: Optional[str] = None) -> Dict[str, Any]:
         logger.info(f"Running unit tests on target: {target}")
         json_path = self.output_dir / "assets" / "data" / "unit.json"
         json_path.parent.mkdir(parents=True, exist_ok=True)
         
-        cov_target = "src/nikhil/nibandha"
-        if self.config and isinstance(self.config, ReportingConfig):
-            # If we want coverage target to be configurable, add to ReportingConfig. 
-            # For now default to package root.
-            # Assuming 'target' passed to unit_Tests encapsulates what to test.
-            # Coverage usually needs source root.
-            pass
+        # Determine Coverage Target
+        # 1. Externally provided target (if any)
+        # 2. Configured quality target default
+        # 3. Fallback to package default
+        if not cov_target:
+            cov_target = self.quality_target_default or "src/nikhil/nibandha"
 
         utils.run_pytest(target, json_path, cov_target)
         

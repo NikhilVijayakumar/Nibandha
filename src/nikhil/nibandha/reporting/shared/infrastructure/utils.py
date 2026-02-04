@@ -37,13 +37,22 @@ def parse_outcome(data: Dict[str, Any]) -> Tuple[int, int, int]:
 def get_module_doc(docs_dir: Path, module_name: str, report_type: str = "unit") -> str:
     """Attempts to read documentation from the provided docs directory."""
     mod_lower = module_name.lower()
-    doc_path = docs_dir / mod_lower / f"{report_type}_test_scenarios.md"
     
-    if doc_path.exists():
-        try:
-            return doc_path.read_text(encoding="utf-8")
-        except Exception:
-            return "*Error reading documentation.*"
+    # Define possible paths in order of preference
+    # 1. Unified Structure: docs/features/{mod}/test/{type}_test_scenarios.md
+    # 2. Legacy Structure: docs/features/{mod}/{type}_test_scenarios.md
+    possible_paths = [
+        docs_dir / mod_lower / "test" / f"{report_type}_test_scenarios.md",
+        docs_dir / mod_lower / f"{report_type}_test_scenarios.md"
+    ]
+    
+    for doc_path in possible_paths:
+        if doc_path.exists():
+            try:
+                return doc_path.read_text(encoding="utf-8")
+            except Exception:
+                continue
+                
     return "*No documentation found for this module.*"
 
 def get_all_modules(

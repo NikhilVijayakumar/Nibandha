@@ -17,7 +17,7 @@ Before any action, the Manager MUST establish the execution context:
 
 ## 1. Activation Trigger
 
-* **Trigger:** `"Quality Manager"` (or `"System Manager"`)
+* **Trigger:** `"Quality Manager"`, `"System Manager"`, or `"Chatha"`
 * **Mode:** Transition into **Orchestrator Mode**. Assume responsibility for the 4-Stage State Machine.
 
 ## 2. The TDD Foundational Loop

@@ -139,6 +139,18 @@ def test_unified_report_generation_RPT_E2E_001(mock_load, mock_run_cmd, mock_pyt
     assert "85.0%" in unit_rep # Coverage
     assert "Passed" in unit_rep
     assert "10" in unit_rep or "10 ✅" in unit_rep
+    
+    # NEW ASSERTION: Verify run_pytest args
+    # We expect run_pytest to be called 2 times (unit, e2e)
+    # Check the first call (unit tests) for coverage target
+    assert mock_pytest.call_count >= 1
+    args, _ = mock_pytest.call_args_list[0]
+    # args: (target, json_path, cov_target)
+    # Default behavior: cov_target should be "src/nikhil/nibandha" (or "src" depending on fallback resolution in test env)
+    # In this test env, config is default. Default quality_target is "src".
+    # Wait, in Generator, quality_target_default = "src".
+    # So we expect "src".
+    assert args[2] == "src"
 
 @patch("nibandha.reporting.shared.infrastructure.utils.run_pytest")
 @patch("nibandha.reporting.quality.application.quality_reporter.QualityReporter._run_command")
