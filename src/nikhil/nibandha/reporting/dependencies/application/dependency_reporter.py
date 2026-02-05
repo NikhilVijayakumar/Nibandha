@@ -77,7 +77,7 @@ class DependencyReporter:
         if self.reference_collector:
             self._register_references()
         
-        self.template_engine.render("module_dependency_template.md", mapping, self.report_dir / "08_module_dependency_report.md")
+        self.template_engine.render("module_dependency_template.md", mapping, self.report_dir / "11_module_dependency_report.md")
 
     def _calculate_module_grades(self, dependencies: Dict[str, Any], circular_pairs: List[Any]) -> List[Dict[str, Any]]:
         module_grades = []
@@ -170,7 +170,7 @@ class DependencyReporter:
             type="network_graph",
             description="Visual representation of module inter-dependencies",
             source_report="dependencies",
-            report_order=8
+            report_order=11
         ))
         self.reference_collector.add_figure(FigureReference(
             id="fig-dep-matrix",
@@ -179,12 +179,12 @@ class DependencyReporter:
             type="matrix",
             description="Adjacency matrix of module dependencies",
             source_report="dependencies",
-            report_order=8
+            report_order=11
         ))
         self.reference_collector.add_table(TableReference(
             id="table-module-grades",
             title="Module coupling grades",
             description="Assessment of module coupling (fan-in/fan-out) and cyclomatic dependencies",
             source_report="dependencies",
-            report_order=8
+            report_order=11
         ))

@@ -222,7 +222,7 @@ class ReportGenerator:
              logger.warning(f"Documentation check failed: {e}")
              documentation_data = None
         
-        # 11. Conclusion (formerly Summary)
+        # 11. Conclusion (formerly Summary) -> Now 14
         summary_data = self.summary_builder.build(
             unit_data, 
             e2e_data, 
@@ -234,9 +234,9 @@ class ReportGenerator:
         self.template_engine.render(
              "conclusion_template.md",
              summary_data,
-             self.output_dir / "details" / "11_conclusion.md"
+             self.output_dir / "details" / "14_conclusion.md"
         )
-        logger.info(f"Generated conclusion at {self.output_dir / 'details' / '11_conclusion.md'}")
+        logger.info(f"Generated conclusion at {self.output_dir / 'details' / '14_conclusion.md'}")
         
         # Save summary data (used by export service header)
         summary_json_path = self.output_dir / "assets" / "data" / "summary_data.json"
@@ -275,10 +275,13 @@ class ReportGenerator:
             "05_architecture_report.md",        # 5
             "06_type_safety_report.md",         # 6
             "07_complexity_report.md",          # 7
-            "08_module_dependency_report.md",   # 8
-            "09_package_dependency_report.md",  # 9
-            "10_documentation_report.md",       # 10
-            "11_conclusion.md"                  # 11
+            "08_code_hygiene_report.md",        # 8
+            "09_duplication_report.md",         # 9
+            "10_security_report.md",            # 10
+            "11_module_dependency_report.md",   # 11
+            "12_package_dependency_report.md",  # 12
+            "13_documentation_report.md",       # 13
+            "14_conclusion.md"                  # 14
         ]
         
         detail_paths = []

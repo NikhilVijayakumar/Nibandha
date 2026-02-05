@@ -13,7 +13,10 @@ class TestSummaryDataBuilder:
         quality = {
             "architecture": {"status": "PASS", "grade": "A"}, 
             "type_safety": {"status": "PASS", "grade": "A"}, 
-            "complexity": {"status": "PASS", "grade": "A"}
+            "complexity": {"status": "PASS", "grade": "A"},
+            "hygiene": {"status": "PASS", "grade": "A", "violation_count": 0},
+            "security": {"status": "PASS", "grade": "A", "violation_count": 0},
+            "duplication": {"status": "PASS", "grade": "A", "violation_count": 0}
         }
         doc = {"functional": {}, "technical": {}, "test": {}} # simplified
         

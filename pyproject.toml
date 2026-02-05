@@ -32,7 +32,9 @@ reporting = [
     "import-linter",
     "markdown2",
     "pygments",
-    "pypandoc"
+    "pypandoc",
+    "bandit",
+    "pylint"
 ]
 
 export = [

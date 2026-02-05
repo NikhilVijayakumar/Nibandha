@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from nikhil.nibandha.reporting.quality.application.quality_reporter import QualityReporter
+from nibandha.reporting.quality.application.quality_reporter import QualityReporter
 from pathlib import Path
 
 class TestQualityReporterFix:

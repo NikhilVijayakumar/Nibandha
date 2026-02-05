@@ -196,9 +196,12 @@ def main():
         generator.template_engine.render(
             "conclusion_template.md",
             summary_data,
-            generator.output_dir / "details" / "11_conclusion.md"
+            generator.output_dir / "details" / "14_conclusion.md"
         )
-        print(f"    ✅ Conclusion Report generated: {generator.output_dir / 'details/11_conclusion.md'}")
+        if not (generator.output_dir / "details" / "14_conclusion.md").exists():
+            print("    🔴 Conclusion Report NOT generated")
+        else:
+            print(f"    ✅ Conclusion Report generated: {generator.output_dir / 'details/14_conclusion.md'}")
         
         # Save summary data
         with open(assets_dir / "summary_data.json", 'w') as f:
@@ -219,7 +222,7 @@ def main():
 
         # Verify output files exist
         details_dir = generator.output_dir / "details"
-        conclusion_path = details_dir / "11_conclusion.md"
+        conclusion_path = details_dir / "14_conclusion.md"
         
         if conclusion_path.exists():
              print(f"    ✅ Conclusion Report verified at: {conclusion_path}")
@@ -232,7 +235,7 @@ def main():
         if (details_dir / "03_unit_report.md").exists():
              print(f"    ✅ Unit Report generated")
         
-        if (details_dir / "09_package_dependency_report.md").exists():
+        if (details_dir / "12_package_dependency_report.md").exists():
              print(f"    ✅ Package Report generated")
 
     except Exception as e:

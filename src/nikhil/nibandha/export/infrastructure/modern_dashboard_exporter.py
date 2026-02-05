@@ -52,9 +52,14 @@ class ModernDashboardExporter:
                     "metadata"
                 ]
             )
+            import re
+            # Clean ID: strip leading numbers/dashes/spaces, then slugify
+            clean_title = re.sub(r'^\d+[\s_-]*', '', section["title"])
+            section_id = clean_title.lower().replace(" ", "-")
+            
             html_sections.append({
                 "title": section["title"],
-                "id": section["title"].lower().replace(" ", "-"),
+                "id": section_id,
                 "content": html_content,
                 "metrics_cards": section.get("metrics_cards", [])
             })

@@ -275,7 +275,10 @@ class SummaryDataBuilder:
             "quality": {
                 "arch": q_data.get("architecture", {}),
                 "type": q_data.get("type_safety", {}),
-                "cplx": q_data.get("complexity", {})
+                "cplx": q_data.get("complexity", {}),
+                "hygiene": q_data.get("hygiene", {}),
+                "security": q_data.get("security", {}),
+                "duplication": q_data.get("duplication", {})
             }
         }
 
@@ -295,6 +298,20 @@ class SummaryDataBuilder:
             actions.append(f"- Refactor {q['cplx'].get('violation_count', 0)} complex functions")
         if q["arch"].get("status") != "PASS": 
             actions.append("- Fix architecture violations")
+        
+        # Add CR report action items
+        if q["hygiene"].get("status") != "PASS":
+            issues = q["hygiene"].get("violation_count", 0)
+            if issues > 0:
+                actions.append(f"- Fix {issues} code hygiene issues")
+        if q["security"].get("status") != "PASS":
+            vulns = q["security"].get("violation_count", 0)
+            if vulns > 0:
+                actions.append(f"- Address {vulns} security vulnerabilities")
+        if q["duplication"].get("status") != "PASS":
+            dupes = q["duplication"].get("violation_count", 0)
+            if dupes > 0:
+                actions.append(f"- Refactor {dupes} code duplication blocks")
             
         overall = "🟢 HEALTHY"
         if actions: overall = "🟡 NEEDS ATTENTION"
@@ -312,7 +329,10 @@ class SummaryDataBuilder:
             str(metrics["e2e"]["grade"]),
             str(metrics["quality"]["arch"].get("grade", "F")),
             str(metrics["quality"]["type"].get("grade", "F")),
-            str(metrics["quality"]["cplx"].get("grade", "F"))
+            str(metrics["quality"]["cplx"].get("grade", "F")),
+            str(metrics["quality"]["hygiene"].get("grade", "F")),
+            str(metrics["quality"]["security"].get("grade", "F")),
+            str(metrics["quality"]["duplication"].get("grade", "F"))
         ]
         return Grader.calculate_overall_grade(grades)  # type: ignore
 
@@ -347,6 +367,16 @@ class SummaryDataBuilder:
             
             "arch_status": "🟢 PASS" if q["arch"].get("status") == "PASS" else "🔴 FAIL",
             "arch_message": "Clean" if q["arch"].get("status") == "PASS" else "Violations Detected",
+            
+            # CR Reports
+            "hygiene_status": "⚪ SKIPPED" if q["hygiene"].get("status") == "SKIPPED" else ("🟢 PASS" if q["hygiene"].get("status") == "PASS" else "🔴 FAIL"),
+            "hygiene_issues": q["hygiene"].get("violation_count", 0),
+            
+            "security_status": "⚪ SKIPPED" if q["security"].get("status") == "SKIPPED" else ("🟢 PASS" if q["security"].get("status") == "PASS" else "🔴 FAIL"),
+            "security_issues": q["security"].get("violation_count", 0),
+            
+            "duplication_status": "⚪ SKIPPED" if q["duplication"].get("status") == "SKIPPED" else ("🟢 PASS" if q["duplication"].get("status") == "PASS" else "🔴 FAIL"),
+            "duplication_blocks": q["duplication"].get("violation_count", 0),
             
             "action_items": "\n".join(actions) if actions else "- No urgent actions required."
         }

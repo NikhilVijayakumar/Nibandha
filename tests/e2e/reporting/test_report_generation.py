@@ -127,7 +127,7 @@ def test_unified_report_generation_RPT_E2E_001(mock_load, mock_run_cmd, mock_pyt
     assert (details / "05_architecture_report.md").exists() # RPT-E2E-003
     assert (details / "06_type_safety_report.md").exists()
     assert (details / "07_complexity_report.md").exists()
-    assert (details / "11_conclusion.md").exists()
+    assert (details / "14_conclusion.md").exists()
     
     # Verification RPT-E2E-004: Assets
     images = reporting_env / "assets" / "images"

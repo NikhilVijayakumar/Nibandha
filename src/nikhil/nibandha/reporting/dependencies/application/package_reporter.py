@@ -129,15 +129,15 @@ class PackageReporter:
             "project_name": project_name
         }
         
-        # Register References (Order 9)
+        # Register References (Order 12)
         if self.reference_collector:
             self.reference_collector.add_table(TableReference(
                 id="table-outdated-packages",
                 title="Outdated packages",
                 description="List of packages with available updates",
                 source_report="packages",
-                report_order=9
+                report_order=12
             ))
             # No figures for now as per code
         
-        self.template_engine.render("package_dependency_template.md", mapping, self.report_dir / "09_package_dependency_report.md")
+        self.template_engine.render("package_dependency_template.md", mapping, self.report_dir / "12_package_dependency_report.md")

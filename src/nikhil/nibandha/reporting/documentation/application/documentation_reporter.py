@@ -106,7 +106,7 @@ class DocumentationReporter:
             "project_name": project_name
         }
 
-        # Register References (Order 10)
+        # Register References (Order 13)
         if self.reference_collector:
             self.reference_collector.add_figure(FigureReference(
                 id="fig-doc-coverage",
@@ -115,7 +115,7 @@ class DocumentationReporter:
                 type="bar_chart",
                 description="Percentage of modules documented across Functional, Technical, and Test categories",
                 source_report="documentation",
-                report_order=10
+                report_order=13
             ))
             if charts and "doc_drift" in charts:
                 self.reference_collector.add_figure(FigureReference(
@@ -125,7 +125,7 @@ class DocumentationReporter:
                     type="scatter_chart",
                     description="Age of documentation relative to code changes",
                     source_report="documentation",
-                    report_order=10
+                    report_order=13
                 ))
             
             self.reference_collector.add_table(TableReference(
@@ -133,17 +133,17 @@ class DocumentationReporter:
                 title="Overall documentation grades",
                 description="Grades for functional, technical, and test documentation",
                 source_report="documentation",
-                report_order=10
+                report_order=13
             ))
             self.reference_collector.add_table(TableReference(
                 id="table-func-doc",
                 title="Functional documentation status",
                 description="Per-module functional documentation status and drift",
                 source_report="documentation",
-                report_order=10
+                report_order=13
             ))
         
-        self.template_engine.render("documentation_report_template.md", mapping, self.details_dir / "10_documentation_report.md")
+        self.template_engine.render("documentation_report_template.md", mapping, self.details_dir / "13_documentation_report.md")
 
     def _calc_pct(self, section_data: Dict[str, Any]) -> float:
         stats = section_data["stats"]

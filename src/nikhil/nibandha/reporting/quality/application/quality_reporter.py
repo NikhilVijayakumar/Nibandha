@@ -13,6 +13,9 @@ from ...shared.rendering.template_engine import TemplateEngine
 from ...shared.domain.protocols.visualization_protocol import VisualizationProvider
 from ...shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
 from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
+from ..domain.hygiene_reporter import HygieneReporter
+from ..domain.security_reporter import SecurityReporter
+from ..domain.duplication_reporter import DuplicationReporter
 
 if TYPE_CHECKING:
     from ...shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
@@ -53,6 +56,9 @@ class QualityReporter:
             "architecture": self._run_architecture_check(),
             "type_safety": self._run_type_check(target_package),
             "complexity": self._run_complexity_check(target_package),
+            "hygiene": self._run_hygiene_check(),
+            "security": self._run_security_check(),
+            "duplication": self._run_duplication_check(),
         }
         return results
 
@@ -65,6 +71,12 @@ class QualityReporter:
         self._generate_type_safety_report(results["type_safety"], project_name)
         # Complexity
         self._generate_complexity_report(results["complexity"], project_name)
+        # Hygiene
+        self._generate_hygiene_report(results["hygiene"], project_name)
+        # Security
+        self._generate_security_report(results["security"], project_name)
+        # Duplication
+        self._generate_duplication_report(results["duplication"], project_name)
 
     def _generate_architecture_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
         # Grade Calculation
@@ -360,3 +372,76 @@ class QualityReporter:
                     mod_stats[module] = mod_stats.get(module, 0) + 1
         
         return mod_stats
+
+    def _run_hygiene_check(self) -> Dict[str, Any]:
+        logger.info("Running Hygiene Check...")
+        if not self.source_root:
+             return {"status": "ERROR", "violation_count": 0, "details": "Source root not provided"}
+        return HygieneReporter(self.source_root).run()
+
+    def _run_security_check(self) -> Dict[str, Any]:
+        logger.info("Running Security Check...")
+        if not self.source_root:
+             return {"status": "ERROR", "violation_count": 0, "details": "Source root not provided"}
+        return SecurityReporter(self.source_root).run()
+
+    def _run_duplication_check(self) -> Dict[str, Any]:
+        logger.info("Running Duplication Check...")
+        if not self.source_root:
+             return {"status": "ERROR", "violation_count": 0, "details": "Source root not provided"}
+        return DuplicationReporter(self.source_root).run()
+
+    def _generate_hygiene_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
+        grade = Grader.calculate_quality_grade(data["violation_count"])
+        mapping = {
+            "date": datetime.datetime.now().strftime("%Y-%m-%d"),
+            "display_grade": grade,
+            "grade_color": Grader.get_grade_color(grade),
+            "overall_status": "🟢 PASS" if data["status"] == "PASS" else "🔴 FAIL",
+            "total_violations": data["violation_count"],
+            "magic_numbers": data["details"].get("magic_numbers", []) if isinstance(data["details"], dict) else [],
+            "hardcoded_paths": data["details"].get("hardcoded_paths", []) if isinstance(data["details"], dict) else [],
+            "forbidden_functions": data["details"].get("forbidden_functions", []) if isinstance(data["details"], dict) else [],
+            "project_name": project_name
+        }
+        self.template_engine.render("code_hygiene_report_template.md", mapping, self.details_dir / "08_code_hygiene_report.md")
+
+    def _generate_security_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
+        grade = Grader.calculate_quality_grade(data["violation_count"], is_fatal=True) # Security fails are fatal
+        
+        details = data["details"]
+        issues = []
+        high_count = 0
+        medium_count = 0
+        
+        if isinstance(details, dict) and "high" in details:
+            issues.extend(details["high"])
+            issues.extend(details["medium"])
+            high_count = len(details["high"])
+            medium_count = len(details["medium"])
+            
+        mapping = {
+            "date": datetime.datetime.now().strftime("%Y-%m-%d"),
+            "display_grade": grade,
+            "grade_color": Grader.get_grade_color(grade),
+            "overall_status": "🟢 PASS" if data["status"] == "PASS" else "🔴 FAIL",
+            "total_violations": data["violation_count"],
+            "high_count": high_count,
+            "medium_count": medium_count,
+            "issues": issues,
+            "project_name": project_name
+        }
+        self.template_engine.render("security_report_template.md", mapping, self.details_dir / "10_security_report.md")
+
+    def _generate_duplication_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
+        grade = Grader.calculate_quality_grade(data["violation_count"])
+        mapping = {
+            "date": datetime.datetime.now().strftime("%Y-%m-%d"),
+            "display_grade": grade,
+            "grade_color": Grader.get_grade_color(grade),
+            "overall_status": "🟢 PASS" if data["status"] == "PASS" else "🔴 FAIL",
+            "total_violations": data["violation_count"],
+            "duplicates": data["details"] if isinstance(data["details"], list) else [],
+            "project_name": project_name
+        }
+        self.template_engine.render("duplication_report_template.md", mapping, self.details_dir / "09_duplication_report.md")

@@ -1,4 +1,4 @@
-# 11. Conclusion
+# 14. Conclusion
 
 ## Final Assessment
 **Generated:** {{ date }}  
@@ -6,7 +6,7 @@
 **Project Grade:** <span style="color:{{ grade_color }}; font-size: 2.5em; font-weight: bold;">{{ display_grade }}</span>
 
 ## Key Metrics Summary
-: **Table 11.1:** Consolidated project metrics
+: **Table 14.1:** Consolidated project metrics
 
 | Category | Status | Key Metrics |
 | :--- | :---: | :--- |
@@ -16,6 +16,9 @@
 | **Type Safety** | {{ type_status }} | {{ type_violations }} errors |
 | **Complexity** | {{ complexity_status }} | {{ complexity_violations }} violations |
 | **Architecture** | {{ arch_status }} | {{ arch_message }} |
+| **Code Hygiene** | {{ hygiene_status }} | {{ hygiene_issues }} issues |
+| **Security (SAST)** | {{ security_status }} | {{ security_issues }} vulnerabilities |
+| **Code Duplication** | {{ duplication_status }} | {{ duplication_blocks }} blocks |
 | **Dependencies** | {{ dep_status }} | {{ dep_total_modules }} modules |
 | **Packages** | {{ pkg_status }} | Health: {{ pkg_health_score }}/100 |
 
@@ -24,4 +27,4 @@
 
 ## Final Verdict
 Based on the aggregated metrics, the project is currently **{{ overall_status }}**.
-Please refer to specific detailed sections [3-10] for remediation steps.
+Please refer to specific detailed sections [3-13] for remediation steps.

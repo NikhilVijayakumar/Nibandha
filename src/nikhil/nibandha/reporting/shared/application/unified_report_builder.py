@@ -105,14 +105,18 @@ lot: true
         if self.details_dir.exists():
             # Maintain specific order for better reading flow
             ordered_names = [
-                "unit_report.md",
-                "e2e_report.md",
-                "type_safety_report.md",
-                "complexity_report.md",
-                "architecture_report.md",
-                "documentation_report.md",
-                "module_dependency_report.md",
-                "package_dependency_report.md"
+                "03_unit_report.md",
+                "04_e2e_report.md",
+                "05_architecture_report.md",
+                "06_type_safety_report.md",
+                "07_complexity_report.md",
+                "08_code_hygiene_report.md",
+                "09_duplication_report.md",
+                "10_security_report.md",
+                "11_module_dependency_report.md",
+                "12_package_dependency_report.md",
+                "13_documentation_report.md",
+                "14_conclusion.md"
             ]
             
             for name in ordered_names:

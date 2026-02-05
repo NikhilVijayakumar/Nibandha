@@ -215,7 +215,11 @@ class ExportService:
         }
         
         detail_stem = detail_path.stem
-        json_name = json_name_map.get(detail_stem)
+        # Strip numbering prefix if present (e.g. 03_unit_report -> unit_report)
+        import re
+        stripped_stem = re.sub(r'^\d+_', '', detail_stem)
+        
+        json_name = json_name_map.get(stripped_stem)
         
         if not json_name:
             return []

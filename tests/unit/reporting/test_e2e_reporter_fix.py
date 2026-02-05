@@ -1,5 +1,5 @@
 import pytest
-from nikhil.nibandha.reporting.e2e.application.e2e_reporter import E2EReporter
+from nibandha.reporting.e2e.application.e2e_reporter import E2EReporter
 from pathlib import Path
 
 class TestE2EReporterFix:
