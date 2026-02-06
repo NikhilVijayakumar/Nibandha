@@ -9,7 +9,7 @@ from ...e2e.application import e2e_reporter
 from ...quality.application import quality_reporter
 from ...dependencies.application import dependency_reporter, package_reporter
 from ...documentation.application import documentation_reporter
-from ...cover.application import cover_page_reporter
+from ...report_cover.application import cover_page_reporter
 from ...introduction.application import introduction_reporter
 
 from ..infrastructure import utils
