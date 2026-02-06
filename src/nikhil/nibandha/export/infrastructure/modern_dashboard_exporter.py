@@ -10,69 +10,13 @@ import logging
 logger = logging.getLogger("nibandha.export.dashboard")
 
 
-class ModernDashboardExporter:
+from .base_exporter import BaseHTMLExporter
+
+class ModernDashboardExporter(BaseHTMLExporter):
     """Exports markdown to modern sidebar-based dashboard HTML."""
     
-    def export(
-        self,
-        markdown_sections: List[Dict[str, Any]],
-        output_path: Path,
-        project_info: Optional[Dict[str, str]] = None
-    ) -> Path:
-        """
-        Export markdown sections to modern dashboard HTML.
-        
-        Args:
-            markdown_sections: List of {"title": "...", "content": "...", "metrics_cards": [...]}
-            output_path: Where to save HTML
-            project_info: Dict with 'name', 'grade', 'status' etc.
-            
-        Returns:
-            Path to generated HTML file
-        """
-        logger.info(f"Exporting modern dashboard with {len(markdown_sections)} sections")
-        
-        if not project_info:
-            project_info = {
-                "name": "Quality Report",
-                "grade": "N/A",
-                "status": "Complete"
-            }
-        
-        # Convert markdown sections to HTML
-        html_sections = []
-        for section in markdown_sections:
-            html_content = markdown2.markdown(
-                section["content"],
-                extras=[
-                    "tables",
-                    "fenced-code-blocks",
-                    "header-ids",
-                    "break-on-newline",
-                    "metadata"
-                ]
-            )
-            import re
-            # Clean ID: strip leading numbers/dashes/spaces, then slugify
-            clean_title = re.sub(r'^\d+[\s_-]*', '', section["title"])
-            section_id = clean_title.lower().replace(" ", "-")
-            
-            html_sections.append({
-                "title": section["title"],
-                "id": section_id,
-                "content": html_content,
-                "metrics_cards": section.get("metrics_cards", [])
-            })
-        
-        # Build complete HTML document
-        html = self._build_html_document(html_sections, project_info)
-        
-        # Write output
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(html, encoding="utf-8")
-        
-        logger.info(f"Modern dashboard saved to: {output_path}")
-        return output_path
+    def __init__(self):
+        super().__init__("nibandha.export.dashboard")
     
     def _build_html_document(
         self, 

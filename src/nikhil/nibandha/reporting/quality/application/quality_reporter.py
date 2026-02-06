@@ -13,9 +13,14 @@ from ...shared.rendering.template_engine import TemplateEngine
 from ...shared.domain.protocols.visualization_protocol import VisualizationProvider
 from ...shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
 from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
+from ...shared.constants import (
+    REPORT_ORDER_ARCHITECTURE, REPORT_ORDER_TYPE_SAFETY, REPORT_ORDER_COMPLEXITY,
+    ASSETS_IMAGES_DIR_REL, TOP_N_CATEGORIES_DISPLAY, TOP_N_ERRORS_DISPLAY
+)
 from ..domain.hygiene_reporter import HygieneReporter
 from ..domain.security_reporter import SecurityReporter
 from ..domain.duplication_reporter import DuplicationReporter
+from ..domain.encoding_reporter import EncodingReporter
 
 if TYPE_CHECKING:
     from ...shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
@@ -50,16 +55,29 @@ class QualityReporter:
         self.template_engine = template_engine or TemplateEngine(templates_dir)
         self.viz_provider = viz_provider or DefaultVisualizationProvider()
 
-    def run_checks(self, target_package: str = "src/nikhil/nibandha") -> Dict[str, Any]:
+    def run_checks(self, target_package: str = None) -> Dict[str, Any]:
         """Runs quality checks and returns results."""
-        results = {
-            "architecture": self._run_architecture_check(),
-            "type_safety": self._run_type_check(target_package),
-            "complexity": self._run_complexity_check(target_package),
-            "hygiene": self._run_hygiene_check(),
-            "security": self._run_security_check(),
-            "duplication": self._run_duplication_check(),
-        }
+        from ...shared.constants import DEFAULT_TARGET_PACKAGE
+        target_package = target_package or DEFAULT_TARGET_PACKAGE
+        
+        import time
+        results = {}
+        
+        # Helper to time checks
+        def run_and_time(check_func):
+            start = time.time()
+            res = check_func()
+            res["duration"] = time.time() - start
+            return res
+
+        results["architecture"] = run_and_time(self._run_architecture_check)
+        results["type_safety"] = run_and_time(lambda: self._run_type_check(target_package))
+        results["complexity"] = run_and_time(lambda: self._run_complexity_check(target_package))
+        results["hygiene"] = run_and_time(self._run_hygiene_check)
+        results["security"] = run_and_time(self._run_security_check)
+        results["duplication"] = run_and_time(self._run_duplication_check)
+        results["encoding"] = run_and_time(self._run_encoding_check)
+        
         return results
 
     def generate(self, results: Dict[str, Any], project_name: str = "Project") -> None:
@@ -76,7 +94,10 @@ class QualityReporter:
         # Security
         self._generate_security_report(results["security"], project_name)
         # Duplication
+        # Duplication
         self._generate_duplication_report(results["duplication"], project_name)
+        # Encoding
+        self._generate_encoding_report(results["encoding"], project_name)
 
     def _generate_architecture_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
         # Grade Calculation
@@ -130,21 +151,21 @@ class QualityReporter:
         if "PASS" in status:
              mapping["module_breakdown"] = (
                 "## 📦 Module Breakdown\n\n"
-                "| Module | Status | Violations |\n"
-                "| :--- | :---: | :---: |\n"
-                f"| **Project** | PASS | - |"
+                "| S.No | Module | Status | Violations |\n"
+                "| :---: | :--- | :---: | :---: |\n"
+                f"| 1 | **Project** | PASS | - |"
             )
 
         # Register References - Architecture (Order 5)
         if self.reference_collector:
             self.reference_collector.add_figure(FigureReference(
                 id="fig-arch-status",
-                title="Architecture validation status",
-                path="../assets/images/quality/architecture_status.png",
+                title="Architecture Compliance Status",
+                path=f"{ASSETS_IMAGES_DIR_REL}/quality/architecture_status.png",
                 type="status_badge",
                 description="Overall pass/fail status of architectural contracts",
                 source_report="architecture",
-                report_order=5
+                report_order=REPORT_ORDER_ARCHITECTURE
             ))
             # No explicit tables worth registering as they are mostly text output
 
@@ -169,16 +190,16 @@ class QualityReporter:
         total_errors = data["violation_count"]
         overall_status = "🟢 PASS" if total_errors == 0 else "🔴 FAIL"
         
-        category_table = "| Error Type | Count | Percentage |\n| :--- | :---: | :---: |\n"
+        category_table = "| S.No | Error Type | Count | Percentage |\n| :---: | :--- | :---: | :---: |\n"
         sorted_categories = sorted(errors_by_category.items(), key=lambda x: x[1], reverse=True)
-        for cat, count in sorted_categories[:10]:
+        for idx, (cat, count) in enumerate(sorted_categories[:TOP_N_CATEGORIES_DISPLAY], start=1):
              pct = (count / total_errors * 100) if total_errors > 0 else 0
-             category_table += f"| `{cat}` | {count} | {pct:.1f}% |\n"
+             category_table += f"| {idx} | `{cat}` | {count} | {pct:.1f}% |\n"
              
         error_lines = [line for line in data["output"].splitlines() if "error:" in line]
-        detailed_errors = "\n".join(error_lines[:30])
-        if len(error_lines) > 30:
-             detailed_errors += f"\n\n... and {len(error_lines) - 30} more errors"
+        detailed_errors = "\n".join(error_lines[:TOP_N_ERRORS_DISPLAY])
+        if len(error_lines) > TOP_N_ERRORS_DISPLAY:
+             detailed_errors += f"\n\n... and {len(error_lines) - TOP_N_ERRORS_DISPLAY} more errors"
         detailed_errors = f"```\n{detailed_errors}\n```"
 
         mapping = {
@@ -196,41 +217,50 @@ class QualityReporter:
         
         # Generate dynamic module table with grades (include all modules)
         all_modules = sorted(list(set(utils.get_all_modules(self.source_root) + list(errors_by_module.keys()))))
-        module_table = "| Module | Status | Errors | Grade |\n| :--- | :---: | :---: | :---: |\n"
+        module_table = "| S.No | Module | Status | Errors | Grade |\n| :---: | :--- | :---: | :---: | :---: |\n"
         
-        for module in all_modules:
+        for idx, module in enumerate(all_modules, start=1):
             error_count = errors_by_module.get(module, 0)
             status_icon = "🔴" if error_count > 0 else "🟢"
             module_grade = Grader.calculate_quality_grade(error_count)
             grade_color = Grader.get_grade_color(module_grade)
-            module_table += f"| **{module}** | {status_icon} | {error_count} | <span style=\"color:{grade_color}\">{module_grade}</span> |\n"
+            module_table += f"| {idx} | **{module}** | {status_icon} | {error_count} | <span style=\"color:{grade_color}\">{module_grade}</span> |\n"
         
         mapping["module_table"] = module_table
 
         # Register References - Type Safety (Order 6)
         if self.reference_collector:
             self.reference_collector.add_figure(FigureReference(
+                id="fig-type-categories",
+                title="Top Type Error Categories",
+                path=f"{ASSETS_IMAGES_DIR_REL}/quality/error_categories.png",
+                type="bar_chart",
+                description="Most frequent type error categories in the codebase",
+                source_report="type_safety",
+                report_order=REPORT_ORDER_TYPE_SAFETY
+            ))
+            self.reference_collector.add_figure(FigureReference(
                 id="fig-type-modules",
-                title="Type errors by module",
-                path="../assets/images/quality/type_errors_by_module.png",
+                title="Type Safety Violations by Module",
+                path=f"{ASSETS_IMAGES_DIR_REL}/quality/type_errors_by_module.png",
                 type="bar_chart",
                 description="Distribution of MyPy type errors across modules",
                 source_report="type_safety",
-                report_order=6
+                report_order=REPORT_ORDER_TYPE_SAFETY
             ))
             self.reference_collector.add_table(TableReference(
                 id="table-type-categories",
                 title="Error types breakdown",
                 description="Frequency of different type error categories",
                 source_report="type_safety",
-                report_order=6
+                report_order=REPORT_ORDER_TYPE_SAFETY
             ))
             self.reference_collector.add_table(TableReference(
                 id="table-type-modules",
                 title="Type safety status by module",
                 description="Per-module error counts and grades",
                 source_report="type_safety",
-                report_order=6
+                report_order=REPORT_ORDER_TYPE_SAFETY
             ))
 
         # 3. Render
@@ -243,10 +273,13 @@ class QualityReporter:
         data["grade"] = grade
 
         # 1. Parse output to get module-level breakdown
-        violations_by_module = self._parse_ruff_output(data["output"])
+        violations_by_module, complexity_scores = self._parse_ruff_output(data["output"])
         
         # 2. Visualize
-        self.viz_provider.generate_complexity_charts({"violations_by_module": violations_by_module}, self.images_dir)
+        self.viz_provider.generate_complexity_charts({
+            "violations_by_module": violations_by_module,
+            "complexity_scores": complexity_scores
+        }, self.images_dir)
         
         # 3. Determine status based on actual violation count
         status = "🔴 FAIL" if total_violations > 0 else "🟢 PASS"
@@ -266,14 +299,14 @@ class QualityReporter:
 
         # Generate dynamic module table with grades
         all_modules = sorted(list(set(utils.get_all_modules(self.source_root) + list(violations_by_module.keys()))))
-        module_table = "| Module | Status | Violations (>10) | Grade |\n| :--- | :---: | :---: | :---: |\n"
+        module_table = "| S.No | Module | Status | Violations (>10) | Grade |\n| :---: | :--- | :---: | :---: | :---: |\n"
         
-        for module in all_modules:
+        for idx, module in enumerate(all_modules, start=1):
             viol_count = violations_by_module.get(module, 0)
             status_icon = "🔴" if viol_count > 0 else "🟢"
             module_grade = Grader.calculate_quality_grade(viol_count)
             grade_color = Grader.get_grade_color(module_grade)
-            module_table += f"| **{module}** | {status_icon} | {viol_count} | <span style=\"color:{grade_color}\">{module_grade}</span> |\n"
+            module_table += f"| {idx} | **{module}** | {status_icon} | {viol_count} | <span style=\"color:{grade_color}\">{module_grade}</span> |\n"
         
         mapping["module_table"] = module_table
 
@@ -281,19 +314,28 @@ class QualityReporter:
         if self.reference_collector:
             self.reference_collector.add_figure(FigureReference(
                 id="fig-complexity-dist",
-                title="Complexity score distribution",
-                path="../assets/images/quality/complexity_distribution.png",
+                title="Complexity Hotspots (Cyclomatic > 10)",
+                path=f"{ASSETS_IMAGES_DIR_REL}/quality/complexity_distribution.png",
                 type="histogram",
                 description="Distribution of cyclomatic complexity scores across codebase",
                 source_report="complexity",
-                report_order=7
+                report_order=REPORT_ORDER_COMPLEXITY
+            ))
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-complexity-box",
+                title="Complexity Distribution by Module",
+                path=f"{ASSETS_IMAGES_DIR_REL}/quality/complexity_boxplot.png",
+                type="box_chart",
+                description="Boxplot showing complexity spread and outliers per module",
+                source_report="complexity",
+                report_order=REPORT_ORDER_COMPLEXITY
             ))
             self.reference_collector.add_table(TableReference(
                 id="table-complexity-modules",
                 title="Complexity violations by module",
                 description="Per-module count of high-complexity functions",
                 source_report="complexity",
-                report_order=7
+                report_order=REPORT_ORDER_COMPLEXITY
             ))
 
         # 4. Render
@@ -357,21 +399,30 @@ class QualityReporter:
                 cat_stats[match.group(2)] = cat_stats.get(match.group(2), 0) + 1
         return mod_stats, cat_stats
 
-    def _parse_ruff_output(self, output: str) -> Dict[str, int]:
-        """Parse ruff C901 complexity output to extract violations per module."""
+    def _parse_ruff_output(self, output: str) -> Tuple[Dict[str, int], Dict[str, List[int]]]:
+        """Parse ruff C901 complexity output to extract violations per module and usage scores."""
         mod_stats: Dict[str, int] = {}
+        mod_scores: Dict[str, List[int]] = {}
         
         for line in output.splitlines():
-            # Ruff format: "  --> src/nikhil/nibandha/MODULE/...path.py:244:9"
+            # Ruff format: "  --> src/nikhil/nibandha/MODULE/...path.py:244:9: C901 Function ... is too complex (15)"
+            # Note: actual output varies by version/formatter, usually ends with (15) for value if enabled.
             if '-->' in line and 'src' in line:
-                # Extract file path from line
+                # Extract file path
                 match = re.search(r'-->\s+(.+?):\d+', line)
                 if match:
                     file_path = match.group(1)
                     module = utils.extract_module_name(file_path, self.source_root)
                     mod_stats[module] = mod_stats.get(module, 0) + 1
+                    
+                    # Extract complexity score
+                    score_match = re.search(r'complex \((\d+)\)', line)
+                    if score_match:
+                         score = int(score_match.group(1))
+                         if module not in mod_scores: mod_scores[module] = []
+                         mod_scores[module].append(score)
         
-        return mod_stats
+        return mod_stats, mod_scores
 
     def _run_hygiene_check(self) -> Dict[str, Any]:
         logger.info("Running Hygiene Check...")
@@ -391,6 +442,12 @@ class QualityReporter:
              return {"status": "ERROR", "violation_count": 0, "details": "Source root not provided"}
         return DuplicationReporter(self.source_root).run()
 
+    def _run_encoding_check(self) -> Dict[str, Any]:
+        logger.info("Running Encoding Check...")
+        if not self.source_root:
+             return {"status": "ERROR", "violation_count": 0, "details": "Source root not provided"}
+        return EncodingReporter(self.source_root).run()
+
     def _generate_hygiene_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
         grade = Grader.calculate_quality_grade(data["violation_count"])
         mapping = {
@@ -407,7 +464,15 @@ class QualityReporter:
         self.template_engine.render("code_hygiene_report_template.md", mapping, self.details_dir / "08_code_hygiene_report.md")
 
     def _generate_security_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
-        grade = Grader.calculate_quality_grade(data["violation_count"], is_fatal=True) # Security fails are fatal
+        raw_status = data["status"]
+        if raw_status in ["SKIPPED", "ERROR"]:
+            grade = "-"
+            overall_status = f"⚠️ {raw_status}"
+        else:
+            # Security violations are fatal if present
+            is_fatal = data["violation_count"] > 0
+            grade = Grader.calculate_quality_grade(data["violation_count"], is_fatal=is_fatal)
+            overall_status = "🟢 PASS" if raw_status == "PASS" else "🔴 FAIL"
         
         details = data["details"]
         issues = []
@@ -419,29 +484,61 @@ class QualityReporter:
             issues.extend(details["medium"])
             high_count = len(details["high"])
             medium_count = len(details["medium"])
+        elif overall_status.startswith("⚠️ ERROR"):
+             # Show error message as a 'dummy' issue or in summary
+             pass
             
         mapping = {
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
             "display_grade": grade,
-            "grade_color": Grader.get_grade_color(grade),
-            "overall_status": "🟢 PASS" if data["status"] == "PASS" else "🔴 FAIL",
+            "grade_color": Grader.get_grade_color(grade) if grade != "-" else "#95a5a6",
+            "overall_status": overall_status,
             "total_violations": data["violation_count"],
             "high_count": high_count,
             "medium_count": medium_count,
             "issues": issues,
+            "error_details": data.get("details") if raw_status == "ERROR" else "",   
             "project_name": project_name
         }
         self.template_engine.render("security_report_template.md", mapping, self.details_dir / "10_security_report.md")
 
     def _generate_duplication_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
-        grade = Grader.calculate_quality_grade(data["violation_count"])
+        raw_status = data["status"]
+        if raw_status in ["SKIPPED", "ERROR"]:
+            grade = "-"
+            overall_status = f"⚠️ {raw_status}"
+        else:
+            grade = Grader.calculate_quality_grade(data["violation_count"])
+            overall_status = "🟢 PASS" if raw_status == "PASS" else "🔴 FAIL"
+            
+        mapping = {
+            "date": datetime.datetime.now().strftime("%Y-%m-%d"),
+            "display_grade": grade,
+            "grade_color": Grader.get_grade_color(grade) if grade != "-" else "#95a5a6",
+            "overall_status": overall_status,
+            "total_violations": data["violation_count"],
+            "duplicates": data["details"] if isinstance(data["details"], list) else [],
+            "project_name": project_name
+        }
+        self.template_engine.render("duplication_report_template.md", mapping, self.details_dir / "09_duplication_report.md")
+
+    def _generate_encoding_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
+        # Encoding errors are critical/fatal if present
+        is_fatal = data["violation_count"] > 0
+        grade = Grader.calculate_quality_grade(data["violation_count"], is_fatal=is_fatal)
         mapping = {
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
             "display_grade": grade,
             "grade_color": Grader.get_grade_color(grade),
             "overall_status": "🟢 PASS" if data["status"] == "PASS" else "🔴 FAIL",
             "total_violations": data["violation_count"],
-            "duplicates": data["details"] if isinstance(data["details"], list) else [],
+            "checked_count": data.get("checked_count", 0),
+            "non_utf8_status": "🟢 PASS" if not data["details"]["non_utf8"] else "🔴 FAIL",
+            "non_utf8_count": len(data["details"]["non_utf8"]),
+            "bom_status": "🟢 PASS" if not data["details"]["bom_present"] else "🔴 FAIL",
+            "bom_count": len(data["details"]["bom_present"]),
+            "non_utf8": data["details"]["non_utf8"],
+            "bom_present": data["details"]["bom_present"],
             "project_name": project_name
         }
-        self.template_engine.render("duplication_report_template.md", mapping, self.details_dir / "09_duplication_report.md")
+        self.template_engine.render("encoding_report_template.md", mapping, self.details_dir / "14_encoding_report.md")

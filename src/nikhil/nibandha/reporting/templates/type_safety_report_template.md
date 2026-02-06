@@ -19,28 +19,28 @@ lot: true
 
 ## 📊 Summary
 
-: **Table 1:** Project-level type safety metrics
+: **Table 6.1:** Project-level type safety metrics
 
-| Metric | Value |
-| :--- | :---: |
-| **Total Errors** | {{ total_errors }} |
-| **Status** | {{ overall_status }} |
+| S.No | Metric | Value |
+| :---: | :--- | :---: |
+| 1 | **Total Errors** | {{ total_errors }} |
+| 2 | **Status** | {{ overall_status }} |
 
 ---
 
 ## 📊 Error Categories
 
-: **Table 2:** Type errors grouped by category
+: **Table 6.2:** Type errors grouped by category
 
 {{ category_table }}
 
-![**Figure 1:** Distribution of type errors by category](../assets/images/quality/error_categories.png)
+![**Figure 1:** Top Type Error Categories](../assets/images/quality/error_categories.png)
 
 ---
 
 ## 🛡️ Type Coverage by Module
 
-: **Table 3:** Type safety analysis per module
+: **Table 6.3:** Type safety analysis per module
 
 {{ module_table }}
 
@@ -48,13 +48,13 @@ lot: true
 
 ## 📉 Error Distribution
 
-![**Figure 2:** Type errors across all modules](../assets/images/quality/type_errors_by_module.png)
+![**Figure 2:** Type Safety Violations by Module](../assets/images/quality/type_errors_by_module.png)
 
 ---
 
 ## 🚫 Critical Type Errors
 
-: **Table 4:** Detailed list of type errors requiring attention
+: **Table 6.4:** Detailed list of type errors requiring attention
 
 <details>
 <summary>Click to expand error details</summary>

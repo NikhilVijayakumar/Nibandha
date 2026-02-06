@@ -19,14 +19,14 @@ lot: true
 
 ## 📋 Module Breakdown
 
-: **Table 1:** E2E test results by module
+: **Table 4.1:** E2E test results by module
 
-| Module | Tests | Passing | Failing | Grade |
-| :--- | :---: | :---: | :---: | :---: |
+| S.No | Module | Tests | Passing | Failing | Grade | Duration |
+| :---: | :--- | :---: | :---: | :---: | :---: | :---: |
 {{ module_table }}
 
 ## 📊 Result Distribution
-![**Figure 1:** E2E test pass/fail status across all scenarios](../assets/images/e2e_status.png)
+![**Figure 1:** E2E Scenario Outcomes Overview](../assets/images/e2e_status.png)
 
 ## 🧪 Detailed Results by Module
 
@@ -34,10 +34,13 @@ lot: true
 
 ## 🐛 Failure Analysis
 
-: **Table 2:** Failed E2E tests requiring investigation
+: **Table 4.2:** Failed E2E tests requiring investigation
 
 {{ failures_section }}
 
 ## 🐢 Slowest Scenarios
-![**Figure 2:** E2E test execution time by scenario](../assets/images/e2e_durations.png)
+![**Figure 2:** E2E Scenario Performance Ranking](../assets/images/e2e_durations.png)
+
+## 🏎️ Module Performance
+![**Figure 3:** E2E execution duration comparison by module](../assets/images/e2e_module_durations.png)
 

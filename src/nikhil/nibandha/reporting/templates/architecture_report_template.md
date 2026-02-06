@@ -19,13 +19,13 @@ lot: true
 
 ## 📊 Summary
 
-![**Figure 1:** Architecture validation status across all modules](../assets/images/quality/architecture_status.png)
+![**Figure 1:** Architecture Compliance Status](../assets/images/quality/architecture_status.png)
 
 ---
 
 ## 🏗️ Layer Dependency Summary
 
-: **Table 1:** Architecture contract violations per module
+: **Table 5.1:** Architecture contract violations per module
 
 {{ module_breakdown }}
 

@@ -3,73 +3,24 @@ Modern tab-based HTML exporter for unified reports.
 Creates interactive dashboard-style HTML with navigation tabs.
 """
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import markdown2
 import logging
 
 logger = logging.getLogger("nibandha.export.tabs")
 
 
-class TabBasedHTMLExporter:
+from .base_exporter import BaseHTMLExporter
+
+class TabBasedHTMLExporter(BaseHTMLExporter):
     """Exports markdown to interactive HTML with tab navigation."""
     
-    def export(
-        self,
-        markdown_sections: List[Dict[str, str]],
-        output_path: Path,
-        project_info: Optional[Dict[str, str]] = None
-    ) -> Path:
-        """
-        Export markdown sections to tab-based HTML.
-        
-        Args:
-            markdown_sections: List of {"title": "...", "content": "..."}
-            output_path: Where to save HTML
-            project_info: Dict with 'name', 'grade', 'status' etc.
-            
-        Returns:
-            Path to generated HTML file
-        """
-        logger.info(f"Exporting tab-based HTML with {len(markdown_sections)} sections")
-        
-        if not project_info:
-            project_info = {
-                "name": "Quality Report",
-                "grade": "N/A",
-                "status": "Complete"
-            }
-        
-        # Convert markdown sections to HTML
-        html_sections = []
-        for section in markdown_sections:
-            html_content = markdown2.markdown(
-                section["content"],
-                extras=[
-                    "tables",
-                    "fenced-code-blocks",
-                    "header-ids",
-                    "break-on-newline"
-                ]
-            )
-            html_sections.append({
-                "title": section["title"],
-                "id": section["title"].lower().replace(" ", "-"),
-                "content": html_content
-            })
-        
-        # Build complete HTML document
-        html = self._build_html_document(html_sections, project_info)
-        
-        # Write output
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(html, encoding="utf-8")
-        
-        logger.info(f"Tab-based HTML saved to: {output_path}")
-        return output_path
+    def __init__(self):
+        super().__init__("nibandha.export.tabs")
     
     def _build_html_document(
         self, 
-        sections: List[Dict[str, str]], 
+        sections: List[Dict[str, Any]], 
         project_info: Dict[str, str]
     ) -> str:
         """Build complete HTML document with tabs."""

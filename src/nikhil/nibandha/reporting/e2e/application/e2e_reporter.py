@@ -11,6 +11,7 @@ from ...shared.infrastructure.visualizers.default_visualizer import DefaultVisua
 from ...shared.data.data_builders import E2EDataBuilder
 from ...shared.domain.grading import Grader
 from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
+from ...shared.constants import REPORT_ORDER_E2E, ASSETS_IMAGES_DIR_REL
 
 if TYPE_CHECKING:
     from ...shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
@@ -150,7 +151,11 @@ class E2EReporter:
         mod_table = ""
         det_sections = ""
         
-        for mod in sorted(module_results.keys()):
+        mod_table = ""
+        det_sections = ""
+        
+        sorted_modules = sorted(module_results.keys())
+        for idx, mod in enumerate(sorted_modules, start=1):
             m_data = module_results[mod]
             if m_data['total'] > 0:
                 m_pass_rate = (m_data["pass"] / m_data["total"] * 100)
@@ -160,16 +165,28 @@ class E2EReporter:
             else:
                 grade_display = "-"
             
-            mod_table += f"| {mod} | {m_data['total']} | {m_data['pass']} | {m_data['fail']} | {grade_display} |\n"
+            # Calculate module duration
+            mod_duration = 0.0
+            if m_data['tests']:
+                for t in m_data["tests"]:
+                    mod_duration += t.get("call", {}).get("duration", 0) or t.get("setup", {}).get("duration", 0)
+
+            mod_table += f"| {idx} | {mod} | {m_data['total']} | {m_data['pass']} | {m_data['fail']} | {grade_display} | {mod_duration:.3f}s |\n"
+            
+            # Table 4.x number: 2 summary tables exist (4.1 Summary, 4.2 Failures) -> start from 4.3? 
+            # Actually template has: Table 4.1 (Module Breakdown), Table 4.2 (Failures).
+            # So per-module tables should start from 4.3.
+            table_num = idx + 2
             
             det_sections += f"### Module: {mod}\n\n"
             if m_data['tests']:
-                det_sections += "| Scenario | Status | Duration |\n| --- | :---: | :---: |\n"
-                for t in m_data["tests"]:
-                    icon = "✅" if t["outcome"] == "passed" else "❌"
+                det_sections += f": **Table 4.{table_num}:** Test execution results for {mod} module\n\n"
+                det_sections += "| S.No | Scenario | Status | Duration |\n| :---: | --- | :---: | :---: |\n"
+                for t_idx, t in enumerate(m_data["tests"], start=1):
+                    icon = "[PASS]" if t["outcome"] == "passed" else "[FAIL]"
                     full_name = t["nodeid"].split("::")[-1]
                     dur = t.get("call", {}).get("duration", 0) or t.get("setup", {}).get("duration", 0)
-                    det_sections += f"| {full_name} | {icon} | {dur:.3f}s |\n"
+                    det_sections += f"| {t_idx} | {full_name} | {icon} | {dur:.3f}s |\n"
                 det_sections += "\n"
             else:
                 det_sections += "*No scenarios executed.*\n\n"
@@ -181,10 +198,27 @@ class E2EReporter:
                 if isinstance(longrepr, dict): longrepr = json.dumps(longrepr, indent=2)
                 failures += f"### {t['nodeid']}\n```\n{longrepr}\n```\n"
 
+        # Construct structured module list for visualizers
+        module_list = []
+        for mod, m_data in module_results.items():
+            mod_duration = 0.0
+            if m_data['tests']:
+                for t in m_data["tests"]:
+                    mod_duration += t.get("call", {}).get("duration", 0) or t.get("setup", {}).get("duration", 0)
+            
+            module_list.append({
+                "name": mod,
+                "total": m_data['total'],
+                "passed": m_data['pass'],
+                "failed": m_data['fail'],
+                "duration_val": mod_duration
+            })
+
         return {
             "module_table": mod_table,
             "detailed_sections": det_sections,
-            "failures_section": failures if failures else "*No Failures*"
+            "failures_section": failures if failures else "*No Failures*",
+            "modules": module_list
         }
 
     def _register_references(self) -> None:
@@ -192,21 +226,21 @@ class E2EReporter:
         # Figures
         self.reference_collector.add_figure(FigureReference(
             id="fig-e2e-status",
-            title="E2E test pass/fail status across all scenarios",
-            path="../assets/images/e2e_status.png",
+            title="E2E Scenario Outcomes Overview",
+            path=f"{ASSETS_IMAGES_DIR_REL}/e2e_status.png",
             type="bar_chart",
             description="Distribution of pass/fail status across all E2E scenarios",
             source_report="e2e",
-            report_order=4
+            report_order=REPORT_ORDER_E2E
         ))
         self.reference_collector.add_figure(FigureReference(
             id="fig-e2e-durations",
-            title="E2E test execution time by scenario",
-            path="../assets/images/e2e_durations.png",
+            title="E2E Scenario Performance Ranking",
+            path=f"{ASSETS_IMAGES_DIR_REL}/e2e_durations.png",
             type="histogram",
             description="Execution time distribution for E2E scenarios",
             source_report="e2e",
-            report_order=4
+            report_order=REPORT_ORDER_E2E
         ))
         # Tables
         self.reference_collector.add_table(TableReference(
@@ -214,14 +248,14 @@ class E2EReporter:
             title="E2E test results by module",
             description="Breakdown of test results passing/failing by module",
             source_report="e2e",
-            report_order=4
+            report_order=REPORT_ORDER_E2E
         ))
         self.reference_collector.add_table(TableReference(
             id="table-e2e-failures",
             title="Failed E2E tests requiring investigation",
             description="List of failed tests with traceback snippets",
             source_report="e2e",
-            report_order=4
+            report_order=REPORT_ORDER_E2E
         ))
         # Nomenclature
         self.reference_collector.add_nomenclature(NomenclatureItem(term="E2E Test", definition="An integrated test scenario verifying end-to-end system behavior", source_reports=["e2e"])) # type: ignore

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List
 import logging
 
 # Import the low-level plotting library
@@ -40,13 +40,34 @@ class DefaultVisualizationProvider:
                 if cov_path.exists():
                     charts["unit_coverage"] = str(cov_path)
                     
-            # 3. Durations
+            # 3. Durations Distribution (Histogram)
             durations = data.get("durations", [])
             if durations:
                 dur_path = output_dir / "unit_durations.png"
                 visualizer.plot_test_duration_distribution(durations, dur_path)
                 if dur_path.exists():
                     charts["unit_durations"] = str(dur_path)
+            
+            # 4. Module Durations (Bar Chart)
+            # Need to extract from data["modules"] list which has "duration_val"
+            modules = data.get("modules", [])
+            mod_durations = {}
+            for m in modules:
+                mod_durations[m["name"]] = m.get("duration_val", 0.0)
+            
+            if mod_durations:
+                mod_dur_path = output_dir / "unit_module_durations.png"
+                visualizer.plot_module_durations(mod_durations, mod_dur_path)
+                if mod_dur_path.exists():
+                    charts["module_durations"] = str(mod_dur_path)
+            
+            # 5. Top Slowest Tests
+            tests = data.get("tests", [])
+            if tests:
+                slow_path = output_dir / "unit_slowest_tests.png"
+                visualizer.plot_top_slowest_tests(tests, slow_path)
+                if slow_path.exists():
+                    charts["unit_slowest_tests"] = str(slow_path)
 
         except Exception as e:
             logger.error(f"Error generating unit charts: {e}")
@@ -71,14 +92,26 @@ class DefaultVisualizationProvider:
                 if status_path.exists():
                     charts["e2e_status"] = str(status_path)
             
-            # Duration Bar Chart
+            # Duration Bar Chart (Scenarios)
             scenarios = data.get("scenarios", [])
             if scenarios:
                 duration_path = output_dir / "e2e_durations.png"
                 visualizer.plot_e2e_durations(scenarios, duration_path)
                 if duration_path.exists():
                     charts["e2e_durations"] = str(duration_path)
-                    
+            
+            # Module Durations (Bar Chart)
+            modules = data.get("modules", [])
+            mod_durations = {}
+            for m in modules:
+                mod_durations[m["name"]] = m.get("duration_val", 0.0)
+            
+            if mod_durations:
+                mod_dur_path = output_dir / "e2e_module_durations.png"
+                visualizer.plot_module_durations(mod_durations, mod_dur_path)
+                if mod_dur_path.exists():
+                    charts["module_durations"] = str(mod_dur_path)
+
         except Exception as e:
             logger.error(f"Error generating E2E charts: {e}")
             
@@ -130,6 +163,13 @@ class DefaultVisualizationProvider:
             visualizer.plot_complexity_distribution(violations, chart_path)
             if chart_path.exists():
                 charts["complexity_distribution"] = str(chart_path)
+                
+            scores = data.get("complexity_scores", {})
+            if scores:
+                box_path = output_dir / "complexity_boxplot.png"
+                visualizer.plot_complexity_boxplot(scores, box_path)
+                if box_path.exists():
+                     charts["complexity_boxplot"] = str(box_path)
         except Exception as e:
             logger.error(f"Error generating complexity charts: {e}")
             
@@ -203,5 +243,28 @@ class DefaultVisualizationProvider:
             
         except Exception as e:
             logger.error(f"Error generating documentation charts: {e}")
+            
+        return charts
+
+    def generate_performance_charts(
+        self, 
+        timings: List[Dict[str, Any]], 
+        output_dir: Path
+    ) -> Dict[str, str]:
+        """Generate performance charts."""
+        output_dir.mkdir(parents=True, exist_ok=True)
+        charts = {}
+        
+        try:
+            logger.debug(f"Generating performance charts with timings: {timings}")
+            chart_path = output_dir / "performance_overall.png"
+            visualizer.plot_performance_distribution(timings, chart_path)
+            if chart_path.exists():
+                logger.debug(f"Performance chart generated at: {chart_path}")
+                charts["performance_overall"] = str(chart_path)
+            else:
+                logger.warning(f"Performance chart NOT generated at: {chart_path}")
+        except Exception as e:
+            logger.error(f"Error generating performance charts: {e}")
             
         return charts

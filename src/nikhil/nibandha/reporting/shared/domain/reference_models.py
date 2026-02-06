@@ -5,11 +5,12 @@ This module provides Pydantic models for tracking figures, tables, and nomenclat
 across all generated reports, enabling publication-standard reference sections.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List
 
 
 class FigureReference(BaseModel):
+
     """
     Model representing a figure reference in the report collection.
     
@@ -77,8 +78,7 @@ class NomenclatureItem(BaseModel):
     definition: str = Field(alias="def", default="")
     source_reports: List[str] = Field(default_factory=list)
     
-    class Config:
-        populate_by_name = True  # Allow both 'definition' and 'def'
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class GlobalReferences(BaseModel):

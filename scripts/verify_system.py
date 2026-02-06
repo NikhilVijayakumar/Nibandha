@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 import yaml
 import shutil
+import datetime
 
 # Add src to path to ensure we use the local package
 project_root = Path(__file__).parent.parent
@@ -144,23 +145,26 @@ def main():
         import datetime
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
+        # 0. Cover Page
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cover_metadata = generator.cover_reporter.generate(app.app_root, timestamp)
+        print("    ✅ Cover Page generated")
+
         # 1. Introduction
-        generator.intro_reporter.generate()
-        print(f"    ✅ Introduction generated")
+        generator.intro_reporter.generate(config.project_name, metadata=cover_metadata)
+        print("    ✅ Introduction generated")
 
         # 2. Global References (Generated later, checking logic)
         
         # 3. Unit
         unit_data = generator.run_unit_Tests("tests/unit", timestamp)
         
-        # 4. E2E - TEMPORARILY DISABLED for performance testing
-        # e2e_data = generator.run_e2e_Tests("tests/e2e", timestamp)
-        print("    ⚠️ E2E tests skipped (performance investigation)")
+        # 4. E2E - Enabled
+        e2e_data = generator.run_e2e_Tests("tests/e2e", timestamp)
+        # print("    ⚠️ E2E tests skipped (performance investigation)")
 
-        # 5,6,7 Quality - TEMPORARILY DISABLED (performance issue - very slow)
-        # quality_data = generator.run_quality_checks("src/nikhil/nibandha")
-        quality_data = None
-        print("    ⚠️ Quality checks skipped (performance investigation)")
+        # 5,6,7,8,9,10,14 Quality - Enabled
+        quality_data = generator.run_quality_checks("src/nikhil/nibandha")
         
         # 8. Dependencies - RE-ENABLED (fast - ~10s)
         actual_src_root = Path(__file__).parent.parent / "src/nikhil/nibandha"
@@ -195,20 +199,58 @@ def main():
                      json.dump(data, f, indent=2, default=str)
                  print(f"    ✅ {name.capitalize()} Artifact saved")
 
+        # Mock Timings for Verification (15 Stages)
+        timings = {
+            "Introduction": 0.1,
+            "Unit Tests": 5.2,
+            "E2E Tests": 8.4,
+            "Quality: Architecture": 1.2,
+            "Quality: Type Safety": 4.5,
+            "Quality: Complexity": 2.1,
+            "Quality: Hygiene": 0.5,
+            "Quality: Security": 0.8,
+            "Quality: Duplication": 0.9,
+            "Quality: Encoding": 0.3,
+            "Module Dependencies": 1.8,
+            "Package Health": 0.7,
+            "Documentation": 1.1,
+            "Conclusion": 0.4,
+            "Global References": 0.2
+        }
+
         # 11. Conclusion (formerly Unified Summary)
         summary_builder = SummaryDataBuilder()
-        e2e_data = None  # Define since we skipped E2E
-        summary_data = summary_builder.build(unit_data, e2e_data, quality_data, documentation_data=doc_data, dependency_data=dep_data, package_data=pkg_data)
+        # e2e_data is now real
+        summary_data = summary_builder.build(
+            unit_data, 
+            e2e_data, 
+            quality_data, 
+            documentation_data=doc_data, 
+            dependency_data=dep_data, 
+            package_data=pkg_data,
+            timings=timings
+        )
+        
+        # Generate Performance Charts
+        # NOTE: formatting is handed by data builder, but for charts we need raw timings list if we bypassed generator logic
+        # In verification script we bypass generator's 'timings' collection so we must manually pass it
+        # However, data builder converts map to list of dicts string strings.
+        # Visualizer expects List[Dict] with 'duration' as "X.XXs"
+        
+        # Construct list for visualizer
+        perf_timings = [{"stage": k, "duration": f"{v:.2f}s"} for k, v in timings.items()]
+        generator.viz_provider.generate_performance_charts(perf_timings, generator.output_dir / "assets" / "images")
+        print("    ✅ Performance charts generated")
         
         generator.template_engine.render(
             "conclusion_template.md",
             summary_data,
-            generator.output_dir / "details" / "14_conclusion.md"
+            generator.output_dir / "details" / "15_conclusion.md"
         )
-        if not (generator.output_dir / "details" / "14_conclusion.md").exists():
+        if not (generator.output_dir / "details" / "15_conclusion.md").exists():
             print("    🔴 Conclusion Report NOT generated")
         else:
-            print(f"    ✅ Conclusion Report generated: {generator.output_dir / 'details/14_conclusion.md'}")
+            print(f"    ✅ Conclusion Report generated: {generator.output_dir / 'details/15_conclusion.md'}")
         
         # Save summary data
         with open(assets_dir / "summary_data.json", 'w', encoding='utf-8') as f:
@@ -229,7 +271,7 @@ def main():
 
         # Verify output files exist
         details_dir = generator.output_dir / "details"
-        conclusion_path = details_dir / "14_conclusion.md"
+        conclusion_path = details_dir / "15_conclusion.md"
         
         if conclusion_path.exists():
              print(f"    ✅ Conclusion Report verified at: {conclusion_path}")
@@ -244,6 +286,12 @@ def main():
         
         if (details_dir / "12_package_dependency_report.md").exists():
              print(f"    ✅ Package Report generated")
+
+        if (details_dir / "14_encoding_report.md").exists():
+             print(f"    ✅ Encoding Report generated")
+        
+        if (details_dir / "15_conclusion.md").exists():
+             print(f"    ✅ Conclusion Report generated")
 
     except Exception as e:
         print(f"    ❌ Reporting check failed: {e}")

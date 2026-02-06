@@ -124,7 +124,10 @@ class TestQualityReporter:
             "type_safety": {"status": "PASS", "output": "clean", "violation_count": 0},
             "hygiene": {"status": "PASS", "output": "clean", "violation_count": 0, "details": {}},
             "security": {"status": "PASS", "output": "clean", "violation_count": 0, "details": {}},
-            "duplication": {"status": "PASS", "output": "clean", "violation_count": 0, "details": {}}
+            "duplication": {"status": "PASS", "output": "clean", "violation_count": 0, "details": {}},
+            "encoding": {"status": "PASS", "output": "clean", "violation_count": 0, "details": {
+                "non_utf8": [], "bom_present": []
+            }}
         }
         reporter.generate(results, "Proj")
         assert reporter.template_engine.render.call_count >= 3

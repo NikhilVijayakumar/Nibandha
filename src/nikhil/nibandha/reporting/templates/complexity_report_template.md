@@ -19,19 +19,19 @@ lot: true
 
 ## 📊 Summary
 
-: **Table 1:** Project-level complexity metrics
+: **Table 7.1:** Project-level complexity metrics
 
-| Metric | Value |
-| :--- | :---: |
-| **Total Violations** | {{ total_violations }} |
-| **Max Allowed Complexity** | 10 |
-| **Status** | {{ overall_status }} |
+| S.No | Metric | Value |
+| :---: | :--- | :---: |
+| 1 | **Total Violations** | {{ total_violations }} |
+| 2 | **Max Allowed Complexity** | 10 |
+| 3 | **Status** | {{ overall_status }} |
 
 ---
 
 ## 🧠 Complexity Score by Module
 
-: **Table 2:** Complexity violations per module
+: **Table 7.2:** Complexity violations per module
 
 {{ module_table }}
 
@@ -39,13 +39,14 @@ lot: true
 
 ## 📉 Complexity Distribution
 
-![**Figure 1:** Distribution of complexity scores across all functions](../assets/images/quality/complexity_distribution.png)
+![**Figure 1:** Complexity Hotspots (Cyclomatic > 10)](../assets/images/quality/complexity_distribution.png)
+![**Figure 2:** Complexity Distribution by Module](../assets/images/quality/complexity_boxplot.png)
 
 ---
 
 ## 🐢 Most Complex Functions
 
-: **Table 3:** Functions exceeding complexity threshold
+: **Table 7.3:** Functions exceeding complexity threshold
 
 <details>
 <summary>Click to expand detailed violations</summary>

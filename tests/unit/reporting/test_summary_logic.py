@@ -16,7 +16,8 @@ class TestSummaryDataBuilder:
             "complexity": {"status": "PASS", "grade": "A"},
             "hygiene": {"status": "PASS", "grade": "A", "violation_count": 0},
             "security": {"status": "PASS", "grade": "A", "violation_count": 0},
-            "duplication": {"status": "PASS", "grade": "A", "violation_count": 0}
+            "duplication": {"status": "PASS", "grade": "A", "violation_count": 0},
+            "encoding": {"status": "PASS", "grade": "A", "violation_count": 0}
         }
         doc = {"functional": {}, "technical": {}, "test": {}} # simplified
         

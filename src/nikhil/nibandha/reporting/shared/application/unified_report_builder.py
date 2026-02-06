@@ -116,7 +116,8 @@ lot: true
                 "11_module_dependency_report.md",
                 "12_package_dependency_report.md",
                 "13_documentation_report.md",
-                "14_conclusion.md"
+                "14_encoding_report.md",
+                "15_conclusion.md"
             ]
             
             for name in ordered_names:

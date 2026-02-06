@@ -8,7 +8,7 @@ from ...shared.rendering.template_engine import TemplateEngine
 from ...shared.domain.protocols.visualization_protocol import VisualizationProvider
 from ...shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
 from ...shared.data.data_builders import UnitDataBuilder
-from ...shared.domain.grading import Grader
+from ...shared.domain.grading import Grader, GradingThresholds
 from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
 
 if TYPE_CHECKING:
@@ -57,6 +57,11 @@ class UnitReporter:
         self.viz_provider.generate_unit_test_charts(enriched_data, self.images_dir)
         logger.debug("Unit charts generated.")
 
+        from ...shared.constants import (
+            PROJECT_ROOT_MARKER, ASSETS_IMAGES_DIR_REL, 
+            COLOR_PASS, COLOR_FAIL, COLOR_WARNING, COLOR_NEUTRAL
+        )
+
         target_path = self.details_dir / "03_unit_report.md"
         logger.info(f"Rendering Unit Report to: {target_path}")
         self.template_engine.render(
@@ -67,14 +72,22 @@ class UnitReporter:
         return enriched_data
 
     def _enrich_data_for_template(self, report_data: Dict[str, Any], original_pytest: Dict[str, Any], original_cov: Dict[str, Any]) -> Dict[str, Any]:
+        from ...shared.constants import (
+            PROJECT_ROOT_MARKER, ASSETS_IMAGES_DIR_REL,
+            IMG_PATH_UNIT_OUTCOMES, IMG_PATH_UNIT_COVERAGE,
+            IMG_PATH_UNIT_DURATIONS, IMG_PATH_UNIT_SLOWEST
+        )
+        
         logger.debug("Enriching report data with coverage and documentation metrics")
         data = report_data.copy()
         data["total"] = data["total_tests"]
-        data["total"] = data["total_tests"]
+        # Duplicate assignment removed
         data["duration"] = sum(data.get("durations", []))
         
+        # Ensure raw tests are available
+        data["tests"] = original_pytest.get("tests", [])
         
-        prefix = f"{str(self.source_root)}/" if self.source_root else "src/"
+        prefix = f"{str(self.source_root)}/" if self.source_root else PROJECT_ROOT_MARKER
         all_modules = utils.get_all_modules(self.source_root, self.module_discovery)
         cov_map, total_cov = utils.analyze_coverage(original_cov, package_prefix=prefix, known_modules=all_modules)
         module_results = self._group_results(original_pytest)
@@ -100,15 +113,17 @@ class UnitReporter:
             module_grade = Grader.calculate_unit_grade(module_pass_rate, cov_val)
             grade_color = Grader.get_grade_color(module_grade)
             
-            # Tests
+            # Tests & Duration
             tests_list = []
+            module_duration = 0.0
             if m_data['tests']:
                 for t in m_data["tests"]:
                     dur = t.get("call", {}).get("duration", 0) or t.get("setup", {}).get("duration", 0)
+                    module_duration += dur
                     tests_list.append({
                         "name": t["nodeid"].split("::")[-1],
                         "outcome": t["outcome"],
-                        "icon": "✅" if t["outcome"] == "passed" else "❌",
+                        "icon": "[PASS]" if t["outcome"] == "passed" else "[FAIL]",
                         "duration": f"{dur:.3f}s"
                     })
 
@@ -122,6 +137,8 @@ class UnitReporter:
                 "grade": module_grade,
                 "grade_color": grade_color,
                 "tests": tests_list,
+                "duration": f"{module_duration:.3f}s",
+                "duration_val": module_duration,
                 "doc_content": utils.get_module_doc(self.docs_dir, mod, "unit")
             })
         
@@ -140,23 +157,23 @@ class UnitReporter:
                 "value": f"{pass_rate:.1f}%",
                 "change": "",  # Can add trend calculation later
                 "trend": "neutral",
-                "icon": "✓",
-                "color": "green" if pass_rate >= 90 else ("yellow" if pass_rate >= 70 else "red")
+                "icon": "[PASS]",
+                "color": "green" if pass_rate >= GradingThresholds.PASS_RATE_TARGET else ("yellow" if pass_rate >= GradingThresholds.PASS_RATE_CRITICAL else "red")
             },
             {
                 "title": "Code Coverage",
                 "value": f"{coverage_rate:.1f}%",
                 "change": "",
                 "trend": "neutral",
-                "icon": "📊",
-                "color": "green" if coverage_rate >= 80 else ("yellow" if coverage_rate >= 60 else "red")
+                "icon": "[COV]",
+                "color": "green" if coverage_rate >= GradingThresholds.COVERAGE_TARGET else ("yellow" if coverage_rate >= GradingThresholds.COVERAGE_CRITICAL else "red")
             },
             {
                 "title": "Total Tests",
                 "value": str(total_tests),
                 "change": "",
                 "trend": "neutral",
-                "icon": "🧪",
+                "icon": "[TEST]",
                 "color": "blue"
             },
             {
@@ -164,7 +181,7 @@ class UnitReporter:
                 "value": str(failed_tests),
                 "change": "",
                 "trend": "neutral",
-                "icon": "❌",
+                "icon": "[FAIL]",
                 "color": "red" if failed_tests > 0 else "green"
             }
         ]
@@ -190,24 +207,31 @@ class UnitReporter:
         figures_list = [
              {
                  "id": "fig-unit-1",
-                 "title": "Test pass/fail distribution across all modules",
-                 "path": "../assets/images/unit_outcomes.png",
+                 "title": "Module Test Outcomes & Pass Rate Analysis",
+                 "path": ASSETS_IMAGES_DIR_REL + IMG_PATH_UNIT_OUTCOMES,
                  "type": "bar_chart",
-                 "description": "Visual breakdown of test results"
+                 "description": "Visual breakdown of test results including pass rates per module"
              },
              {
                  "id": "fig-unit-2",
-                 "title": "Code coverage percentage by module",
-                 "path": "../assets/images/unit_coverage.png",
+                 "title": "Code Coverage Risk Analysis",
+                 "path": ASSETS_IMAGES_DIR_REL + IMG_PATH_UNIT_COVERAGE,
                  "type": "bar_chart",
-                 "description": "Coverage metrics per module"
+                 "description": "Coverage metrics per module with risk thresholds (50% Critical, 80% Target)"
              },
              {
                  "id": "fig-unit-3",
-                 "title": "Test execution time distribution",
-                 "path": "../assets/images/unit_durations.png",
+                 "title": "Test Duration Distribution Analysis",
+                 "path": ASSETS_IMAGES_DIR_REL + IMG_PATH_UNIT_DURATIONS,
                  "type": "histogram",
-                 "description": "Distribution of test execution times"
+                 "description": "Distribution of test execution times with KDE and outliers"
+             },
+             {
+                 "id": "fig-unit-4",
+                 "title": "Performance Bottlenecks: Top 10 Slowest Tests",
+                 "path": ASSETS_IMAGES_DIR_REL + IMG_PATH_UNIT_SLOWEST,
+                 "type": "bar_chart",
+                 "description": "Top 10 slowest unit tests by execution time"
              }
         ]
         

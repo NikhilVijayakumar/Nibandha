@@ -13,11 +13,11 @@ lot: true
 ## 📅 Summary
 > **Date:** {{ date }}
 
-: **Table 1:** Overall documentation grades by category
+: **Table 13.1:** Overall documentation grades by category
 
-| Overall Grade | Functional | Technical | Test |
-| :---: | :---: | :---: | :---: |
-| <span style="font-size: 2em; color: {{ grade_color }}">{{ display_grade }}</span> | {{ func_grade }} | {{ tech_grade }} | {{ test_grade }} |
+| S.No | Overall Grade | Functional | Technical | Test |
+| :---: | :---: | :---: | :---: | :---: |
+| 1 | <span style="font-size: 2em; color: {{ grade_color }}">{{ display_grade }}</span> | {{ func_grade }} | {{ tech_grade }} | {{ test_grade }} |
 
 ---
 
@@ -37,28 +37,28 @@ Overview of documentation coverage and drift.
 ### Functional Documentation (`docs/features`)
 Coverage: {{ func_coverage }}%
 
-: **Table 2:** Functional documentation status per module
+: **Table 13.2:** Functional documentation status per module
 
-| Module | Status | Drift (Days) | Grade |
-| :--- | :---: | :---: | :---: |
+| S.No | Module | Status | Drift (Days) | Grade |
+| :---: | :--- | :---: | :---: | :---: |
 {{ func_table }}
 
 ### Technical Documentation (`docs/technical`)
 Coverage: {{ tech_coverage }}%
 
-: **Table 3:** Technical documentation status per module
+: **Table 13.3:** Technical documentation status per module
 
-| Module | Status | Drift (Days) | Grade |
-| :--- | :---: | :---: | :---: |
+| S.No | Module | Status | Drift (Days) | Grade |
+| :---: | :--- | :---: | :---: | :---: |
 {{ tech_table }}
 
 ### Test Documentation (`docs/test`)
 Coverage: {{ test_coverage }}%
 
-: **Table 4:** Test documentation status per module
+: **Table 13.4:** Test documentation status per module
 
-| Module | Unit Scenarios | E2E Scenarios | Drift (Days) | Grade |
-| :--- | :---: | :---: | :---: | :---: |
+| S.No | Module | Unit Scenarios | E2E Scenarios | Drift (Days) | Grade |
+| :---: | :--- | :---: | :---: | :---: | :---: |
 {{ test_table }}
 
 ---

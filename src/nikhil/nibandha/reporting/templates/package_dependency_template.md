@@ -18,18 +18,18 @@ lot: true
 
 ## 📦 Executive Summary
 
-: **Table 1:** Project-level package dependency metrics
+: **Table 12.1:** Project-level package dependency metrics
 
-| Metric | Value | Status |
-| :--- | :---: | :---: |
-| **Total Installed** | {{ installed_count }} | |
-| **Declared Dependencies** | {{ declared_count }} | |
-| **Up-to-date** | {{ up_to_date }} | 🟢 |
-| **Outdated** | {{ outdated }} | {{ outdated_status }} |
-| **Major Updates Available** | {{ major_updates }} | {{ major_status }} |
-| **Minor Updates Available** | {{ minor_updates }} | 🟡 |
-| **Patch Updates Available** | {{ patch_updates }} | 🟢 |
-| **Potentially Unused** | {{ unused }} | ⚠️ |
+| S.No | Metric | Value | Status |
+| :---: | :--- | :---: | :---: |
+| 1 | **Total Installed** | {{ installed_count }} | |
+| 2 | **Declared Dependencies** | {{ declared_count }} | |
+| 3 | **Up-to-date** | {{ up_to_date }} | 🟢 |
+| 4 | **Outdated** | {{ outdated }} | {{ outdated_status }} |
+| 5 | **Major Updates Available** | {{ major_updates }} | {{ major_status }} |
+| 6 | **Minor Updates Available** | {{ minor_updates }} | 🟡 |
+| 7 | **Patch Updates Available** | {{ patch_updates }} | 🟢 |
+| 8 | **Potentially Unused** | {{ unused }} | ⚠️ |
 
 ---
 
@@ -50,7 +50,7 @@ lot: true
 
 ### Update Distribution
 
-: **Table 2:** Detailed package status with version information
+: **Table 12.2:** Detailed package status with version information
 
 | Package | Current | Latest | Gap | Status | Priority |
 | :--- | :---: | :---: | :---: | :---: | :---: |

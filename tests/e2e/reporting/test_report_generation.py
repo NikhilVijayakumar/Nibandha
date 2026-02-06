@@ -151,12 +151,14 @@ def test_unified_report_generation_RPT_E2E_001(
     assert (details / "05_architecture_report.md").exists() # RPT-E2E-003
     assert (details / "06_type_safety_report.md").exists()
     assert (details / "07_complexity_report.md").exists()
-    assert (details / "14_conclusion.md").exists()
+    assert (details / "14_encoding_report.md").exists()
+    assert (details / "15_conclusion.md").exists()
     
     # Verification RPT-E2E-004: Assets
     images = reporting_env / "assets" / "images"
     assert (images / "quality" / "architecture_status.png").exists()
     assert (images / "quality" / "type_errors_by_module.png").exists()
+    assert (images / "unit_slowest_tests.png").exists() # New chart
     
     # Check Content Checks (Basic)
     unit_rep = (details / "03_unit_report.md").read_text(encoding='utf-8')
@@ -263,3 +265,54 @@ def test_tool_crash_handling(
     
     arch_rep = (details / "05_architecture_report.md").read_text(encoding='utf-8')
     assert "FAIL" in arch_rep # Should handle crash as fail
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Causes system freeze on Windows - see GitHub issue #XXX")
+@patch("nibandha.reporting.shared.infrastructure.utils.run_pytest")
+@patch("nibandha.reporting.quality.application.quality_reporter.QualityReporter._run_command")
+@patch("nibandha.reporting.shared.infrastructure.utils.load_json")
+@patch("nibandha.reporting.dependencies.infrastructure.analysis.package_scanner.subprocess.run")
+@patch("nibandha.reporting.dependencies.application.dependency_reporter.DependencyReporter.generate")
+@patch("nibandha.reporting.quality.domain.hygiene_reporter.HygieneReporter.run")
+@patch("nibandha.reporting.quality.domain.security_reporter.SecurityReporter.run")
+@patch("nibandha.reporting.quality.domain.duplication_reporter.DuplicationReporter.run")
+def test_complexity_visualization(
+    mock_dup_run, mock_sec_run, mock_hyg_run, mock_dep_gen,
+    mock_pkg_subprocess, mock_load, mock_run_cmd, mock_pytest, reporting_env
+):
+    """
+    Verify complexity boxplot generation when violations exist.
+    """
+    mock_pytest.return_value = True
+    
+    # Custom mock to return complexity violations
+    def mock_cmd_complexity(cmd, cwd=None):
+        cmd_str = " ".join(cmd)
+        if "ruff" in cmd_str:
+            # Return violations with scores > 10 (Format: "  --> src/...:line:col: C901 ... (score)")
+            return (
+                "  --> src/mod_a.py:10:5: C901 Function 'a' is too complex (15)\n"
+                "  --> src/mod_b.py:20:5: C901 Function 'b' is too complex (25)", 
+                "", 0
+            )  
+        return "", "", 0
+
+    mock_run_cmd.side_effect = mock_cmd_complexity
+    mock_load.return_value = {} # Defaults
+    
+    # Mock scanning reps
+    mock_hyg_run.return_value = {"status": "PASS", "violation_count": 0, "details": {}}
+    mock_sec_run.return_value = {"status": "PASS", "violation_count": 0, "details": {"high": [], "medium": []}}
+    mock_dup_run.return_value = {"status": "PASS", "violation_count": 0, "details": []}
+    mock_dep_gen.return_value = None
+    
+    mock_pkg_result = MagicMock()
+    mock_pkg_result.returncode = 0
+    mock_pkg_result.stdout = "[]"
+    mock_pkg_subprocess.return_value = mock_pkg_result
+
+    gen = ReportGenerator(output_dir=str(reporting_env))
+    gen.generate_all()
+    
+    images = reporting_env / "assets" / "images"
+    assert (images / "quality" / "complexity_boxplot.png").exists()
+    assert (images / "quality" / "complexity_distribution.png").exists()

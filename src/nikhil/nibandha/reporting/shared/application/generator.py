@@ -9,6 +9,7 @@ from ...e2e.application import e2e_reporter
 from ...quality.application import quality_reporter
 from ...dependencies.application import dependency_reporter, package_reporter
 from ...documentation.application import documentation_reporter
+from ...cover.application import cover_page_reporter
 from ...introduction.application import introduction_reporter
 
 from ..infrastructure import utils
@@ -19,6 +20,17 @@ from ..data.data_builders import SummaryDataBuilder
 
 from nibandha.configuration.domain.models.reporting_config import ReportingConfig
 from nibandha.configuration.domain.models.app_config import AppConfig
+from ..constants import (
+    REPORT_FILENAME_COVER, REPORT_FILENAME_INTRO, REPORT_FILENAME_REFERENCES,
+    REPORT_FILENAME_UNIT, REPORT_FILENAME_E2E, REPORT_FILENAME_ARCHITECTURE,
+    REPORT_FILENAME_TYPE_SAFETY, REPORT_FILENAME_COMPLEXITY, REPORT_FILENAME_HYGIENE,
+    REPORT_FILENAME_DUPLICATION, REPORT_FILENAME_SECURITY, REPORT_FILENAME_DEPENDENCY_MODULE,
+    REPORT_FILENAME_DEPENDENCY_PACKAGE, REPORT_FILENAME_DOCUMENTATION, REPORT_FILENAME_ENCODING,
+    REPORT_FILENAME_CONCLUSION,
+    DEFAULT_UNIT_TESTS_DIR,
+    DEFAULT_E2E_TESTS_DIR,
+    DEFAULT_SOURCE_ROOT
+)
 
 logger = logging.getLogger("nibandha.reporting")
 
@@ -59,9 +71,9 @@ class ReportGenerator:
     def _resolve_configuration(self, config: Optional[Any], output_dir: Optional[str], template_dir: Optional[str], docs_dir: str) -> None:
         self.config = config
         self.module_discovery = None
-        self.unit_target_default = "tests/unit"
-        self.e2e_target_default = "tests/e2e"
-        self.quality_target_default = "src"
+        self.unit_target_default = DEFAULT_UNIT_TESTS_DIR
+        self.e2e_target_default = DEFAULT_E2E_TESTS_DIR
+        self.quality_target_default = DEFAULT_SOURCE_ROOT
         self.package_roots_default = None
         self.project_name = "Nibandha"
         
@@ -113,6 +125,9 @@ class ReportGenerator:
         return base_src
 
     def _initialize_reporters(self, source_root: Path) -> None:
+        self.cover_reporter = cover_page_reporter.CoverPageReporter(
+            self.output_dir, self.templates_dir, self.template_engine
+        )
         self.intro_reporter = introduction_reporter.IntroductionReporter(
             self.output_dir, self.templates_dir, self.template_engine
         )
@@ -121,6 +136,9 @@ class ReportGenerator:
             self.template_engine, self.viz_provider,
             self.module_discovery, source_root, self.reference_collector
         )
+
+# ... inside generate_all ...
+
         self.e2e_reporter = e2e_reporter.E2EReporter(
             self.output_dir, self.templates_dir, self.docs_dir,
             self.template_engine, self.viz_provider,
@@ -142,6 +160,7 @@ class ReportGenerator:
         self._initialize_doc_reporter(source_root)
 
     def _initialize_doc_reporter(self, source_root: Path) -> None:
+        # TODO: Move these defaults to constants if reused elsewhere
         doc_paths = {
             "functional": Path("docs/features"), 
             "technical": Path("docs/technical"), 
@@ -189,27 +208,55 @@ class ReportGenerator:
         e_target = e2e_target or self.e2e_target_default
         q_target = quality_target or self.quality_target_default # Default set from config in init
         
+        timings = {}
+        import time
+
+        # 0. Cover Page
+        start = time.time()
+        cover_metadata = self.cover_reporter.generate(proj_path, timestamp)
+        # Update project name if found in pyproject.toml
+        if cover_metadata.get("project_name"):
+            self.project_name = cover_metadata["project_name"]
+        timings["Cover Page"] = time.time() - start
+
         # 1. Introduction
-        self.intro_reporter.generate(self.project_name)
+        start = time.time()
+        self.intro_reporter.generate(self.project_name, metadata=cover_metadata)
+        timings["Introduction"] = time.time() - start
 
         # 3. Unit Tests
+        start = time.time()
         unit_data = self.run_unit_Tests(u_target, timestamp)
+        timings["Unit Tests"] = time.time() - start
         
         # 4. E2E Tests
+        start = time.time()
         e2e_data = self.run_e2e_Tests(e_target, timestamp)
+        timings["E2E Tests"] = time.time() - start
         
-        # 5,6,7. Quality Checks
+        # 5,6,7,8,9,10,14. Quality Checks (Grouped but timed individually inside)
+        start = time.time()
         quality_data = self.run_quality_checks(q_target)
+        # Extract individual timings from quality_data
+        for key in ["architecture", "type_safety", "complexity", "hygiene", "security", "duplication", "encoding"]:
+            if key in quality_data:
+                dur = quality_data[key].get("duration", 0.0)
+                timings[f"Quality: {key.replace('_', ' ').title()}"] = dur
         
-        # 8. Dependencies
+        # 8. Dependencies (11 & 12)
+        start = time.time()
         src_root = Path(q_target).resolve()
         # Use package_roots from config/default configured in init
         dependency_data = self.run_dependency_checks(src_root, self.package_roots_default)
-        
+        timings["Module Dependencies"] = time.time() - start
+
         # 9. Package Health
+        start = time.time()
         package_data = self.run_package_checks(proj_path)
+        timings["Package Health"] = time.time() - start
         
         # 10. Documentation
+        start = time.time()
         try:
              documentation_data = self.doc_reporter.generate(proj_path, project_name=self.project_name)
              # Save JSON
@@ -221,32 +268,48 @@ class ReportGenerator:
         except Exception as e:
              logger.warning(f"Documentation check failed: {e}")
              documentation_data = None
+        timings["Documentation"] = time.time() - start
         
-        # 11. Conclusion (formerly Summary) -> Now 14
+        # 11. Conclusion (formerly Summary) -> Now 15
+        start = time.time()
         summary_data = self.summary_builder.build(
             unit_data, 
             e2e_data, 
             quality_data,
             documentation_data=documentation_data,
             dependency_data=dependency_data,
-            package_data=package_data
+            package_data=package_data,
+            timings=timings # Partial timings passed here, needed for conclusion build
         )
         self.template_engine.render(
              "conclusion_template.md",
              summary_data,
-             self.output_dir / "details" / "14_conclusion.md"
+             self.output_dir / "details" / REPORT_FILENAME_CONCLUSION
         )
-        logger.info(f"Generated conclusion at {self.output_dir / 'details' / '14_conclusion.md'}")
+        timings["Conclusion"] = time.time() - start
+        logger.info(f"Generated conclusion at {self.output_dir / 'details' / REPORT_FILENAME_CONCLUSION}")
         
-        # Save summary data (used by export service header)
+        # Save summary data
         summary_json_path = self.output_dir / "assets" / "data" / "summary_data.json"
         summary_json_path.parent.mkdir(parents=True, exist_ok=True)
         import json
         with open(summary_json_path, 'w', encoding='utf-8') as f:
             json.dump(summary_data, f, indent=2, default=str)
 
-        # 2. Global References (Generate NOW, after all data collected)
+        # 2. Global References
+        start = time.time()
         self._generate_global_references(timestamp)
+        timings["Global References"] = time.time() - start
+
+        # Update timings in summary_data for final chart (re-inject full list)
+        # Note: 'timings' dict now has 14 entries. Export is 15th but we graph before export.
+        
+        # Generate Performance Charts with FULL timings
+        # We need to format them as list of dicts
+        full_perf_timings = [{"stage": k, "duration": f"{v:.2f}s"} for k, v in timings.items()]
+        
+        # Also need raw values for advanced stats
+        self.viz_provider.generate_performance_charts(full_perf_timings, self.output_dir / "assets" / "images")
         
         # Export Unified Report
         self._export_reports()
@@ -267,21 +330,24 @@ class ReportGenerator:
         details_dir = self.output_dir / "details"
         
         # Strict Order of Importance
+        # Strict Order of Importance
         ordered_files = [
-            "01_introduction.md",               # 1
-            "02_global_references.md",          # 2
-            "03_unit_report.md",                # 3
-            "04_e2e_report.md",                 # 4
-            "05_architecture_report.md",        # 5
-            "06_type_safety_report.md",         # 6
-            "07_complexity_report.md",          # 7
-            "08_code_hygiene_report.md",        # 8
-            "09_duplication_report.md",         # 9
-            "10_security_report.md",            # 10
-            "11_module_dependency_report.md",   # 11
-            "12_package_dependency_report.md",  # 12
-            "13_documentation_report.md",       # 13
-            "14_conclusion.md"                  # 14
+            REPORT_FILENAME_COVER,                 # 0
+            REPORT_FILENAME_INTRO,               # 1
+            REPORT_FILENAME_REFERENCES,          # 2
+            REPORT_FILENAME_UNIT,                # 3
+            REPORT_FILENAME_E2E,                 # 4
+            REPORT_FILENAME_ARCHITECTURE,        # 5
+            REPORT_FILENAME_TYPE_SAFETY,         # 6
+            REPORT_FILENAME_COMPLEXITY,          # 7
+            REPORT_FILENAME_HYGIENE,        # 8
+            REPORT_FILENAME_DUPLICATION,         # 9
+            REPORT_FILENAME_SECURITY,            # 10
+            REPORT_FILENAME_DEPENDENCY_MODULE,   # 11
+            REPORT_FILENAME_DEPENDENCY_PACKAGE,  # 12
+            REPORT_FILENAME_DOCUMENTATION,       # 13
+            REPORT_FILENAME_ENCODING,            # 14
+            REPORT_FILENAME_CONCLUSION                  # 15
         ]
         
         detail_paths = []
@@ -335,7 +401,7 @@ class ReportGenerator:
             "nomenclature": [nom.model_dump() for nom in references.nomenclature],
             "project_name": self.project_name
         }
-        output_path = self.output_dir / "details" / "02_global_references.md"
+        output_path = self.output_dir / "details" / REPORT_FILENAME_REFERENCES
         output_path.parent.mkdir(parents=True, exist_ok=True)
         self.template_engine.render("global_references_template.md", data, output_path)
         

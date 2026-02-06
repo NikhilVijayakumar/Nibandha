@@ -26,10 +26,12 @@ class PackageScanner:
         declared = self.parse_pyproject_dependencies()
         unused = self.find_unused_dependencies()
         
+        from nibandha.reporting.shared.constants import UPDATE_TYPE_MAJOR, UPDATE_TYPE_MINOR, UPDATE_TYPE_PATCH
+
         up_to_date = len(declared) - len(outdated)
-        major_updates = sum(1 for p in outdated if p["update_type"] == "MAJOR")
-        minor_updates = sum(1 for p in outdated if p["update_type"] == "MINOR")
-        patch_updates = sum(1 for p in outdated if p["update_type"] == "PATCH")
+        major_updates = sum(1 for p in outdated if p["update_type"] == UPDATE_TYPE_MAJOR)
+        minor_updates = sum(1 for p in outdated if p["update_type"] == UPDATE_TYPE_MINOR)
+        patch_updates = sum(1 for p in outdated if p["update_type"] == UPDATE_TYPE_PATCH)
         
         return {
             "installed_count": len(installed),
@@ -87,10 +89,10 @@ class PackageScanner:
 
     def _get_latest_pypi_version(self, package_name: str) -> Optional[str]:
         try:
-            # We use pip index versions as it's standard now
+            from ...shared.constants import PIP_TIMEOUT_SECONDS
             result = subprocess.run(
                 ["pip", "index", "versions", package_name],
-                capture_output=True, text=True, timeout=10
+                capture_output=True, text=True, timeout=PIP_TIMEOUT_SECONDS
             )
             if result.returncode == 0:
                 # Parse: "package (X.Y.Z)" or "Available versions: X.Y.Z, ..."
@@ -103,7 +105,7 @@ class PackageScanner:
             pass
         return None
 
-    def _classify_update(self, current: str, latest: str) -> str:
+        from ...shared.constants import UPDATE_TYPE_MAJOR, UPDATE_TYPE_MINOR, UPDATE_TYPE_PATCH, UPDATE_TYPE_UNKNOWN
         try:
             curr_ver = pkg_version.parse(current)
             latest_ver = pkg_version.parse(latest)
@@ -112,12 +114,12 @@ class PackageScanner:
             l_parts = str(latest_ver).split('.')
             
             if len(c_parts) >= 1 and len(l_parts) >= 1:
-                if c_parts[0] != l_parts[0]: return "MAJOR"
+                if c_parts[0] != l_parts[0]: return UPDATE_TYPE_MAJOR
                 elif len(c_parts) >= 2 and len(l_parts) >= 2:
-                    if c_parts[1] != l_parts[1]: return "MINOR"
-            return "PATCH"
+                    if c_parts[1] != l_parts[1]: return UPDATE_TYPE_MINOR
+            return UPDATE_TYPE_PATCH
         except:
-            return "UNKNOWN"
+            return UPDATE_TYPE_UNKNOWN
 
     def parse_pyproject_dependencies(self) -> Dict[str, str]:
         if not self.pyproject_path.exists(): return {}

@@ -229,6 +229,7 @@ class SummaryDataBuilder:
         documentation_data: Optional[Dict[str, Any]] = None, 
         dependency_data: Optional[Dict[str, Any]] = None, 
         package_data: Optional[Dict[str, Any]] = None, 
+        timings: Optional[Dict[str, float]] = None,
         project_name: str = "Nibandha"
     ) -> Dict[str, Any]:
         """Build data dictionary for unified overview report."""
@@ -250,6 +251,16 @@ class SummaryDataBuilder:
         self._enrich_documentation(result, documentation_data)
         self._enrich_dependencies(result, dependency_data)
         self._enrich_package(result, package_data)
+        
+        # 6. Enrich with Performance Data
+        if timings:
+            total_duration = sum(timings.values())
+            timing_list = [{"stage": k, "duration": f"{v:.2f}s"} for k, v in timings.items()]
+            result["timings"] = timing_list
+            result["total_duration"] = f"{total_duration:.2f}s"
+        else:
+            result["timings"] = []
+            result["total_duration"] = "N/A"
         
         return result
 
@@ -278,7 +289,10 @@ class SummaryDataBuilder:
                 "cplx": q_data.get("complexity", {}),
                 "hygiene": q_data.get("hygiene", {}),
                 "security": q_data.get("security", {}),
-                "duplication": q_data.get("duplication", {})
+                "hygiene": q_data.get("hygiene", {}),
+                "security": q_data.get("security", {}),
+                "duplication": q_data.get("duplication", {}),
+                "encoding": q_data.get("encoding", {})
             }
         }
 
@@ -312,6 +326,10 @@ class SummaryDataBuilder:
             dupes = q["duplication"].get("violation_count", 0)
             if dupes > 0:
                 actions.append(f"- Refactor {dupes} code duplication blocks")
+        if q["encoding"].get("status") != "PASS":
+            enc_errs = q["encoding"].get("violation_count", 0)
+            if enc_errs > 0:
+                actions.append(f"- Fix {enc_errs} files with encoding issues (Non-UTF8 or BOM)")
             
         overall = "🟢 HEALTHY"
         if actions: overall = "🟡 NEEDS ATTENTION"
@@ -332,7 +350,10 @@ class SummaryDataBuilder:
             str(metrics["quality"]["cplx"].get("grade", "F")),
             str(metrics["quality"]["hygiene"].get("grade", "F")),
             str(metrics["quality"]["security"].get("grade", "F")),
-            str(metrics["quality"]["duplication"].get("grade", "F"))
+            str(metrics["quality"]["hygiene"].get("grade", "F")),
+            str(metrics["quality"]["security"].get("grade", "F")),
+            str(metrics["quality"]["duplication"].get("grade", "F")),
+            str(metrics["quality"]["encoding"].get("grade", "F"))
         ]
         return Grader.calculate_overall_grade(grades)  # type: ignore
 
@@ -377,6 +398,9 @@ class SummaryDataBuilder:
             
             "duplication_status": "⚪ SKIPPED" if q["duplication"].get("status") == "SKIPPED" else ("🟢 PASS" if q["duplication"].get("status") == "PASS" else "🔴 FAIL"),
             "duplication_blocks": q["duplication"].get("violation_count", 0),
+            
+            "encoding_status": "⚪ SKIPPED" if q["encoding"].get("status") == "SKIPPED" else ("🟢 PASS" if q["encoding"].get("status") == "PASS" else "🔴 FAIL"),
+            "encoding_issues": q["encoding"].get("violation_count", 0),
             
             "action_items": "\n".join(actions) if actions else "- No urgent actions required."
         }

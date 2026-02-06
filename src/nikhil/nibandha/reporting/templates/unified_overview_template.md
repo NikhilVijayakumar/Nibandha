@@ -18,35 +18,37 @@ lot: true
 
 ## Nomenclature
 
-| Term | Definition |
-|------|------------|
-| **Unit Test** | An automated test validating individual components in isolation |
-| **E2E Test** | End-to-End test validating complete workflows across multiple components |
-| **Code Coverage** | Percentage of code lines executed during test runs |
-| **Pass Rate** | Percentage of tests that completed successfully without failures |
-| **Type Safety** | The extent to which static type checking prevents type errors |
-| **Cyclomatic Complexity** | A measure of code complexity based on independent execution paths |
-| **Clean Architecture** | A design philosophy separating concerns into independent layers |
-| **Dependency** | An import relationship or external package required by the project |
-| **Violation** | An instance where code fails to meet defined quality standards |
-| **Documentation Coverage** | Percentage of modules with corresponding documentation files |
-| **Drift** | Time difference between last code change and last documentation update |
-| **Project Grade** | An overall A-F assessment based on all quality metrics |
+: **Table 15.1:** Nomenclature
+
+| S.No | Term | Definition |
+| :---: | :--- | :--- |
+| 1 | **Unit Test** | An automated test validating individual components in isolation |
+| 2 | **E2E Test** | End-to-End test validating complete workflows across multiple components |
+| 3 | **Code Coverage** | Percentage of code lines executed during test runs |
+| 4 | **Pass Rate** | Percentage of tests that completed successfully without failures |
+| 5 | **Type Safety** | The extent to which static type checking prevents type errors |
+| 6 | **Cyclomatic Complexity** | A measure of code complexity based on independent execution paths |
+| 7 | **Clean Architecture** | A design philosophy separating concerns into independent layers |
+| 8 | **Dependency** | An import relationship or external package required by the project |
+| 9 | **Violation** | An instance where code fails to meet defined quality standards |
+| 10 | **Documentation Coverage** | Percentage of modules with corresponding documentation files |
+| 11 | **Drift** | Time difference between last code change and last documentation update |
+| 12 | **Project Grade** | An overall A-F assessment based on all quality metrics |
 
 ---
 
 ## 📊 Quick Summary
 
-: **Table 1:** Project-level metrics across all quality categories
+: **Table 15.2:** Project-level metrics across all quality categories
 
-| Category | Status | Key Metrics |
-| :--- | :---: | :--- |
-| **Unit Tests** | {{ unit_status }} | {{ unit_passed }}/{{ unit_total }} passed ({{ unit_pass_rate }}%) |
-| **E2E Tests** | {{ e2e_status }} | {{ e2e_passed }}/{{ e2e_total }} passed ({{ e2e_pass_rate }}%) |
-| **Code Coverage** | {{ coverage_status }} | {{ coverage_total }}% |
-| **Type Safety** | {{ type_status }} | {{ type_violations }} errors |
-| **Complexity** | {{ complexity_status }} | {{ complexity_violations }} violations |
-| **Architecture** | {{ arch_status }} | {{ arch_message }} |
+| S.No | Category | Status | Key Metrics |
+| :---: | :--- | :---: | :--- |
+| 1 | **Unit Tests** | {{ unit_status }} | {{ unit_passed }}/{{ unit_total }} passed ({{ unit_pass_rate }}%) |
+| 2 | **E2E Tests** | {{ e2e_status }} | {{ e2e_passed }}/{{ e2e_total }} passed ({{ e2e_pass_rate }}%) |
+| 3 | **Code Coverage** | {{ coverage_status }} | {{ coverage_total }}% |
+| 4 | **Type Safety** | {{ type_status }} | {{ type_violations }} errors |
+| 5 | **Complexity** | {{ complexity_status }} | {{ complexity_violations }} violations |
+| 6 | **Architecture** | {{ arch_status }} | {{ arch_message }} |
 
 ---
 
@@ -58,9 +60,9 @@ lot: true
 - **Failed**: {{ unit_failed }} ❌
 - **Coverage**: {{ coverage_total }}%
 
-![**Figure 1:** Unit test outcomes across all modules](assets/images/unit_outcomes.png)
+![**Figure 1:** Module Test Outcomes & Pass Rate Analysis](assets/images/unit_outcomes.png)
 
-![**Figure 2:** Code coverage by module](assets/images/unit_coverage.png)
+![**Figure 2:** Code Coverage Risk Analysis](assets/images/unit_coverage.png)
 
 [Detailed Unit Test Report](details/unit_report.md)
 
@@ -71,7 +73,7 @@ lot: true
 - **Passed**: {{ e2e_passed }} ✅
 - **Failed**: {{ e2e_failed }} ❌
 
-![**Figure 3:** E2E test status distribution](assets/images/e2e_status.png)
+![**Figure 3:** E2E Scenario Outcomes Overview](assets/images/e2e_status.png)
 
 [Detailed E2E Report](details/e2e_report.md)
 
@@ -83,7 +85,7 @@ lot: true
 - **Status**: {{ type_status }}
 - **Total Errors**: {{ type_violations }}
 
-![**Figure 4:** Type errors by module](assets/images/quality/type_errors_by_module.png)
+![**Figure 4:** Type Safety Violations by Module](assets/images/quality/type_errors_by_module.png)
 
 [Detailed Type Safety Report](details/type_safety_report.md)
 
@@ -93,7 +95,7 @@ lot: true
 - **Status**: {{ complexity_status }}
 - **Violations**: {{ complexity_violations }}
 
-![**Figure 5:** Complexity score distribution](assets/images/quality/complexity_distribution.png)
+![**Figure 5:** Complexity Hotspots (Cyclomatic > 10)](assets/images/quality/complexity_distribution.png)
 
 [Detailed Complexity Report](details/complexity_report.md)
 
@@ -102,7 +104,7 @@ lot: true
 ### Architecture (import-linter)
 - **Status**: {{ arch_status }}
 
-![**Figure 6:** Architecture validation status](assets/images/quality/architecture_status.png)
+![**Figure 6:** Architecture Compliance Status](assets/images/quality/architecture_status.png)
 
 [Detailed Architecture Report](details/architecture_report.md)
 
@@ -114,7 +116,7 @@ lot: true
 - **Test Scenarios**: {{ test_doc_pct }}%
 - **Average**: {{ doc_coverage }}%
 
-![**Figure 7:** Documentation coverage by category](assets/images/documentation/doc_coverage.png)
+![**Figure 7:** Documentation Coverage Overview](assets/images/documentation/doc_coverage.png)
 
 [Detailed Documentation Report](details/documentation_report.md)
 
@@ -125,7 +127,7 @@ lot: true
 - **Total Modules**: {{ dep_total_modules }}
 - **Circular Dependencies**: {{ dep_circular }}
 
-![**Figure 8:** Module dependency graph](assets/images/dependencies/module_dependencies.png)
+![**Figure 8:** Module Dependency Map](assets/images/dependencies/module_dependencies.png)
 
 [Detailed Dependency Report](details/module_dependency_report.md)
 

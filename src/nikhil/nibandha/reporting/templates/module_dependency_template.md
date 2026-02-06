@@ -18,21 +18,21 @@ lot: true
 
 ## 📊 Executive Summary
 
-: **Table 1:** Project-level module dependency metrics
+: **Table 11.1:** Project-level module dependency metrics
 
-| Metric | Value | Status |
-| :--- | :---: | :---: |
-| **Total Modules** | {{ total_modules }} | |
-| **Total Dependencies** | {{ total_deps }} | |
-| **Circular Dependencies** | {{ circular_deps }} | {{ circular_status }} |
-| **Isolated Modules** | {{ isolated }} | {{ isolated_status }} |
-| **Average Dependencies/Module** | {{ avg_deps }} | |
+| S.No | Metric | Value | Status |
+| :---: | :--- | :---: | :---: |
+| 1 | **Total Modules** | {{ total_modules }} | |
+| 2 | **Total Dependencies** | {{ total_deps }} | |
+| 3 | **Circular Dependencies** | {{ circular_deps }} | {{ circular_status }} |
+| 4 | **Isolated Modules** | {{ isolated }} | {{ isolated_status }} |
+| 5 | **Average Dependencies/Module** | {{ avg_deps }} | |
 
 ---
 
 ## 🕸️ Dependency Visualization
 
-![**Figure 1:** Module dependency graph showing import relationships](../assets/images/dependencies/module_dependencies.png)
+![**Figure 1:** Module Dependency Map](../assets/images/dependencies/module_dependencies.png)
 
 > **Legend:** Arrows show import relationships. Red edges indicate circular dependencies.
 
@@ -40,7 +40,7 @@ lot: true
 
 ## 📈 Dependency Matrix
 
-![**Figure 2:** Dependency matrix heatmap showing coupling strength](../assets/images/dependencies/dependency_matrix.png)
+![**Figure 2:** Dependency Adjacency Matrix](../assets/images/dependencies/dependency_matrix.png)
 
 > **How to Read:** Rows show modules, columns show their dependencies. Darker cells indicate stronger coupling.
 
@@ -51,7 +51,7 @@ lot: true
 ### Most Imported Modules
 *These modules are used by many others - changes here have wide impact*
 
-: **Table 2:** Modules with highest afferent coupling (most imported)
+: **Table 11.2:** Modules with highest afferent coupling (most imported)
 
 | Module | Imported By | Impact Level |
 | :--- | :---: | :---: |
@@ -60,7 +60,7 @@ lot: true
 ### Most Dependent Modules  
 *These modules import many others - higher coupling*
 
-: **Table 3:** Modules with highest efferent coupling (most imports)
+: **Table 11.3:** Modules with highest efferent coupling (most imports)
 
 | Module | Imports | Coupling Level |
 | :--- | :---: | :---: |
@@ -69,7 +69,7 @@ lot: true
 ### Module Grades
 *Assessment based on coupling and circularity*
 
-: **Table 4:** Individual module grades
+: **Table 11.4:** Individual module grades
 
 | Module | Fan-Out | Fan-In | Status | Grade |
 | :--- | :---: | :---: | :--- | :---: |

@@ -7,6 +7,7 @@ from ...shared.rendering.template_engine import TemplateEngine
 from ...shared.domain.protocols.visualization_protocol import VisualizationProvider
 from ...shared.infrastructure import utils
 from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
+from ...shared.constants import REPORT_ORDER_DOCUMENTATION, ASSETS_IMAGES_DIR_REL, DEFAULT_TARGET_PACKAGE
 
 if TYPE_CHECKING:
     from ...shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
@@ -110,22 +111,22 @@ class DocumentationReporter:
         if self.reference_collector:
             self.reference_collector.add_figure(FigureReference(
                 id="fig-doc-coverage",
-                title="Documentation coverage by category",
-                path="../assets/images/documentation/doc_coverage.png",
+                title="Documentation Coverage Overview",
+                path=f"{ASSETS_IMAGES_DIR_REL}/documentation/doc_coverage.png",
                 type="bar_chart",
                 description="Percentage of modules documented across Functional, Technical, and Test categories",
                 source_report="documentation",
-                report_order=13
+                report_order=REPORT_ORDER_DOCUMENTATION
             ))
             if charts and "doc_drift" in charts:
                 self.reference_collector.add_figure(FigureReference(
                     id="fig-doc-drift",
-                    title="Documentation drift analysis",
-                    path="../assets/images/documentation/doc_drift.png",
+                    title="Documentation Drift Analysis",
+                    path=f"{ASSETS_IMAGES_DIR_REL}/documentation/doc_drift.png",
                     type="scatter_chart",
                     description="Age of documentation relative to code changes",
                     source_report="documentation",
-                    report_order=13
+                    report_order=REPORT_ORDER_DOCUMENTATION
                 ))
             
             self.reference_collector.add_table(TableReference(
@@ -133,14 +134,14 @@ class DocumentationReporter:
                 title="Overall documentation grades",
                 description="Grades for functional, technical, and test documentation",
                 source_report="documentation",
-                report_order=13
+                report_order=REPORT_ORDER_DOCUMENTATION
             ))
             self.reference_collector.add_table(TableReference(
                 id="table-func-doc",
                 title="Functional documentation status",
                 description="Per-module functional documentation status and drift",
                 source_report="documentation",
-                report_order=13
+                report_order=REPORT_ORDER_DOCUMENTATION
             ))
         
         self.template_engine.render("documentation_report_template.md", mapping, self.details_dir / "13_documentation_report.md")
@@ -154,7 +155,7 @@ class DocumentationReporter:
         md = ""
         if charts and "doc_coverage" in charts:
             rel_cov = Path(charts['doc_coverage']).name
-            img_base = "../assets/images/documentation"
+            img_base = f"{ASSETS_IMAGES_DIR_REL}/documentation"
             
             # Figure 1: Coverage
             md += f"![**Figure 1:** Documentation coverage distribution]({img_base}/{rel_cov})\n\n"
@@ -168,7 +169,7 @@ class DocumentationReporter:
     def _build_doc_table(self, data: Dict[str, Any]) -> str:
         """Build documentation table with grades per module."""
         rows = ""
-        for mod, info in data["modules"].items():
+        for idx, (mod, info) in enumerate(data["modules"].items(), start=1):
             status = "✅ Found" if info["exists"] else "❌ Missing"
             drift = info["drift"] if info["exists"] else "-"
             if isinstance(drift, int) and drift > 90:
@@ -180,13 +181,13 @@ class DocumentationReporter:
             grade_color = Grader.get_grade_color(grade)
             grade_display = f"<span style=\"color:{grade_color}\">{grade}</span>"
             
-            rows += f"| {mod} | {status} | {drift} | {grade_display} |\n"
+            rows += f"| {idx} | {mod} | {status} | {drift} | {grade_display} |\n"
         return rows
 
     def _build_test_table(self, data: Dict[str, Any]) -> str:
         """Build test documentation table with grades per module."""
         rows = ""
-        for mod, info in data["modules"].items():
+        for idx, (mod, info) in enumerate(data["modules"].items(), start=1):
             unit = "✅" if info["unit_exists"] else "❌"
             e2e = "✅" if info["e2e_exists"] else "❌"
             drift = info["max_drift"]
@@ -200,7 +201,7 @@ class DocumentationReporter:
             grade_color = Grader.get_grade_color(grade)
             grade_display = f"<span style=\"color:{grade_color}\">{grade}</span>"
             
-            rows += f"| {mod} | {unit} | {e2e} | {drift} | {grade_display} |\n"
+            rows += f"| {idx} | {mod} | {unit} | {e2e} | {drift} | {grade_display} |\n"
         return rows
         
     def _build_missing_section(self, data: Dict[str, Any]) -> str:
@@ -320,7 +321,7 @@ class DocumentationReporter:
         mod_path = (self.source_root or root / "src") / mod_name.lower()
         if not mod_path.exists(): 
              # Fallback to older default if self.source_root not set/found
-             mod_path = root / "src/nikhil/nibandha" / mod_name.lower()
+             mod_path = root / DEFAULT_TARGET_PACKAGE / mod_name.lower()
         if not mod_path.exists(): return datetime.datetime.now().timestamp()
         return self._get_dir_timestamp(mod_path)
 

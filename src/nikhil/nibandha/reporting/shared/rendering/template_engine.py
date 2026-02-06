@@ -43,8 +43,7 @@ class TemplateEngine:
             
         env = Environment(
             loader=FileSystemLoader(search_paths),
-            # autoescape=select_autoescape(['html', 'xml']) # Markdown isn't HTML, usually better to not autoescape or be careful
-            autoescape=False,
+            autoescape=select_autoescape(['html', 'xml']),
             undefined=StrictUndefined
         )
         

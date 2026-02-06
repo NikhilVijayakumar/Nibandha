@@ -29,38 +29,38 @@ lot: true
 
 ## 📊 Quick Summary
 
-: **Table 1:** Project-level unit test metrics
+: **Table 3.1:** Project-level unit test metrics
 
-| Metric | Value |
-| :--- | :---: |
-| **Total Tests** | {{ total }} |
-| **Passed** | {{ passed }} ✅ |
-| **Failed** | {{ failed }} ❌ |
-| **Duration** | {{ duration|round(2) }}s |
-| **Code Coverage** | {{ metrics_cards[1].value }} |
-| **Pass Rate** | {{ pass_rate }}% {% if pass_rate >= 90 %}✅{% elif pass_rate >= 70 %}⚠️{% else %}❌{% endif %} |
+| S.No | Metric | Value |
+| :---: | :--- | :---: |
+| 1 | **Total Tests** | {{ total }} |
+| 2 | **Passed** | {{ passed }} ✅ |
+| 3 | **Failed** | {{ failed }} ❌ |
+| 4 | **Duration** | {{ duration|round(2) }}s |
+| 5 | **Code Coverage** | {{ metrics_cards[1].value }} |
+| 6 | **Pass Rate** | {{ pass_rate }}% {% if pass_rate >= 90 %}✅{% elif pass_rate >= 70 %}⚠️{% else %}❌{% endif %} |
 
 ---
 
 ## 📈 Test Outcomes
 
-![**Figure 1:** Test pass/fail distribution across all modules](../assets/images/unit_outcomes.png)
+![**Figure 1:** Module Test Outcomes & Pass Rate Analysis](../assets/images/unit_outcomes.png)
 
 ---
 
 ## 📦 Module Breakdown
 
-: **Table 2:** Per-module unit test results and grades
+: **Table 3.2:** Per-module unit test results and grades
 
-| Module | Tests | Passing | Failing | Coverage | Grade |
-| :--- | :---: | :---: | :---: | :---: | :---: |
+| S.No | Module | Tests | Passing | Failing | Coverage | Grade | Duration |
+| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 {% for mod in modules -%}
-| {{ mod.name }} | {{ mod.total }} | {{ mod.passed }} | {{ mod.failed }} | {{ mod.coverage }} | <span style="color:{{ mod.grade_color }}">{{ mod.grade }}</span> |
+| {{ loop.index }} | {{ mod.name }} | {{ mod.total }} | {{ mod.passed }} | {{ mod.failed }} | {{ mod.coverage }} | <span style="color:{{ mod.grade_color }}">{{ mod.grade }}</span> | {{ mod.duration }} |
 {% endfor -%}
 
 
 ## 🎯 Code Coverage
-![**Figure 2:** Code coverage percentage by module](../assets/images/unit_coverage.png)
+![**Figure 2:** Code Coverage Risk Analysis](../assets/images/unit_coverage.png)
 
 ## 🧪 Detailed Results by Module
 
@@ -73,11 +73,13 @@ lot: true
 
 #### Execution Results
 
+: **Table 3.{{ loop.index + 3 }}:** Test execution results for {{ mod.name }} module
+
 {% if mod.tests %}
-| Test Case | Status | Duration |
-| --- | :---: | :---: |
+| S.No | Test Case | Status | Duration |
+| :---: | --- | :---: | :---: |
 {% for test in mod.tests -%}
-| {{ test.name }} | {{ test.icon }} | {{ test.duration }} |
+| {{ loop.index }} | {{ test.name }} | {{ test.icon }} | {{ test.duration }} |
 {% endfor -%}
 {% else %}
 *No tests executed for this module.*
@@ -87,7 +89,7 @@ lot: true
 
 ## 📉 Failures
 
-: **Table 3:** List of failed tests requiring attention
+: **Table 3.3:** List of failed tests requiring attention
 
 {% if failures %}
 {% for failure in failures %}
@@ -101,4 +103,10 @@ lot: true
 {% endif %}
 
 ## ⏱️ Duration Distribution
-![**Figure 3:** Test execution time distribution](../assets/images/unit_durations.png)
+![**Figure 3:** Test Duration Distribution Analysis](../assets/images/unit_durations.png)
+
+## 🏎️ Performance Analysis
+![**Figure 4:** Performance Bottlenecks: Top 10 Slowest Tests](../assets/images/unit_slowest_tests.png)
+
+## 🏎️ Module Performance
+![**Figure 5:** Module execution duration comparison](../assets/images/unit_module_durations.png)

@@ -6,7 +6,12 @@ This module provides reusable export functionality for:
 - Documentation (functional, technical, test scenarios)
 
 Usage:
-    from nikhil.nibandha.export import ExportService, ExportFormat
+except ImportError:
+    # Optional export dependencies not present
+    ExportService = None # type: ignore
+    ExportFormat = None # type: ignore
+else:
+    from nibandha.export import ExportService, ExportFormat
     
     service = ExportService()
     service.export_document(

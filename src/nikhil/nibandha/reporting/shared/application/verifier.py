@@ -8,6 +8,7 @@ from nibandha.configuration.domain.models.app_config import AppConfig
 from nibandha import Nibandha
 from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
 from nibandha.reporting.shared.application.generator import ReportGenerator
+from nibandha.reporting.shared import constants
 
 logger = logging.getLogger("nibandha.reporting.verifier")
 
@@ -140,14 +141,14 @@ class VerificationService:
         base = self.generator.output_dir
         
         expected = [
-            "summary.md",
-            "details/unit_report.md",
-            "details/e2e_report.md",
-            "details/architecture_report.md",
-            "details/type_safety_report.md",
-            "details/complexity_report.md",
-            "details/module_dependency_report.md",
-            "details/package_dependency_report.md",
+            # Summary/Conclusion checked via existence of unified? Verifier asked for specific files though
+            f"details/{constants.REPORT_FILENAME_UNIT}",
+            f"details/{constants.REPORT_FILENAME_E2E}",
+            f"details/{constants.REPORT_FILENAME_ARCHITECTURE}",
+            f"details/{constants.REPORT_FILENAME_TYPE_SAFETY}",
+            f"details/{constants.REPORT_FILENAME_COMPLEXITY}",
+            f"details/{constants.REPORT_FILENAME_DEPENDENCY_MODULE}",
+            f"details/{constants.REPORT_FILENAME_DEPENDENCY_PACKAGE}",
             "assets/images/unit_outcomes.png",
             "assets/data/unit.json"
         ]

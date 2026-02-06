@@ -8,6 +8,7 @@ from ...dependencies.infrastructure.analysis.module_scanner import ModuleScanner
 from ...shared.rendering.template_engine import TemplateEngine
 from ...shared.domain.grading import Grader
 from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
+from ...shared.constants import IMG_PATH_MODULE_DEPENDENCIES, IMG_PATH_DEPENDENCY_MATRIX
 
 if TYPE_CHECKING:
     from ...shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
@@ -110,14 +111,16 @@ class DependencyReporter:
         return fan_in
 
     def _determine_grade(self, mod: str, f_out: int, circular_modules: Any) -> Tuple[str, str]:
+        from ...shared.constants import COUPLING_HIGH_THRESHOLD, COUPLING_MODERATE_THRESHOLD, COUPLING_LOW_THRESHOLD
+        
         if mod in circular_modules:
             return "F", "Circular Dependency"
-        elif f_out > 12:
-            return "D", "High Coupling (12+)"
-        elif f_out > 7:
-            return "C", "Moderate Coupling (8-12)"
-        elif f_out > 3:
-            return "B", "Low Coupling (4-7)"
+        elif f_out > COUPLING_HIGH_THRESHOLD:
+            return "D", f"High Coupling ({COUPLING_HIGH_THRESHOLD}+)"
+        elif f_out > COUPLING_MODERATE_THRESHOLD:
+            return "C", f"Moderate Coupling ({COUPLING_MODERATE_THRESHOLD+1}-{COUPLING_HIGH_THRESHOLD})"
+        elif f_out > COUPLING_LOW_THRESHOLD:
+            return "B", f"Low Coupling ({COUPLING_LOW_THRESHOLD+1}-{COUPLING_MODERATE_THRESHOLD})"
         return "A", "Clean"
 
     def _prepare_report_data(self, dependencies: Dict[str, Any], circular: List[Any], isolated: List[str], most_imported: List[Any], most_dependent: List[Any], module_grades: List[Dict[str, Any]], project_name: str) -> Dict[str, Any]:
@@ -165,8 +168,8 @@ class DependencyReporter:
         if not self.reference_collector: return
         self.reference_collector.add_figure(FigureReference(
             id="fig-module-deps",
-            title="Module dependency graph",
-            path="../assets/images/dependencies/module_dependencies.png",
+            title="Module Dependency Map",
+            path=IMG_PATH_MODULE_DEPENDENCIES,
             type="network_graph",
             description="Visual representation of module inter-dependencies",
             source_report="dependencies",
@@ -174,8 +177,8 @@ class DependencyReporter:
         ))
         self.reference_collector.add_figure(FigureReference(
             id="fig-dep-matrix",
-            title="Dependency matrix",
-            path="../assets/images/dependencies/dependency_matrix.png",
+            title="Dependency Adjacency Matrix",
+            path=IMG_PATH_DEPENDENCY_MATRIX,
             type="matrix",
             description="Adjacency matrix of module dependencies",
             source_report="dependencies",

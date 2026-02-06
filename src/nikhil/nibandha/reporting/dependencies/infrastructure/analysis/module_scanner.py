@@ -23,11 +23,9 @@ class ModuleScanner:
         
     def scan(self) -> Dict[str, Set[str]]:
         """Scan all Python files and build dependency graph."""
-        exclusions = {
-            "__pycache__", ".venv", "venv", "env", "test", "tests",
-            "build", "dist", ".git", ".idea", ".vscode", "node_modules", 
-            "site-packages", ".tox"
-        }
+        from nibandha.reporting.shared.constants import SCANNER_EXCLUSIONS
+        
+        exclusions = SCANNER_EXCLUSIONS
         
         # Find all Python files
         for py_file in self.source_root.rglob("*.py"):

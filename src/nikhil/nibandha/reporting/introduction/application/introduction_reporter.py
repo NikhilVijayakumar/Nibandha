@@ -10,6 +10,9 @@ class IntroductionReporter:
         self.details_dir.mkdir(parents=True, exist_ok=True)
         self.template_engine = template_engine or TemplateEngine(templates_dir)
 
-    def generate(self, project_name: str = "Project") -> None:
+    def generate(self, project_name: str = "Project", metadata: Optional[dict] = None) -> None:
         target = self.details_dir / "01_introduction.md"
-        self.template_engine.render("introduction_template.md", {"project_name": project_name}, target)
+        data = {"project_name": project_name}
+        if metadata:
+            data.update(metadata)
+        self.template_engine.render("introduction_template.md", data, target)

@@ -40,12 +40,17 @@ class PackageReporter:
         
         self._generate_report(analysis, project_name)
         
-        score = 100
-        score -= (analysis.get("major_updates", 0) * 20)
-        score -= (analysis.get("minor_updates", 0) * 5)
+        from ...shared.constants import (
+            PACKAGE_INITIAL_SCORE, PACKAGE_PENALTY_MAJOR, PACKAGE_PENALTY_MINOR, 
+            PACKAGE_HEALTHY_THRESHOLD
+        )
+
+        score = PACKAGE_INITIAL_SCORE
+        score -= (analysis.get("major_updates", 0) * PACKAGE_PENALTY_MAJOR)
+        score -= (analysis.get("minor_updates", 0) * PACKAGE_PENALTY_MINOR)
         score = max(0, score)
         
-        status = "PASS" if score > 80 else "FAIL"
+        status = "PASS" if score > PACKAGE_HEALTHY_THRESHOLD else "FAIL"
         grade = Grader.calculate_package_grade(score)
         
         return {
@@ -74,13 +79,18 @@ class PackageReporter:
         minor_list = [p for p in all_outdated if p["update_type"] == "MINOR"]
         patch_list = [p for p in all_outdated if p["update_type"] == "PATCH"]
 
-        score = 100
-        score -= (analysis["major_updates"] * 20)
-        score -= (analysis["minor_updates"] * 5)
+        from ...shared.constants import (
+            PACKAGE_INITIAL_SCORE, PACKAGE_PENALTY_MAJOR, PACKAGE_PENALTY_MINOR, 
+            PACKAGE_HEALTHY_THRESHOLD, PACKAGE_ATTENTION_THRESHOLD
+        )
+
+        score = PACKAGE_INITIAL_SCORE
+        score -= (analysis["major_updates"] * PACKAGE_PENALTY_MAJOR)
+        score -= (analysis["minor_updates"] * PACKAGE_PENALTY_MINOR)
         score = max(0, score)
         
         grade = Grader.calculate_package_grade(score)
-        overall = "Healthy" if score > 80 else ("Needs Attention" if score > 50 else "Critical")
+        overall = "Healthy" if score > PACKAGE_HEALTHY_THRESHOLD else ("Needs Attention" if score > PACKAGE_ATTENTION_THRESHOLD else "Critical")
         
         full_list = "\n".join([f"- {name} ({ver})" for name, ver in analysis.get('installed_packages', {}).items()])
 

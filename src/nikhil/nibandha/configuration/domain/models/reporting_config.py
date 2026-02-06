@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Optional, Dict, TYPE_CHECKING, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 if TYPE_CHECKING:
     from nibandha.reporting.shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
@@ -9,6 +9,7 @@ class ReportingConfig(BaseModel):
     """
     Configuration for the Reporting Module.
     """
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
     output_dir: Path = Field(..., description="Directory where reports will be generated")
     docs_dir: Path = Field(..., description="Directory containing test documentation scenarios")
     template_dir: Optional[Path] = Field(None, description="Optional directory for custom templates")
@@ -36,7 +37,3 @@ class ReportingConfig(BaseModel):
         default=["md"],
         description="List of formats to export reports to (e.g. ['md', 'html', 'docx'])"
     )
-
-    class Config:
-        frozen = True
-        arbitrary_types_allowed = True
