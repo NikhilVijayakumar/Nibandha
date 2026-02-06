@@ -178,8 +178,15 @@ class PackageScanner:
         imported = set()
         src_dir = self.project_root / "src"
         
+        exclusions = {
+            "__pycache__", ".venv", "venv", "env", "test", "tests",
+            "build", "dist", ".git", ".idea", ".vscode", "node_modules", 
+            "site-packages", ".tox"
+        }
+        
         if src_dir.exists():
             for py_file in src_dir.rglob("*.py"):
+                if any(ex in py_file.parts for ex in exclusions): continue
                 imported.update(self._extract_imports_from_file(py_file))
                 
         exceptions = {
@@ -199,7 +206,7 @@ class PackageScanner:
     def _extract_imports_from_file(self, file_path: Path) -> Set[str]:
         imports: Set[str] = set()
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 for line in f:
                      line = line.strip()
                      if line.startswith("import "):

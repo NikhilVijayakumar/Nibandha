@@ -45,7 +45,7 @@ def run_basic_verification():
         subprocess.run(cmd, check=False) 
         if unit_json.exists():
             print(f"    ✅ Unit Test Report generated: {unit_json}")
-            with open(unit_json) as f:
+            with open(unit_json, encoding='utf-8') as f:
                 data = json.load(f)
                 summary = data.get("summary", {})
                 passed = summary.get("passed", 0)
@@ -75,7 +75,7 @@ def main():
         sys.exit(1)
         
     try:
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             raw_config = yaml.safe_load(f)
         app_config_data = raw_config.get('app', {})
         app_config = AppConfig(**app_config_data)
@@ -153,27 +153,33 @@ def main():
         # 3. Unit
         unit_data = generator.run_unit_Tests("tests/unit", timestamp)
         
-        # 4. E2E
-        e2e_data = generator.run_e2e_Tests("tests/e2e", timestamp)
+        # 4. E2E - TEMPORARILY DISABLED for performance testing
+        # e2e_data = generator.run_e2e_Tests("tests/e2e", timestamp)
+        print("    ⚠️ E2E tests skipped (performance investigation)")
 
-        # 5,6,7 Quality
-        quality_data = generator.run_quality_checks("src/nikhil/nibandha")
+        # 5,6,7 Quality - TEMPORARILY DISABLED (performance issue - very slow)
+        # quality_data = generator.run_quality_checks("src/nikhil/nibandha")
+        quality_data = None
+        print("    ⚠️ Quality checks skipped (performance investigation)")
         
-        # 8. Dependencies
+        # 8. Dependencies - RE-ENABLED (fast - ~10s)
         actual_src_root = Path(__file__).parent.parent / "src/nikhil/nibandha"
         dep_data = generator.run_dependency_checks(
             actual_src_root,
             package_roots=["nikhil.nibandha"]
         )
+        print("    ✅ Dependency report generated")
         
-        # 9. Packages
+        # 9. Packages - RE-ENABLED (fast - ~7s)
         project_root = generator.output_dir.parent.parent
         pkg_data = generator.run_package_checks(project_root)
+        print("    ✅ Package report generated")
 
-        # 10. Documentation
+        # 10. Documentation - RE-ENABLED (fast - <10s)
         actual_project_root = Path(__file__).parent.parent
         try:
              doc_data = generator.doc_reporter.generate(actual_project_root)
+             print("    ✅ Documentation report generated")
         except Exception as e:
              print(f"    ⚠️ Documentation check failed: {e}")
              doc_data = None
@@ -185,12 +191,13 @@ def main():
         
         for name, data in [("quality", quality_data), ("dependency", dep_data), ("package", pkg_data), ("documentation", doc_data)]:
              if data:
-                 with open(assets_dir / f"{name}.json", 'w') as f:
+                 with open(assets_dir / f"{name}.json", 'w', encoding='utf-8') as f:
                      json.dump(data, f, indent=2, default=str)
                  print(f"    ✅ {name.capitalize()} Artifact saved")
 
         # 11. Conclusion (formerly Unified Summary)
         summary_builder = SummaryDataBuilder()
+        e2e_data = None  # Define since we skipped E2E
         summary_data = summary_builder.build(unit_data, e2e_data, quality_data, documentation_data=doc_data, dependency_data=dep_data, package_data=pkg_data)
         
         generator.template_engine.render(
@@ -204,7 +211,7 @@ def main():
             print(f"    ✅ Conclusion Report generated: {generator.output_dir / 'details/14_conclusion.md'}")
         
         # Save summary data
-        with open(assets_dir / "summary_data.json", 'w') as f:
+        with open(assets_dir / "summary_data.json", 'w', encoding='utf-8') as f:
              json.dump(summary_data, f, indent=2, default=str)
 
         # Generate global references

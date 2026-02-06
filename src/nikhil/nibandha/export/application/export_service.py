@@ -232,7 +232,7 @@ class ExportService:
         try:
             import json
             import json
-            with open(json_path, 'r') as f:
+            with open(json_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 result: List[Dict[str, Any]] = data.get("metrics_cards", [])
                 return result

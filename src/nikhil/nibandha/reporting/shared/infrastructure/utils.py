@@ -90,9 +90,17 @@ def get_all_modules(
             return []
             
         modules = []
+        exclusions = {
+            "__pycache__", ".venv", "venv", "env",
+            "build", "dist", ".git", ".idea", ".vscode", "node_modules", 
+            "site-packages", ".tox"
+        }
+        
         for item in root.iterdir():
-            if item.is_dir() and not item.name.startswith("__") and not item.name.startswith("."):
-                modules.append(item.name.capitalize())
+            if item.is_dir() and not item.name.startswith(".") and not item.name.startswith("__"):
+                 if item.name not in exclusions:
+                     modules.append(item.name.capitalize())
+                     
         return sorted(modules)
     except Exception as e:
         logger.error(f"Error finding modules: {e}")

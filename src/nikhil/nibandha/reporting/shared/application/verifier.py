@@ -81,7 +81,7 @@ class VerificationService:
             max_size_mb=5,
             backup_count=5
         )
-        with open(c_path / "rotation_config.yaml", "w") as f:
+        with open(c_path / "rotation_config.yaml", "w", encoding="utf-8") as f:
             yaml.dump(rotation_config.model_dump(), f) # Use model_dump for V2 compat
             
         # App Config

@@ -216,7 +216,7 @@ class ReportGenerator:
              json_path = self.output_dir / "assets" / "data" / "documentation.json"
              json_path.parent.mkdir(parents=True, exist_ok=True)
              import json
-             with open(json_path, 'w') as f:
+             with open(json_path, 'w', encoding='utf-8') as f:
                  json.dump(documentation_data, f, indent=2, default=str)
         except Exception as e:
              logger.warning(f"Documentation check failed: {e}")
@@ -242,7 +242,7 @@ class ReportGenerator:
         summary_json_path = self.output_dir / "assets" / "data" / "summary_data.json"
         summary_json_path.parent.mkdir(parents=True, exist_ok=True)
         import json
-        with open(summary_json_path, 'w') as f:
+        with open(summary_json_path, 'w', encoding='utf-8') as f:
             json.dump(summary_data, f, indent=2, default=str)
 
         # 2. Global References (Generate NOW, after all data collected)
@@ -310,7 +310,7 @@ class ReportGenerator:
         if data_path.exists():
             try:
                 import json
-                with open(data_path) as f:
+                with open(data_path, encoding='utf-8') as f:
                     data = json.load(f)
                 return {
                     "name": self.project_name or "Nibandha Quality Report",

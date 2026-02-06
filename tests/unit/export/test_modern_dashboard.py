@@ -28,7 +28,7 @@ class TestModernDashboardExporter:
         res = exporter.export(sections, output, {"name": "TestProj", "grade": "A"})
         
         assert res.exists()
-        text = res.read_text()
+        text = res.read_text(encoding='utf-8')
         
         # Verify Key Structural Elements
         assert '<!DOCTYPE html>' in text
@@ -58,7 +58,7 @@ class TestModernDashboardExporter:
         
         output = tmp_path / "metrics.html"
         exporter.export(sections, output)
-        text = output.read_text()
+        text = output.read_text(encoding='utf-8')
         
         assert '<div class="metrics-grid">' in text
         assert 'card-green' in text
@@ -73,7 +73,7 @@ class TestModernDashboardExporter:
         
         # Pass None for project_info
         exporter.export(sections, output, None)
-        text = output.read_text()
+        text = output.read_text(encoding='utf-8')
         
         assert "Quality Report" in text # Def Name
         assert "class=\"grade-badge grade-f\"" in text.lower() or "grade-n/a" in text.lower()
@@ -82,7 +82,7 @@ class TestModernDashboardExporter:
         """EXP-UT-008: Verify empty sections list handles gracefully."""
         output = tmp_path / "empty.html"
         exporter.export([], output)
-        text = output.read_text()
+        text = output.read_text(encoding='utf-8')
         
         assert '<nav class="sidebar-nav">' in text
         # Should be valid HTML frame
@@ -92,7 +92,7 @@ class TestModernDashboardExporter:
         """Verify CSS and JS are injected."""
         output = tmp_path / "assets.html"
         exporter.export([{"title": "A", "content": "B"}], output)
-        text = output.read_text()
+        text = output.read_text(encoding='utf-8')
         
         assert "Modern Dashboard Layout" in text # CSS comment
         assert "theme-toggle" in text # JS function

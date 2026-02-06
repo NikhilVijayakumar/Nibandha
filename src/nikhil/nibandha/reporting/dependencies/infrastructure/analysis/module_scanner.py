@@ -23,9 +23,16 @@ class ModuleScanner:
         
     def scan(self) -> Dict[str, Set[str]]:
         """Scan all Python files and build dependency graph."""
+        exclusions = {
+            "__pycache__", ".venv", "venv", "env", "test", "tests",
+            "build", "dist", ".git", ".idea", ".vscode", "node_modules", 
+            "site-packages", ".tox"
+        }
+        
         # Find all Python files
         for py_file in self.source_root.rglob("*.py"):
-            if "__pycache__" in str(py_file) or ".venv" in str(py_file) or "test" in str(py_file):
+            # Internal optimization: check parts for faster exclusion
+            if any(ex in py_file.parts for ex in exclusions):
                 continue
                 
             module_name = self._get_module_name(py_file)
@@ -68,12 +75,13 @@ class ModuleScanner:
     def _extract_imports(self, file_path: Path) -> Set[str]:
         """Parse file and extract import statements."""
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 tree = ast.parse(f.read(), filename=str(file_path))
         except Exception:
             return set()
         
         return self._extract_imports_from_tree(tree)
+
 
     def _extract_imports_from_tree(self, tree: ast.AST) -> Set[str]:
         imports: Set[str] = set()
