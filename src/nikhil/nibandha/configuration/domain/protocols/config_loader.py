@@ -1,5 +1,5 @@
 from typing import Protocol, runtime_checkable
-from ..models.app_config import AppConfig
+from nibandha.configuration.domain.models.app_config import AppConfig
 
 @runtime_checkable
 class ConfigLoaderProtocol(Protocol):

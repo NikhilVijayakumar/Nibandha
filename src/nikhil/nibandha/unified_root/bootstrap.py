@@ -8,9 +8,9 @@ from nibandha.configuration.domain.models.rotation_config import LogRotationConf
 from nibandha.logging.infrastructure.rotation_manager import RotationManager
 from nibandha.logging.infrastructure.logger_factory import setup_logger
 
-from .domain.models.root_context import RootContext
-from .domain.protocols.root_binder import RootBinderProtocol
-from .infrastructure.filesystem_binder import FileSystemBinder
+from nibandha.unified_root.domain.models.root_context import RootContext
+from nibandha.unified_root.domain.protocols.root_binder import RootBinderProtocol
+from nibandha.unified_root.infrastructure.filesystem_binder import FileSystemBinder
 
 class Nibandha:
     """

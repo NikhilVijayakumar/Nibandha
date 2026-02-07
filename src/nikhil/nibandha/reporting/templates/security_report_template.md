@@ -19,6 +19,12 @@ status: "{{ overall_status }}"
 
 Static Application Security Testing (SAST) results from **Bandit**.
 
+![Security Severity](../assets/images/quality/security_severity.png)
+*(Severity Distribution)*
+
+![Security Hotspots](../assets/images/quality/security_hotspots.png)
+*(Top Modules with Violations)*
+
 {% if "PASS" in overall_status %}
 > [!TIP]
 > **Secure**

@@ -17,7 +17,13 @@ status: "{{ overall_status }}"
 
 ## Overview
 
-This report highlights maintenance anti-patterns such as magic numbers, hardcoded paths, and forbidden function usage.
+This report highlights maintenance anti-patterns such as magic numbers, hardcoded paths, forbidden function usage, and relative imports.
+
+![Hygiene Status](../assets/images/quality/hygiene_status.png)
+*(Violations Distribution)*
+
+![Hygiene Hotspots](../assets/images/quality/hygiene_hotspots.png)
+*(Top Modules with Violations)*
 
 ## Detailed Violations
 
@@ -67,6 +73,20 @@ This report highlights maintenance anti-patterns such as magic numbers, hardcode
 {% endfor -%}
 {% else %}
 *No forbidden functions detected.*
+{% endif %}
+
+### Relative Imports
+{% if relative_imports %}
+
+: **Table 8.4:** Relative import violations
+
+| S.No | File | Line | Import |
+| :---: | :--- | :---: | :--- |
+{% for v in relative_imports -%}
+| {{ loop.index }} | `{{ v.file }}` | {{ v.line }} | `{{ v.value }}` |
+{% endfor -%}
+{% else %}
+*No relative imports detected.*
 {% endif %}
 
 {% endif %}

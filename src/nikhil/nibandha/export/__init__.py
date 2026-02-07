@@ -20,7 +20,7 @@ else:
     )
 """
 
-from .application.export_service import ExportService
-from .domain.protocols.exporter import ExportFormat
+from nibandha.export.application.export_service import ExportService
+from nibandha.export.domain.protocols.exporter import ExportFormat
 
 __all__ = ["ExportService", "ExportFormat"]

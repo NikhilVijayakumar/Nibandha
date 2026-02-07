@@ -12,8 +12,9 @@ class HygieneVisitor(ast.NodeVisitor):
         self.magic_numbers: List[Tuple[int, int, int]] = [] # line, col, value
         self.hardcoded_paths: List[Tuple[int, int, str]] = [] # line, col, value
         self.forbidden_functions: List[Tuple[int, int, str]] = [] # line, col, name
+        self.relative_imports: List[Tuple[int, int, str]] = [] # line, col, value
         
-        from ...shared.constants import HYGIENE_FORBIDDEN_NAMES
+        from nibandha.reporting.shared.constants import HYGIENE_FORBIDDEN_NAMES
         self.forbidden_names = HYGIENE_FORBIDDEN_NAMES
         self.source_code = ""  # Will be set by caller
         self._docstring_lines: Set[int] = set()  # Track lines inside docstrings
@@ -39,7 +40,7 @@ class HygieneVisitor(ast.NodeVisitor):
         return False
 
     def visit_Constant(self, node: ast.Constant) -> None:
-        from ...shared.constants import HYGIENE_IGNORED_NUMBERS, HYGIENE_MIN_PATH_LENGTH
+        from nibandha.reporting.shared.constants import HYGIENE_IGNORED_NUMBERS, HYGIENE_MIN_PATH_LENGTH
         
         # Skip if inside docstring
         if self._is_in_docstring(node.lineno):
@@ -68,6 +69,14 @@ class HygieneVisitor(ast.NodeVisitor):
             if looks_like_path:
                  self.hardcoded_paths.append((node.lineno, node.col_offset, node.value))
     
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        # Detect relative imports (level > 0 means relative)
+        if node.level > 0:
+            module_name = node.module if node.module else ""
+            dots = "." * node.level
+            import_desc = f"from {dots}{module_name} import ..."
+            self.relative_imports.append((node.lineno, node.col_offset, import_desc))
+            
     def visit_Call(self, node: ast.Call) -> None:
         if isinstance(node.func, ast.Name):
             if node.func.id in self.forbidden_names:
@@ -90,7 +99,8 @@ class HygieneReporter:
         violations = {
             "magic_numbers": [],
             "hardcoded_paths": [],
-            "forbidden_functions": []
+            "forbidden_functions": [],
+            "relative_imports": []
         }
         
         count = 0
@@ -134,6 +144,12 @@ class HygieneReporter:
 
                     for line, col, val in visitor.forbidden_functions:
                          violations["forbidden_functions"].append({
+                            "file": rel_path, "line": line, "value": val
+                        })
+                         count += 1
+
+                    for line, col, val in visitor.relative_imports:
+                         violations["relative_imports"].append({
                             "file": rel_path, "line": line, "value": val
                         })
                          count += 1

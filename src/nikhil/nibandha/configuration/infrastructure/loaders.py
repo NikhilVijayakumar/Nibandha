@@ -1,6 +1,6 @@
 from typing import Optional, List
-from ..domain.models.app_config import AppConfig
-from ..domain.protocols.config_loader import ConfigLoaderProtocol
+from nibandha.configuration.domain.models.app_config import AppConfig
+from nibandha.configuration.domain.protocols.config_loader import ConfigLoaderProtocol
 
 class StandardConfigLoader:
     """

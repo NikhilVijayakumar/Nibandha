@@ -3,6 +3,12 @@ from pathlib import Path
 import tempfile
 import shutil
 import logging
+
+# Force Matplotlib backend to Agg to prevent freezing
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 from nibandha import Nibandha
 from nibandha.configuration.domain.models.app_config import AppConfig
 from nibandha.configuration.domain.models.rotation_config import LogRotationConfig

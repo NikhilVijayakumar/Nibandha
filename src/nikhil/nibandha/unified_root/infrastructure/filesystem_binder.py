@@ -2,8 +2,8 @@ from pathlib import Path
 from typing import List, Optional
 from nibandha.configuration.domain.models.app_config import AppConfig
 from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
-from ..domain.models.root_context import RootContext
-from ..domain.protocols.root_binder import RootBinderProtocol
+from nibandha.unified_root.domain.models.root_context import RootContext
+from nibandha.unified_root.domain.protocols.root_binder import RootBinderProtocol
 
 class FileSystemBinder:
     """

@@ -34,7 +34,8 @@ reporting = [
     "pygments",
     "pypandoc",
     "bandit",
-    "pylint"
+    "pylint",
+    "toml"
 ]
 
 export = [

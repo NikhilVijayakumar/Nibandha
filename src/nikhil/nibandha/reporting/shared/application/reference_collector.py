@@ -7,7 +7,7 @@ report generators, with automatic deduplication and hierarchical numbering.
 
 import logging
 from typing import Dict, List
-from ..domain.reference_models import (
+from nibandha.reporting.shared.domain.reference_models import (
     FigureReference,
     TableReference,
     NomenclatureItem,

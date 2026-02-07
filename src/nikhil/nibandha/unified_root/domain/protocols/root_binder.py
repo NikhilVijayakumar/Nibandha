@@ -1,6 +1,6 @@
 from typing import Protocol, runtime_checkable
 from nibandha.configuration.domain.models.app_config import AppConfig
-from ..models.root_context import RootContext
+from nibandha.unified_root.domain.models.root_context import RootContext
 
 @runtime_checkable
 class RootBinderProtocol(Protocol):

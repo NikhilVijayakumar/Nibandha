@@ -89,7 +89,7 @@ class PackageScanner:
 
     def _get_latest_pypi_version(self, package_name: str) -> Optional[str]:
         try:
-            from ...shared.constants import PIP_TIMEOUT_SECONDS
+            from nibandha.reporting.shared.constants import PIP_TIMEOUT_SECONDS
             result = subprocess.run(
                 ["pip", "index", "versions", package_name],
                 capture_output=True, text=True, timeout=PIP_TIMEOUT_SECONDS
@@ -105,7 +105,8 @@ class PackageScanner:
             pass
         return None
 
-        from ...shared.constants import UPDATE_TYPE_MAJOR, UPDATE_TYPE_MINOR, UPDATE_TYPE_PATCH, UPDATE_TYPE_UNKNOWN
+    def _classify_update(self, current: str, latest: str) -> str:
+        from nibandha.reporting.shared.constants import UPDATE_TYPE_MAJOR, UPDATE_TYPE_MINOR, UPDATE_TYPE_PATCH, UPDATE_TYPE_UNKNOWN
         try:
             curr_ver = pkg_version.parse(current)
             latest_ver = pkg_version.parse(latest)

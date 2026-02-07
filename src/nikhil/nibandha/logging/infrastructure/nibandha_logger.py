@@ -2,8 +2,8 @@ import logging
 import sys
 from pathlib import Path
 from typing import List, Any
-from ..domain.models.log_settings import LogSettings
-from ..domain.protocols.logger import LoggerProtocol
+from nibandha.logging.domain.models.log_settings import LogSettings
+from nibandha.logging.domain.protocols.logger import LoggerProtocol
 
 class NibandhaLogger:
     """

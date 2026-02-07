@@ -10,7 +10,7 @@ import logging
 logger = logging.getLogger("nibandha.export.tabs")
 
 
-from .base_exporter import BaseHTMLExporter
+from nibandha.export.infrastructure.base_exporter import BaseHTMLExporter
 
 class TabBasedHTMLExporter(BaseHTMLExporter):
     """Exports markdown to interactive HTML with tab navigation."""

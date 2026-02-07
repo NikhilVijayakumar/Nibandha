@@ -2,16 +2,15 @@
 import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional, TYPE_CHECKING
-from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer
-from ...shared.infrastructure import utils
-from ...dependencies.infrastructure.analysis.package_scanner import PackageScanner
-from ...shared.rendering.template_engine import TemplateEngine
-from ...shared.domain.grading import Grader
-from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
+from nibandha.reporting.shared.infrastructure import utils
+from nibandha.reporting.dependencies.infrastructure.analysis.package_scanner import PackageScanner
+from nibandha.reporting.shared.rendering.template_engine import TemplateEngine
+from nibandha.reporting.shared.domain.grading import Grader
+from nibandha.reporting.shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
 import datetime
 
 if TYPE_CHECKING:
-    from ...shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
+    from nibandha.reporting.shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
 
 logger = logging.getLogger("nibandha.reporting.packages")
 
@@ -40,7 +39,7 @@ class PackageReporter:
         
         self._generate_report(analysis, project_name)
         
-        from ...shared.constants import (
+        from nibandha.reporting.shared.constants import (
             PACKAGE_INITIAL_SCORE, PACKAGE_PENALTY_MAJOR, PACKAGE_PENALTY_MINOR, 
             PACKAGE_HEALTHY_THRESHOLD
         )
@@ -79,7 +78,7 @@ class PackageReporter:
         minor_list = [p for p in all_outdated if p["update_type"] == "MINOR"]
         patch_list = [p for p in all_outdated if p["update_type"] == "PATCH"]
 
-        from ...shared.constants import (
+        from nibandha.reporting.shared.constants import (
             PACKAGE_INITIAL_SCORE, PACKAGE_PENALTY_MAJOR, PACKAGE_PENALTY_MINOR, 
             PACKAGE_HEALTHY_THRESHOLD, PACKAGE_ATTENTION_THRESHOLD
         )

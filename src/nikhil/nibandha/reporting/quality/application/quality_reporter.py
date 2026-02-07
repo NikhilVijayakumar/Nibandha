@@ -6,24 +6,24 @@ import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional, TYPE_CHECKING, Tuple
 import logging
-from ...shared.domain.grading import Grader
-from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer
-from ...shared.infrastructure import utils
-from ...shared.rendering.template_engine import TemplateEngine
-from ...shared.domain.protocols.visualization_protocol import VisualizationProvider
-from ...shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
-from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
-from ...shared.constants import (
+from nibandha.reporting.shared.domain.grading import Grader
+from nibandha.reporting.shared.infrastructure import utils
+from nibandha.reporting.shared.rendering.template_engine import TemplateEngine
+from nibandha.reporting.shared.domain.protocols.visualization_protocol import VisualizationProvider
+from nibandha.reporting.shared.domain.protocols.template_provider_protocol import TemplateProviderProtocol
+from nibandha.reporting.shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
+from nibandha.reporting.shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
+from nibandha.reporting.shared.constants import (
     REPORT_ORDER_ARCHITECTURE, REPORT_ORDER_TYPE_SAFETY, REPORT_ORDER_COMPLEXITY,
     ASSETS_IMAGES_DIR_REL, TOP_N_CATEGORIES_DISPLAY, TOP_N_ERRORS_DISPLAY
 )
-from ..domain.hygiene_reporter import HygieneReporter
-from ..domain.security_reporter import SecurityReporter
-from ..domain.duplication_reporter import DuplicationReporter
-from ..domain.encoding_reporter import EncodingReporter
+from nibandha.reporting.quality.domain.hygiene_reporter import HygieneReporter
+from nibandha.reporting.quality.domain.security_reporter import SecurityReporter
+from nibandha.reporting.quality.domain.duplication_reporter import DuplicationReporter
+from nibandha.reporting.quality.domain.encoding_reporter import EncodingReporter
 
 if TYPE_CHECKING:
-    from ...shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
+    from nibandha.reporting.shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
 
 logger = logging.getLogger("nibandha.reporting.quality")
 
@@ -32,7 +32,7 @@ class QualityReporter:
         self, 
         output_dir: Path, 
         templates_dir: Path,
-        template_engine: Optional[TemplateEngine] = None,
+        template_engine: Optional[TemplateProviderProtocol] = None,
         viz_provider: Optional[VisualizationProvider] = None,
         reference_collector: Optional["ReferenceCollectorProtocol"] = None,
         source_root: Optional[Path] = None
@@ -57,7 +57,7 @@ class QualityReporter:
 
     def run_checks(self, target_package: str = None) -> Dict[str, Any]:
         """Runs quality checks and returns results."""
-        from ...shared.constants import DEFAULT_TARGET_PACKAGE
+        from nibandha.reporting.shared.constants import DEFAULT_TARGET_PACKAGE
         target_package = target_package or DEFAULT_TARGET_PACKAGE
         
         import time
@@ -450,18 +450,66 @@ class QualityReporter:
 
     def _generate_hygiene_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
         grade = Grader.calculate_quality_grade(data["violation_count"])
+        
+        # 1. Prepare Data for Visualizer
+        details = data.get("details", {})
+        if not isinstance(details, dict): details = {} # Safety check
+        
+        violation_counts = {
+            "magic_numbers": len(details.get("magic_numbers", [])),
+            "hardcoded_paths": len(details.get("hardcoded_paths", [])),
+            "forbidden_functions": len(details.get("forbidden_functions", [])),
+            "relative_imports": len(details.get("relative_imports", []))
+        }
+
+        module_counts = {}
+        for key in ["magic_numbers", "hardcoded_paths", "forbidden_functions", "relative_imports"]:
+            for item in details.get(key, []):
+                module = item.get("file", "Unknown")
+                module_counts[module] = module_counts.get(module, 0) + 1
+        
+        # 2. Visualize
+        self.viz_provider.generate_hygiene_charts({
+            "violation_counts": violation_counts,
+            "module_counts": module_counts
+        }, self.images_dir)
+
+        # 3. Register References
+        if self.reference_collector:
+            from nibandha.reporting.shared.constants import REPORT_ORDER_CODE_HYGIENE
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-hygiene-status",
+                title="Hygiene Violations by Type",
+                path=f"{ASSETS_IMAGES_DIR_REL}/quality/hygiene_status.png",
+                type="bar_chart",
+                description="Breakdown of code hygiene violations by category",
+                source_report="hygiene",
+                report_order=REPORT_ORDER_CODE_HYGIENE
+            ))
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-hygiene-hotspots",
+                title="Hygiene Hotspots (Top Modules)",
+                path=f"{ASSETS_IMAGES_DIR_REL}/quality/hygiene_hotspots.png",
+                type="bar_chart",
+                description="Modules with the highest number of hygiene violations",
+                source_report="hygiene",
+                report_order=REPORT_ORDER_CODE_HYGIENE
+            ))
+
         mapping = {
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
             "display_grade": grade,
             "grade_color": Grader.get_grade_color(grade),
             "overall_status": "🟢 PASS" if data["status"] == "PASS" else "🔴 FAIL",
             "total_violations": data["violation_count"],
-            "magic_numbers": data["details"].get("magic_numbers", []) if isinstance(data["details"], dict) else [],
-            "hardcoded_paths": data["details"].get("hardcoded_paths", []) if isinstance(data["details"], dict) else [],
-            "forbidden_functions": data["details"].get("forbidden_functions", []) if isinstance(data["details"], dict) else [],
+            "magic_numbers": details.get("magic_numbers", []),
+            "hardcoded_paths": details.get("hardcoded_paths", []),
+            "forbidden_functions": details.get("forbidden_functions", []),
+            "relative_imports": details.get("relative_imports", []),
             "project_name": project_name
         }
         self.template_engine.render("code_hygiene_report_template.md", mapping, self.details_dir / "08_code_hygiene_report.md")
+
 
     def _generate_security_report(self, data: Dict[str, Any], project_name: str = "Project") -> None:
         raw_status = data["status"]
@@ -487,7 +535,46 @@ class QualityReporter:
         elif overall_status.startswith("⚠️ ERROR"):
              # Show error message as a 'dummy' issue or in summary
              pass
+             
+        # [NEW] Visualization
+        severity_counts = {"High": high_count, "Medium": medium_count}
+        # Count low/info if available or just normalize
+        
+        module_counts = {}
+        for issue in issues:
+            # parsing issue to find filename
+            # Bandit issue format: {'filename': '...', ...}
+            fname = issue.get("filename", "Unknown")
+            module = utils.extract_module_name(fname, self.source_root)
+            module_counts[module] = module_counts.get(module, 0) + 1
             
+        self.viz_provider.generate_security_charts({
+            "severity_counts": severity_counts,
+            "module_counts": module_counts
+        }, self.images_dir)
+             
+        # Register References
+        if self.reference_collector:
+            from nibandha.reporting.shared.constants import REPORT_ORDER_SECURITY
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-sec-severity",
+                title="Security Severity Dist.",
+                path=f"{ASSETS_IMAGES_DIR_REL}/quality/security_severity.png",
+                type="pie_chart",
+                description="Distribution of security issues by severity",
+                source_report="security",
+                report_order=REPORT_ORDER_SECURITY
+            ))
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-sec-hotspots",
+                title="Security Hotspots",
+                path=f"{ASSETS_IMAGES_DIR_REL}/quality/security_hotspots.png",
+                type="bar_chart",
+                description="Modules with the most security violations",
+                source_report="security",
+                report_order=REPORT_ORDER_SECURITY
+            ))
+
         mapping = {
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
             "display_grade": grade,
@@ -511,13 +598,43 @@ class QualityReporter:
             grade = Grader.calculate_quality_grade(data["violation_count"])
             overall_status = "🟢 PASS" if raw_status == "PASS" else "🔴 FAIL"
             
+        # [NEW] Visualization
+        duplicates = data.get("details", [])
+        if not isinstance(duplicates, list): duplicates = []
+        
+        module_counts = {}
+        for dup in duplicates:
+            # dup is {"header": ..., "files": [...]}
+            # We count each file involved as a "duplication instance" for that module
+            files = dup.get("files", [])
+            for f in files:
+                module = utils.extract_module_name(f, self.source_root)
+                module_counts[module] = module_counts.get(module, 0) + 1
+        
+        self.viz_provider.generate_duplication_charts({
+            "module_counts": module_counts
+        }, self.images_dir)
+        
+        # Register References
+        if self.reference_collector:
+            from nibandha.reporting.shared.constants import REPORT_ORDER_DUPLICATION
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-dup-hotspots",
+                title="Duplication Hotspots",
+                path=f"{ASSETS_IMAGES_DIR_REL}/quality/duplication_hotspots.png",
+                type="bar_chart",
+                description="Modules with the most duplicated code blocks",
+                source_report="duplication",
+                report_order=REPORT_ORDER_DUPLICATION
+            ))
+
         mapping = {
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
             "display_grade": grade,
             "grade_color": Grader.get_grade_color(grade) if grade != "-" else "#95a5a6",
             "overall_status": overall_status,
             "total_violations": data["violation_count"],
-            "duplicates": data["details"] if isinstance(data["details"], list) else [],
+            "duplicates": duplicates,
             "project_name": project_name
         }
         self.template_engine.render("duplication_report_template.md", mapping, self.details_dir / "09_duplication_report.md")
@@ -526,6 +643,38 @@ class QualityReporter:
         # Encoding errors are critical/fatal if present
         is_fatal = data["violation_count"] > 0
         grade = Grader.calculate_quality_grade(data["violation_count"], is_fatal=is_fatal)
+        
+        # [NEW] Visualization
+        non_utf8 = data["details"].get("non_utf8", [])
+        bom = data["details"].get("bom_present", [])
+        total = data.get("checked_count", 0)
+        
+        issues_count = len(non_utf8) + len(bom)
+        clean_count = max(0, total - issues_count)
+        
+        status_counts = {
+            "UTF-8 Clean": clean_count,
+            "Non-UTF-8": len(non_utf8),
+            "BOM Detected": len(bom)
+        }
+        
+        self.viz_provider.generate_encoding_charts({
+            "status_counts": status_counts
+        }, self.images_dir)
+        
+        # Register References
+        if self.reference_collector:
+            from nibandha.reporting.shared.constants import REPORT_ORDER_ENCODING
+            self.reference_collector.add_figure(FigureReference(
+                id="fig-enc-status",
+                title="Encoding Status",
+                path=f"{ASSETS_IMAGES_DIR_REL}/quality/encoding_status.png",
+                type="pie_chart",
+                description="Distribution of file encodings (UTF-8 vs others)",
+                source_report="encoding",
+                report_order=REPORT_ORDER_ENCODING
+            ))
+
         mapping = {
             "date": datetime.datetime.now().strftime("%Y-%m-%d"),
             "display_grade": grade,

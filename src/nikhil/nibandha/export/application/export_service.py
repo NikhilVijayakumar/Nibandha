@@ -2,10 +2,10 @@ import logging
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
-from ..domain.protocols.exporter import ExportFormat
-from ..infrastructure.html_exporter import HTMLExporter
-from ..infrastructure.docx_exporter import DOCXExporter
-from ..infrastructure.modern_dashboard_exporter import ModernDashboardExporter
+from nibandha.export.domain.protocols.exporter import ExportFormat
+from nibandha.export.infrastructure.html_exporter import HTMLExporter
+from nibandha.export.infrastructure.docx_exporter import DOCXExporter
+from nibandha.export.infrastructure.modern_dashboard_exporter import ModernDashboardExporter
 
 logger = logging.getLogger("nibandha.export")
 

@@ -4,75 +4,77 @@ from pathlib import Path
 from nibandha.reporting.shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
 
 @pytest.fixture
-def mock_viz_impl():
-    with patch("nibandha.reporting.shared.infrastructure.visualizers.default_visualizer.visualizer") as mock:
-        yield mock
-
-@pytest.fixture
 def provider():
-    return DefaultVisualizationProvider()
+    # Instantiate the provider
+    provider = DefaultVisualizationProvider()
+    
+    # Mock the internal plotters
+    provider.unit_plotter = MagicMock()
+    provider.e2e_plotter = MagicMock()
+    provider.quality_plotter = MagicMock() 
+    provider.hygiene_plotter = MagicMock()
+    provider.security_plotter = MagicMock()
+    provider.duplication_plotter = MagicMock()
+    provider.encoding_plotter = MagicMock()
+    provider.dependency_plotter = MagicMock()
+    provider.doc_plotter = MagicMock()
+    provider.perf_plotter = MagicMock()
+    provider.conclusion_plotter = MagicMock()
+    
+    return provider
 
-def test_generate_unit_test_charts_success(provider, mock_viz_impl, tmp_path):
-    data = {
-        "outcomes_by_module": {"A": {"pass": 1}},
-        "coverage_by_module": {"A": 80.0},
-        "durations": [0.1, 0.2]
-    }
+def test_generate_unit_test_charts_delegation(provider, tmp_path):
+    data = {"some": "data"}
+    expected_result = {"chart": "path"}
     
-    # Mock file existence side effect (as logic checks if chart_path.exists())
-    # We can't easily mock Path.exists locally inside the method without patching Path
-    # Instead, let's make the mock_viz_impl function create a dummy file
-    def side_effect_create(data, path):
-        Path(path).touch()
-        
-    mock_viz_impl.plot_module_outcomes.side_effect = side_effect_create
-    mock_viz_impl.plot_coverage.side_effect = side_effect_create
-    mock_viz_impl.plot_test_duration_distribution.side_effect = side_effect_create
+    # Setup mock return value
+    provider.unit_plotter.plot.return_value = expected_result
     
-    charts = provider.generate_unit_test_charts(data, tmp_path)
+    # Call the method
+    result = provider.generate_unit_test_charts(data, tmp_path)
     
-    assert "unit_outcomes" in charts
-    assert "unit_coverage" in charts
-    assert "unit_durations" in charts
-    
-    mock_viz_impl.plot_module_outcomes.assert_called_once()
+    # Verify delegation
+    provider.unit_plotter.plot.assert_called_once_with(data, tmp_path)
+    assert result == expected_result
 
-def test_generate_unit_test_charts_empty(provider, mock_viz_impl, tmp_path):
-    # Empty data should produce no charts
-    charts = provider.generate_unit_test_charts({}, tmp_path)
-    assert charts == {}
-    mock_viz_impl.plot_module_outcomes.assert_not_called()
+def test_generate_e2e_test_charts_delegation(provider, tmp_path):
+    data = {"scenarios": []}
+    expected_result = {"e2e": "path"}
+    
+    provider.e2e_plotter.plot.return_value = expected_result
+    
+    result = provider.generate_e2e_test_charts(data, tmp_path)
+    
+    provider.e2e_plotter.plot.assert_called_once_with(data, tmp_path)
+    assert result == expected_result
 
-def test_generate_e2e_charts(provider, mock_viz_impl, tmp_path):
-    data = {"status_counts": {"pass": 1}, "scenarios": [{"name": "s1", "duration": 1}]}
-    
-    def side_effect_create(data, path):
-        Path(path).touch()
-    
-    mock_viz_impl.plot_e2e_outcome.side_effect = side_effect_create
-    mock_viz_impl.plot_e2e_durations.side_effect = side_effect_create
-    
-    charts = provider.generate_e2e_test_charts(data, tmp_path)
-    
-    assert "e2e_status" in charts
-    assert "e2e_durations" in charts
+def test_generate_type_safety_charts_delegation(provider, tmp_path):
+    data = {"errors": []}
+    provider.quality_plotter.plot_type_safety.return_value = {}
+    provider.generate_type_safety_charts(data, tmp_path)
+    provider.quality_plotter.plot_type_safety.assert_called_once_with(data, tmp_path)
 
-def test_error_handling(provider, mock_viz_impl, tmp_path):
-    # If plotting raises exception, it should be caught and logged
-    mock_viz_impl.plot_module_outcomes.side_effect = Exception("Boom")
-    
-    # We need to ensure the logger doesn't try to actually write to a file via a mocked handler that might fail
-    # but the error we saw was FileNotFoundError in the *Logging System* itself attempting to write the error log
-    # because the log file didn't exist in the temp dir.
-    # The simplest fix is to mock the logger used in the provider to avoid real file I/O during this test.
-    
-    with patch("nibandha.reporting.shared.infrastructure.visualizers.default_visualizer.logger") as mock_logger:
-         data = {"outcomes_by_module": {"A": 1}}
-         charts = provider.generate_unit_test_charts(data, tmp_path)
-         
-         # Verify error was logged
-         mock_logger.error.assert_called()
-    
-    # process might continue or return partial
-    # Here outcomes fails, but others are empty, so likely returns {}
-    assert "unit_outcomes" not in charts
+def test_generate_complexity_charts_delegation(provider, tmp_path):
+    data = {"complexity": []}
+    provider.quality_plotter.plot_complexity.return_value = {}
+    provider.generate_complexity_charts(data, tmp_path)
+    provider.quality_plotter.plot_complexity.assert_called_once_with(data, tmp_path)
+
+def test_generate_architecture_charts_delegation(provider, tmp_path):
+    data = {"arch": []}
+    provider.quality_plotter.plot_architecture.return_value = {}
+    provider.generate_architecture_charts(data, tmp_path)
+    provider.quality_plotter.plot_architecture.assert_called_once_with(data, tmp_path)
+
+def test_generate_dependency_charts_delegation(provider, tmp_path):
+    data = {"deps": {}}
+    provider.dependency_plotter.plot.return_value = {}
+    provider.generate_dependency_charts(data, tmp_path)
+    provider.dependency_plotter.plot.assert_called_once_with(data, tmp_path)
+
+# Verify one of the others to ensure pattern holds
+def test_generate_security_charts_delegation(provider, tmp_path):
+    data = {"vulns": []}
+    provider.security_plotter.plot.return_value = {}
+    provider.generate_security_charts(data, tmp_path)
+    provider.security_plotter.plot.assert_called_once_with(data, tmp_path)

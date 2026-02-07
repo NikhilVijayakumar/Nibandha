@@ -5,7 +5,7 @@ import json
 import logging
 
 logger = logging.getLogger("nibandha.reporting")
-from ...shared.domain.grading import Grader
+from nibandha.reporting.shared.domain.grading import Grader
 
 class UnitDataBuilder:
     """Builds unit test report data from pytest JSON and coverage data."""
@@ -76,7 +76,8 @@ class UnitDataBuilder:
         return stats
 
     def _extract_module_from_path(self, file_path: str) -> Optional[str]:
-        # Normalize path
+        # Normalize path for Windows
+        file_path = file_path.replace("\\", "/")
         # Expected pattern: .../src/nikhil/nibandha/MODULENAME/file.py
         parts = file_path.split("src/nikhil/nibandha/")
         if len(parts) < 2:
@@ -124,21 +125,22 @@ class UnitDataBuilder:
         outcomes: Dict[str, Dict[str, int]] = {}
         for test in pytest_data.get("tests", []):
             # nodeid example: tests/unit/reporting/test_foo.py::test_bar
-            nodeid = test.get("nodeid", "")
+            nodeid = test.get("nodeid", "").replace("\\", "/")
             path_parts = nodeid.split("::")[0].split("/")
             # Attempt to guess module: tests/unit/reporting -> reporting
             if len(path_parts) > 2 and path_parts[1] == "unit":
-                 module = path_parts[2]
+                 module = path_parts[2].capitalize()
                  # Remap known modules that don't have their own top-level source package
-                 if module == "rotation":
-                     module = "logging"
+                 if module.lower() == "rotation":
+                     module = "Logging"
             else:
-                 module = "other"
+                 module = "Other"
             
             if module not in outcomes:
-                outcomes[module] = {"pass": 0, "fail": 0, "error": 0}
+                outcomes[module] = {"pass": 0, "fail": 0, "error": 0, "total": 0}
             
             outcome = test.get("outcome", "nop")
+            outcomes[module]["total"] += 1
             if outcome == "passed": outcomes[module]["pass"] += 1
             elif outcome == "failed": outcomes[module]["fail"] += 1
             elif outcome == "error": outcomes[module]["error"] += 1

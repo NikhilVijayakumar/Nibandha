@@ -27,8 +27,8 @@ def test_unit_builder_metrics(unit_builder):
     assert result["coverage_total"] == 85.5
     assert len(result["failures"]) == 1
     assert result["failures"][0]["error"] == "error"
-    assert "reporting" in result["outcomes_by_module"]
-    assert result["outcomes_by_module"]["reporting"]["fail"] == 1
+    assert "Reporting" in result["outcomes_by_module"]
+    assert result["outcomes_by_module"]["Reporting"]["fail"] == 1
 
 def test_e2e_builder_metrics(e2e_builder):
     results = {

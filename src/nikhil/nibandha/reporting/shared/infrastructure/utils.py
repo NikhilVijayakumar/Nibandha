@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Optional, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ..domain.protocols.module_discovery import ModuleDiscoveryProtocol
+    from nibandha.reporting.shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
 
 # Use nibandha logger (assuming configured)
 # For library utils, we might just print if logging isn't guaranteed, 

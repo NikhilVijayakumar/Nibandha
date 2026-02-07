@@ -167,7 +167,7 @@ src/nikhil/nibandha/logging/adapters.py:30: error: Another error [arg-type]
                 return "Unknown"
              mock_extract.side_effect = side_effect
              
-             mod_stats = reporter._parse_ruff_output(output)
+             mod_stats, mod_scores = reporter._parse_ruff_output(output)
              
              assert mod_stats["Logging"] == 1
              assert mod_stats["Export"] == 1

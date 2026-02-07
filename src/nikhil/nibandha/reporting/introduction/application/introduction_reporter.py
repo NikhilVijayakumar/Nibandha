@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Optional
-from ...shared.rendering.template_engine import TemplateEngine
+from nibandha.reporting.shared.rendering.template_engine import TemplateEngine
 
 class IntroductionReporter:
     def __init__(self, output_dir: Path, templates_dir: Path, template_engine: Optional[TemplateEngine] = None):

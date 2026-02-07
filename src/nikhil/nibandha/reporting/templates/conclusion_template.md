@@ -5,6 +5,8 @@
 **Overall Status:** {{ overall_status }}  
 **Project Grade:** <span style="color:{{ grade_color }}; font-size: 2.5em; font-weight: bold;">{{ display_grade }}</span>
 
+![Project Scorecard](../assets/images/project_scorecard.png)
+
 ## Key Metrics Summary
 : **Table 15.1:** Consolidated project metrics
 

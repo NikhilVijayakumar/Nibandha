@@ -19,6 +19,9 @@ status: "{{ overall_status }}"
 
 Duplication analysis identifies code clones that violate the DRY (Don't Repeat Yourself) principle.
 
+![Duplication Hotspots](../assets/images/quality/duplication_hotspots.png)
+*(Top Modules with Duplicated Blocks)*
+
 {% if total_violations == 0 %}
 > [!TIP]
 > **DRY Codebase**

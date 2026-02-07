@@ -2,269 +2,74 @@ from pathlib import Path
 from typing import Dict, Any, List
 import logging
 
-# Import the low-level plotting library
-# We reference the infra module where we moved matplotlib_impl
-from ...infrastructure.visualizers import matplotlib_impl as visualizer
+from nibandha.reporting.shared.infrastructure.visualizers.plotters.unit_plotter import UnitPlotter
+from nibandha.reporting.shared.infrastructure.visualizers.plotters.e2e_plotter import E2EPlotter
+from nibandha.reporting.shared.infrastructure.visualizers.plotters.quality_plotter import QualityPlotter
+from nibandha.reporting.shared.infrastructure.visualizers.plotters.hygiene_plotter import HygienePlotter
+from nibandha.reporting.shared.infrastructure.visualizers.plotters.security_plotter import SecurityPlotter
+from nibandha.reporting.shared.infrastructure.visualizers.plotters.duplication_plotter import DuplicationPlotter
+from nibandha.reporting.shared.infrastructure.visualizers.plotters.encoding_plotter import EncodingPlotter
+from nibandha.reporting.shared.infrastructure.visualizers.plotters.dependency_plotter import DependencyPlotter
+from nibandha.reporting.shared.infrastructure.visualizers.plotters.documentation_plotter import DocumentationPlotter
+from nibandha.reporting.shared.infrastructure.visualizers.plotters.performance_plotter import PerformancePlotter
+from nibandha.reporting.shared.infrastructure.visualizers.plotters.conclusion_plotter import ConclusionPlotter
 
 logger = logging.getLogger("nibandha.reporting")
 
 class DefaultVisualizationProvider:
     """
     Default implementation of visualization generation.
-    Uses the built-in matplotlib/seaborn visualizer module.
+    Uses modular plotters via composition.
     """
     
-    def generate_unit_test_charts(
-        self, 
-        data: Dict[str, Any], 
-        output_dir: Path
-    ) -> Dict[str, str]:
-        """Generate unit test visualization charts."""
-        output_dir.mkdir(parents=True, exist_ok=True)
-        charts = {}
-        
-        try:
-            # 1. Outcomes
-            outcomes = data.get("outcomes_by_module", {})
-            if outcomes:
-                chart_path = output_dir / "unit_outcomes.png"
-                visualizer.plot_module_outcomes(outcomes, chart_path)
-                if chart_path.exists():
-                    charts["unit_outcomes"] = str(chart_path)
-            
-            # 2. Coverage
-            coverage = data.get("coverage_by_module", {})
-            if coverage:
-                cov_path = output_dir / "unit_coverage.png"
-                visualizer.plot_coverage(coverage, cov_path)
-                if cov_path.exists():
-                    charts["unit_coverage"] = str(cov_path)
-                    
-            # 3. Durations Distribution (Histogram)
-            durations = data.get("durations", [])
-            if durations:
-                dur_path = output_dir / "unit_durations.png"
-                visualizer.plot_test_duration_distribution(durations, dur_path)
-                if dur_path.exists():
-                    charts["unit_durations"] = str(dur_path)
-            
-            # 4. Module Durations (Bar Chart)
-            # Need to extract from data["modules"] list which has "duration_val"
-            modules = data.get("modules", [])
-            mod_durations = {}
-            for m in modules:
-                mod_durations[m["name"]] = m.get("duration_val", 0.0)
-            
-            if mod_durations:
-                mod_dur_path = output_dir / "unit_module_durations.png"
-                visualizer.plot_module_durations(mod_durations, mod_dur_path)
-                if mod_dur_path.exists():
-                    charts["module_durations"] = str(mod_dur_path)
-            
-            # 5. Top Slowest Tests
-            tests = data.get("tests", [])
-            if tests:
-                slow_path = output_dir / "unit_slowest_tests.png"
-                visualizer.plot_top_slowest_tests(tests, slow_path)
-                if slow_path.exists():
-                    charts["unit_slowest_tests"] = str(slow_path)
+    def __init__(self):
+        self.unit_plotter = UnitPlotter()
+        self.e2e_plotter = E2EPlotter()
+        self.quality_plotter = QualityPlotter()
+        self.hygiene_plotter = HygienePlotter()
+        self.security_plotter = SecurityPlotter()
+        self.duplication_plotter = DuplicationPlotter()
+        self.encoding_plotter = EncodingPlotter()
+        self.dependency_plotter = DependencyPlotter()
+        self.doc_plotter = DocumentationPlotter()
+        self.perf_plotter = PerformancePlotter()
+        self.conclusion_plotter = ConclusionPlotter()
 
-        except Exception as e:
-            logger.error(f"Error generating unit charts: {e}")
-            
-        return charts
+    def generate_unit_test_charts(self, data: Dict[str, Any], output_dir: Path) -> Dict[str, str]:
+        return self.unit_plotter.plot(data, output_dir)
     
-    def generate_e2e_test_charts(
-        self, 
-        data: Dict[str, Any], 
-        output_dir: Path
-    ) -> Dict[str, str]:
-        """Generate E2E test charts."""
-        output_dir.mkdir(parents=True, exist_ok=True)
-        charts = {}
-        
-        try:
-            # Status Pie Chart
-            status_counts = data.get("status_counts", {})
-            if status_counts:
-                status_path = output_dir / "e2e_status.png"
-                visualizer.plot_e2e_outcome(status_counts, status_path)
-                if status_path.exists():
-                    charts["e2e_status"] = str(status_path)
-            
-            # Duration Bar Chart (Scenarios)
-            scenarios = data.get("scenarios", [])
-            if scenarios:
-                duration_path = output_dir / "e2e_durations.png"
-                visualizer.plot_e2e_durations(scenarios, duration_path)
-                if duration_path.exists():
-                    charts["e2e_durations"] = str(duration_path)
-            
-            # Module Durations (Bar Chart)
-            modules = data.get("modules", [])
-            mod_durations = {}
-            for m in modules:
-                mod_durations[m["name"]] = m.get("duration_val", 0.0)
-            
-            if mod_durations:
-                mod_dur_path = output_dir / "e2e_module_durations.png"
-                visualizer.plot_module_durations(mod_durations, mod_dur_path)
-                if mod_dur_path.exists():
-                    charts["module_durations"] = str(mod_dur_path)
+    def generate_e2e_test_charts(self, data: Dict[str, Any], output_dir: Path) -> Dict[str, str]:
+        return self.e2e_plotter.plot(data, output_dir)
+    
+    def generate_type_safety_charts(self, data: Dict[str, Any], output_dir: Path) -> Dict[str, str]:
+        return self.quality_plotter.plot_type_safety(data, output_dir)
+    
+    def generate_complexity_charts(self, data: Dict[str, Any], output_dir: Path) -> Dict[str, str]:
+        return self.quality_plotter.plot_complexity(data, output_dir)
+    
+    def generate_architecture_charts(self, data: Dict[str, Any], output_dir: Path) -> Dict[str, str]:
+        return self.quality_plotter.plot_architecture(data, output_dir)
 
-        except Exception as e:
-            logger.error(f"Error generating E2E charts: {e}")
-            
-        return charts
-    
-    def generate_type_safety_charts(
-        self, 
-        data: Dict[str, Any], 
-        output_dir: Path
-    ) -> Dict[str, str]:
-        """Generate type safety charts."""
-        output_dir.mkdir(parents=True, exist_ok=True)
-        charts = {}
-        
-        try:
-            # Errors by module
-            errors_by_module = data.get("errors_by_module", {})
-            if errors_by_module:
-                module_path = output_dir / "type_errors_by_module.png"
-                visualizer.plot_type_errors_by_module(errors_by_module, module_path)
-                if module_path.exists():
-                    charts["type_errors_by_module"] = str(module_path)
-            
-            # Error categories
-            categories = data.get("errors_by_category", {})
-            if categories:
-                cat_path = output_dir / "error_categories.png"
-                visualizer.plot_error_categories(categories, cat_path)
-                if cat_path.exists():
-                    charts["error_categories"] = str(cat_path)
-                    
-        except Exception as e:
-            logger.error(f"Error generating type safety charts: {e}")
-            
-        return charts
-    
-    def generate_complexity_charts(
-        self, 
-        data: Dict[str, Any], 
-        output_dir: Path
-    ) -> Dict[str, str]:
-        """Generate complexity charts."""
-        output_dir.mkdir(parents=True, exist_ok=True)
-        charts = {}
-        
-        try:
-            violations = data.get("violations_by_module", {})
-            chart_path = output_dir / "complexity_distribution.png"
-            visualizer.plot_complexity_distribution(violations, chart_path)
-            if chart_path.exists():
-                charts["complexity_distribution"] = str(chart_path)
-                
-            scores = data.get("complexity_scores", {})
-            if scores:
-                box_path = output_dir / "complexity_boxplot.png"
-                visualizer.plot_complexity_boxplot(scores, box_path)
-                if box_path.exists():
-                     charts["complexity_boxplot"] = str(box_path)
-        except Exception as e:
-            logger.error(f"Error generating complexity charts: {e}")
-            
-        return charts
-    
-    def generate_architecture_charts(
-        self, 
-        data: Dict[str, Any], 
-        output_dir: Path
-    ) -> Dict[str, str]:
-        """Generate architecture charts."""
-        output_dir.mkdir(parents=True, exist_ok=True)
-        charts = {}
-        
-        try:
-            status = data.get("status", "UNKNOWN")
-            chart_path = output_dir / "architecture_status.png"
-            visualizer.plot_architecture_status(status, chart_path)
-            if chart_path.exists():
-                charts["architecture_status"] = str(chart_path)
-        except Exception as e:
-            logger.error(f"Error generating architecture charts: {e}")
-            
-        return charts
-        return charts
+    def generate_documentation_charts(self, data: Dict[str, Any], output_dir: Path) -> Dict[str, str]:
+        return self.doc_plotter.plot(data, output_dir)
 
-    def generate_documentation_charts(
-        self, 
-        data: Dict[str, Any], 
-        output_dir: Path
-    ) -> Dict[str, str]:
-        """Generate documentation charts."""
-        output_dir.mkdir(parents=True, exist_ok=True)
-        # Separate images folder? The caller usually provides images_dir.
-        # Check usage in other methods: they use output_dir passed in.
-        charts = {}
-        
-        try:
-            # Prepare Data for Visualizer
-            # 1. Global Coverage (Documented vs Missing count across all modules)
-            # data has sections: functional, technical, test. Each has 'stats': {documented: x, missing: y}
-            # Let's aggregate for the pie chart
-            total_doc = 0
-            total_miss = 0
-            for key in ["functional", "technical", "test"]:
-                stats = data.get(key, {}).get("stats", {})
-                total_doc += stats.get("documented", 0)
-                total_miss += stats.get("missing", 0)
-                
-            cov_stats = {"Documented": total_doc, "Missing": total_miss}
-            cov_path = output_dir / "doc_coverage.png"
-            
-            # 2. Drift Data (Flatten module drifts)
-            # data[type]['drift_map'] = {mod: days}
-            all_drifts = {}
-            for key in ["functional", "technical", "test"]:
-                dmap = data.get(key, {}).get("drift_map", {})
-                for mod, days in dmap.items():
-                    # Prefix with type to avoid collision? e.g. "Auth (Func)"
-                    # Or just take max? Let's prefix
-                    label = f"{mod} ({key[0].upper()})"
-                    if days != -1: # -1 means no doc
-                        all_drifts[label] = days
-            
-            drift_path = output_dir / "doc_drift.png"
-            
-            visualizer.plot_documentation_stats(cov_stats, all_drifts, cov_path, drift_path)
-            
-            if cov_path.exists(): charts["doc_coverage"] = str(cov_path)
-            if drift_path.exists(): charts["doc_drift"] = str(drift_path)
-            
-        except Exception as e:
-            logger.error(f"Error generating documentation charts: {e}")
-            
-        return charts
+    def generate_performance_charts(self, timings: List[Dict[str, Any]], output_dir: Path) -> Dict[str, str]:
+        return self.perf_plotter.plot(timings, output_dir)
+    
+    def generate_hygiene_charts(self, data: Dict[str, Any], output_dir: Path) -> Dict[str, str]:
+        return self.hygiene_plotter.plot(data, output_dir)
 
-    def generate_performance_charts(
-        self, 
-        timings: List[Dict[str, Any]], 
-        output_dir: Path
-    ) -> Dict[str, str]:
-        """Generate performance charts."""
-        output_dir.mkdir(parents=True, exist_ok=True)
-        charts = {}
-        
-        try:
-            logger.debug(f"Generating performance charts with timings: {timings}")
-            chart_path = output_dir / "performance_overall.png"
-            visualizer.plot_performance_distribution(timings, chart_path)
-            if chart_path.exists():
-                logger.debug(f"Performance chart generated at: {chart_path}")
-                charts["performance_overall"] = str(chart_path)
-            else:
-                logger.warning(f"Performance chart NOT generated at: {chart_path}")
-        except Exception as e:
-            logger.error(f"Error generating performance charts: {e}")
-            
-        return charts
+    def generate_security_charts(self, data: Dict[str, Any], output_dir: Path) -> Dict[str, str]:
+        return self.security_plotter.plot(data, output_dir)
+
+    def generate_duplication_charts(self, data: Dict[str, Any], output_dir: Path) -> Dict[str, str]:
+        return self.duplication_plotter.plot(data, output_dir)
+
+    def generate_encoding_charts(self, data: Dict[str, Any], output_dir: Path) -> Dict[str, str]:
+        return self.encoding_plotter.plot(data, output_dir)
+    
+    def generate_conclusion_charts(self, scores: Dict[str, Dict[str, str]], output_dir: Path) -> Dict[str, str]:
+        return self.conclusion_plotter.plot(scores, output_dir)
+    
+    def generate_dependency_charts(self, dependencies: Dict[str, Any], output_dir: Path) -> Dict[str, str]:
+         return self.dependency_plotter.plot(dependencies, output_dir)

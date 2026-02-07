@@ -2,16 +2,16 @@ import logging
 import datetime
 from pathlib import Path
 from typing import Dict, Any, List, TYPE_CHECKING, Optional
-from ...shared.domain.grading import Grader
-from ...shared.rendering.template_engine import TemplateEngine
-from ...shared.domain.protocols.visualization_protocol import VisualizationProvider
-from ...shared.infrastructure import utils
-from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
-from ...shared.constants import REPORT_ORDER_DOCUMENTATION, ASSETS_IMAGES_DIR_REL, DEFAULT_TARGET_PACKAGE
+from nibandha.reporting.shared.domain.grading import Grader
+from nibandha.reporting.shared.rendering.template_engine import TemplateEngine
+from nibandha.reporting.shared.domain.protocols.visualization_protocol import VisualizationProvider
+from nibandha.reporting.shared.infrastructure import utils
+from nibandha.reporting.shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
+from nibandha.reporting.shared.constants import REPORT_ORDER_DOCUMENTATION, ASSETS_IMAGES_DIR_REL, DEFAULT_TARGET_PACKAGE
 
 if TYPE_CHECKING:
-    from ...shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
-    from ...shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
+    from nibandha.reporting.shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
+    from nibandha.reporting.shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
 
 logger = logging.getLogger("nibandha.reporting.documentation")
 

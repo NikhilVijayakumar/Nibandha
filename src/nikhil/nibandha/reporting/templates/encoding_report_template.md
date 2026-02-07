@@ -9,6 +9,9 @@
 ## Overview
 This report verifies that all source files (`.py`, `.md`, `.json`, etc.) are valid **UTF-8** and do not contain **Byte Order Marks (BOM)**, which can cause cross-platform compatibility issues (Windows vs Linux).
 
+![Encoding Status](../assets/images/quality/encoding_status.png)
+*(File Encoding Distribution)*
+
 ### Summary
 : **Table 14.1:** Encoding check summary
 

@@ -50,6 +50,7 @@ REPORT_ORDER_DEPENDENCY = 11
 REPORT_ORDER_PACKAGE = 12
 REPORT_ORDER_DOCUMENTATION = 13
 REPORT_ORDER_ENCODING = 14
+REPORT_ORDER_CONCLUSION = 15
 
 # Table/Figure Limits
 TOP_N_ERRORS_DISPLAY = 30
@@ -92,6 +93,7 @@ IMG_PATH_UNIT_OUTCOMES = "/unit_outcomes.png"
 IMG_PATH_UNIT_COVERAGE = "/unit_coverage.png"
 IMG_PATH_UNIT_DURATIONS = "/unit_durations.png"
 IMG_PATH_UNIT_SLOWEST = "/unit_slowest_tests.png"
+IMG_PATH_UNIT_MODULE_DURATIONS = "/unit_module_durations.png"
 IMG_PATH_ARCH_STATUS = "/quality/architecture_status.png"
 IMG_PATH_ERROR_CATEGORIES = "/quality/error_categories.png"
 IMG_PATH_TYPE_ERRORS = "/quality/type_errors_by_module.png"

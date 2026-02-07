@@ -3,19 +3,19 @@ from pathlib import Path
 from typing import Dict, Any, List, TYPE_CHECKING, Optional
 import logging
 import re
-from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer
-from ...shared.infrastructure import utils
-from ...shared.rendering.template_engine import TemplateEngine
-from ...shared.domain.protocols.visualization_protocol import VisualizationProvider
-from ...shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
-from ...shared.data.data_builders import E2EDataBuilder
-from ...shared.domain.grading import Grader
-from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
-from ...shared.constants import REPORT_ORDER_E2E, ASSETS_IMAGES_DIR_REL
+from nibandha.reporting.shared.infrastructure import utils
+from nibandha.reporting.shared.rendering.template_engine import TemplateEngine
+from nibandha.reporting.shared.domain.protocols.visualization_protocol import VisualizationProvider
+from nibandha.reporting.shared.domain.protocols.template_provider_protocol import TemplateProviderProtocol
+from nibandha.reporting.shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
+from nibandha.reporting.shared.data.data_builders import E2EDataBuilder
+from nibandha.reporting.shared.domain.grading import Grader
+from nibandha.reporting.shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
+from nibandha.reporting.shared.constants import REPORT_ORDER_E2E, ASSETS_IMAGES_DIR_REL
 
 if TYPE_CHECKING:
-    from ...shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
-    from ...shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
+    from nibandha.reporting.shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
+    from nibandha.reporting.shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
 
 logger = logging.getLogger("nibandha.reporting.e2e")
 
@@ -25,7 +25,7 @@ class E2EReporter:
         output_dir: Path, 
         templates_dir: Path, 
         docs_dir: Path,
-        template_engine: Optional[TemplateEngine] = None,
+        template_engine: Optional[TemplateProviderProtocol] = None,
         viz_provider: Optional[VisualizationProvider] = None,
         module_discovery: Optional["ModuleDiscoveryProtocol"] = None,
         source_root: Optional[Path] = None,

@@ -65,3 +65,59 @@ class VisualizationProvider(Protocol):
     ) -> Dict[str, str]:
         """Generate documentation charts."""
         ...
+
+    def generate_dependency_charts(
+        self, 
+        dependencies: Dict[str, Any], 
+        output_dir: Path
+    ) -> Dict[str, str]:
+        """Generate dependency charts."""
+        ...
+
+    def generate_hygiene_charts(
+        self, 
+        data: Dict[str, Any], 
+        output_dir: Path
+    ) -> Dict[str, str]:
+        """Generate codebase hygiene charts."""
+        ...
+
+    def generate_security_charts(
+        self, 
+        data: Dict[str, Any], 
+        output_dir: Path
+    ) -> Dict[str, str]:
+        """Generate security scan charts."""
+        ...
+
+    def generate_duplication_charts(
+        self, 
+        data: Dict[str, Any], 
+        output_dir: Path
+    ) -> Dict[str, str]:
+        """Generate code duplication charts."""
+        ...
+
+    def generate_encoding_charts(
+        self, 
+        data: Dict[str, Any], 
+        output_dir: Path
+    ) -> Dict[str, str]:
+        """Generate file encoding charts."""
+        ...
+
+    def generate_performance_charts(
+        self, 
+        timings: List[Dict[str, Any]], 
+        output_dir: Path
+    ) -> Dict[str, str]:
+        """Generate performance charts."""
+        ...
+
+    def generate_conclusion_charts(
+        self, 
+        scores: Dict[str, Dict[str, str]], 
+        output_dir: Path
+    ) -> Dict[str, str]:
+        """Generate conclusion/scorecard charts."""
+        ...

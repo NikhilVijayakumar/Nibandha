@@ -2,18 +2,18 @@ import json
 from pathlib import Path
 from typing import Dict, Any, List, TYPE_CHECKING, Optional
 import logging
-from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer 
-from ...shared.infrastructure import utils
-from ...shared.rendering.template_engine import TemplateEngine
-from ...shared.domain.protocols.visualization_protocol import VisualizationProvider
-from ...shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
-from ...shared.data.data_builders import UnitDataBuilder
-from ...shared.domain.grading import Grader, GradingThresholds
-from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
+from nibandha.reporting.shared.infrastructure import utils
+from nibandha.reporting.shared.rendering.template_engine import TemplateEngine
+from nibandha.reporting.shared.domain.protocols.visualization_protocol import VisualizationProvider
+from nibandha.reporting.shared.domain.protocols.template_provider_protocol import TemplateProviderProtocol
+from nibandha.reporting.shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
+from nibandha.reporting.shared.data.data_builders import UnitDataBuilder
+from nibandha.reporting.shared.domain.grading import Grader, GradingThresholds
+from nibandha.reporting.shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
 
 if TYPE_CHECKING:
-    from ...shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
-    from ...shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
+    from nibandha.reporting.shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
+    from nibandha.reporting.shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
 
 logger = logging.getLogger("nibandha.reporting.unit")
 
@@ -23,7 +23,7 @@ class UnitReporter:
         output_dir: Path, 
         templates_dir: Path, 
         docs_dir: Path,
-        template_engine: Optional[TemplateEngine] = None,
+        template_engine: Optional[TemplateProviderProtocol] = None,
         viz_provider: Optional[VisualizationProvider] = None,
         module_discovery: Optional["ModuleDiscoveryProtocol"] = None,
         source_root: Optional[Path] = None,
@@ -57,7 +57,7 @@ class UnitReporter:
         self.viz_provider.generate_unit_test_charts(enriched_data, self.images_dir)
         logger.debug("Unit charts generated.")
 
-        from ...shared.constants import (
+        from nibandha.reporting.shared.constants import (
             PROJECT_ROOT_MARKER, ASSETS_IMAGES_DIR_REL, 
             COLOR_PASS, COLOR_FAIL, COLOR_WARNING, COLOR_NEUTRAL
         )
@@ -72,10 +72,11 @@ class UnitReporter:
         return enriched_data
 
     def _enrich_data_for_template(self, report_data: Dict[str, Any], original_pytest: Dict[str, Any], original_cov: Dict[str, Any]) -> Dict[str, Any]:
-        from ...shared.constants import (
+        from nibandha.reporting.shared.constants import (
             PROJECT_ROOT_MARKER, ASSETS_IMAGES_DIR_REL,
             IMG_PATH_UNIT_OUTCOMES, IMG_PATH_UNIT_COVERAGE,
-            IMG_PATH_UNIT_DURATIONS, IMG_PATH_UNIT_SLOWEST
+            IMG_PATH_UNIT_DURATIONS, IMG_PATH_UNIT_SLOWEST,
+            IMG_PATH_UNIT_MODULE_DURATIONS
         )
         
         logger.debug("Enriching report data with coverage and documentation metrics")
@@ -232,6 +233,13 @@ class UnitReporter:
                  "path": ASSETS_IMAGES_DIR_REL + IMG_PATH_UNIT_SLOWEST,
                  "type": "bar_chart",
                  "description": "Top 10 slowest unit tests by execution time"
+             },
+             {
+                 "id": "fig-unit-5",
+                 "title": "Module execution duration comparison",
+                 "path": ASSETS_IMAGES_DIR_REL + IMG_PATH_UNIT_MODULE_DURATIONS,
+                 "type": "bar_chart",
+                 "description": "Execution time comparison by module"
              }
         ]
         

@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional
 import logging
 import toml
 
-from ...shared.rendering.template_engine import TemplateEngine
+from nibandha.reporting.shared.rendering.template_engine import TemplateEngine
 
 logger = logging.getLogger("nibandha.reporting.report_cover")
 

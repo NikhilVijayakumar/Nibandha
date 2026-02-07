@@ -6,7 +6,7 @@ figures, tables, and nomenclature from multiple report generators.
 """
 
 from typing import Protocol
-from ..reference_models import FigureReference, TableReference, NomenclatureItem, GlobalReferences
+from nibandha.reporting.shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem, GlobalReferences
 
 
 class ReferenceCollectorProtocol(Protocol):

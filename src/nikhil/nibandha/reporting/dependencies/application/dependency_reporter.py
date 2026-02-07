@@ -1,17 +1,20 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, List, Optional, TYPE_CHECKING, Tuple
-from ...shared.infrastructure.visualizers import matplotlib_impl as visualizer
-from ...shared.infrastructure import utils
-from ...dependencies.infrastructure.analysis.module_scanner import ModuleScanner
-from ...shared.rendering.template_engine import TemplateEngine
-from ...shared.domain.grading import Grader
-from ...shared.domain.reference_models import FigureReference, TableReference, NomenclatureItem
-from ...shared.constants import IMG_PATH_MODULE_DEPENDENCIES, IMG_PATH_DEPENDENCY_MATRIX
-
-if TYPE_CHECKING:
-    from ...shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
+from typing import Dict, Any, List, Optional, TYPE_CHECKING, Tuple, TYPE_CHECKING
+from nibandha.reporting.shared.infrastructure import utils
+from nibandha.reporting.shared.infrastructure.visualizers.default_visualizer import DefaultVisualizationProvider
+from nibandha.reporting.shared.domain.protocols.visualization_protocol import VisualizationProvider
+from nibandha.reporting.shared.domain.protocols.template_provider_protocol import TemplateProviderProtocol
+from nibandha.reporting.dependencies.infrastructure.analysis.module_scanner import ModuleScanner
+from nibandha.reporting.shared.rendering.template_engine import TemplateEngine
+from nibandha.reporting.shared.domain.grading import Grader
+from nibandha.reporting.shared.domain.reference_models import FigureReference, TableReference
+from nibandha.reporting.shared.constants import (
+    REPORT_ORDER_DEPENDENCY, ASSETS_IMAGES_DIR_REL,
+    IMG_PATH_MODULE_DEPENDENCIES, IMG_PATH_DEPENDENCY_MATRIX
+)
+from nibandha.reporting.shared.domain.protocols.reference_collector_protocol import ReferenceCollectorProtocol
 
 logger = logging.getLogger("nibandha.reporting.dependencies")
 
@@ -20,7 +23,8 @@ class DependencyReporter:
         self, 
         output_dir: Path, 
         templates_dir: Path,
-        template_engine: Optional[TemplateEngine] = None,
+        template_engine: Optional[TemplateProviderProtocol] = None,
+        viz_provider: Optional[VisualizationProvider] = None,
         reference_collector: Optional["ReferenceCollectorProtocol"] = None
     ):
         self.output_dir = output_dir
@@ -31,6 +35,7 @@ class DependencyReporter:
         self.assets_dir.mkdir(parents=True, exist_ok=True)
         
         self.template_engine = template_engine or TemplateEngine(templates_dir)
+        self.viz_provider = viz_provider or DefaultVisualizationProvider()
         self.reference_collector = reference_collector
 
     def generate(self, source_root: Path, package_roots: Optional[List[str]] = None, project_name: str = "Project") -> Dict[str, Any]:
@@ -46,8 +51,7 @@ class DependencyReporter:
         isolated = scanner.get_isolated_modules()
         
         # Visuals
-        visualizer.plot_dependency_graph(dependencies, self.assets_dir / "module_dependencies.png", circular_deps)
-        visualizer.plot_dependency_matrix(dependencies, self.assets_dir / "dependency_matrix.png")
+        self.viz_provider.generate_dependency_charts(dependencies, self.assets_dir)
         
         # Report
         self._generate_report(dependencies, circular_deps, most_imported, most_dependent, isolated, project_name)
@@ -111,7 +115,7 @@ class DependencyReporter:
         return fan_in
 
     def _determine_grade(self, mod: str, f_out: int, circular_modules: Any) -> Tuple[str, str]:
-        from ...shared.constants import COUPLING_HIGH_THRESHOLD, COUPLING_MODERATE_THRESHOLD, COUPLING_LOW_THRESHOLD
+        from nibandha.reporting.shared.constants import COUPLING_HIGH_THRESHOLD, COUPLING_MODERATE_THRESHOLD, COUPLING_LOW_THRESHOLD
         
         if mod in circular_modules:
             return "F", "Circular Dependency"
@@ -173,7 +177,7 @@ class DependencyReporter:
             type="network_graph",
             description="Visual representation of module inter-dependencies",
             source_report="dependencies",
-            report_order=11
+            report_order=REPORT_ORDER_DEPENDENCY
         ))
         self.reference_collector.add_figure(FigureReference(
             id="fig-dep-matrix",
@@ -182,12 +186,12 @@ class DependencyReporter:
             type="matrix",
             description="Adjacency matrix of module dependencies",
             source_report="dependencies",
-            report_order=11
+            report_order=REPORT_ORDER_DEPENDENCY
         ))
         self.reference_collector.add_table(TableReference(
             id="table-module-grades",
             title="Module coupling grades",
             description="Assessment of module coupling (fan-in/fan-out) and cyclomatic dependencies",
             source_report="dependencies",
-            report_order=11
+            report_order=REPORT_ORDER_DEPENDENCY
         ))

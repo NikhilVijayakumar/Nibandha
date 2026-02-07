@@ -5,20 +5,21 @@ from pathlib import Path
 from nibandha.reporting.shared.application.generator import ReportGenerator
 from nibandha.configuration.domain.models.app_config import AppConfig
 from nibandha.configuration.domain.models.reporting_config import ReportingConfig
+from nibandha.reporting.shared.application.orchestration.orchestrator import ReportingOrchestrator
 
 @pytest.fixture
 def mock_reporters():
-    with patch("nibandha.reporting.shared.application.generator.introduction_reporter") as intro, \
-         patch("nibandha.reporting.shared.application.generator.unit_reporter") as unit, \
-         patch("nibandha.reporting.shared.application.generator.e2e_reporter") as e2e, \
-         patch("nibandha.reporting.shared.application.generator.quality_reporter") as qual, \
-         patch("nibandha.reporting.shared.application.generator.dependency_reporter") as dep, \
-         patch("nibandha.reporting.shared.application.generator.package_reporter") as pkg, \
-         patch("nibandha.reporting.shared.application.generator.documentation_reporter") as doc, \
-         patch("nibandha.reporting.shared.application.generator.TemplateEngine") as templ, \
-         patch("nibandha.reporting.shared.application.generator.DefaultVisualizationProvider") as viz, \
-         patch("nibandha.reporting.shared.application.generator.SummaryDataBuilder") as summ, \
-         patch("nibandha.reporting.shared.application.generator.ReferenceCollector") as ref:
+    # Update patches to point to where they are imported/used (reporter_factory)
+    with patch("nibandha.reporting.shared.application.generator.reporter_factory.introduction_reporter") as intro, \
+         patch("nibandha.reporting.shared.application.generator.reporter_factory.unit_reporter") as unit, \
+         patch("nibandha.reporting.shared.application.generator.reporter_factory.e2e_reporter") as e2e, \
+         patch("nibandha.reporting.shared.application.generator.reporter_factory.quality_reporter") as qual, \
+         patch("nibandha.reporting.shared.application.generator.reporter_factory.dependency_reporter") as dep, \
+         patch("nibandha.reporting.shared.application.generator.reporter_factory.package_reporter") as pkg, \
+         patch("nibandha.reporting.shared.application.generator.reporter_factory.documentation_reporter") as doc, \
+         patch("nibandha.reporting.shared.application.generator.reporter_factory.TemplateEngine") as templ, \
+         patch("nibandha.reporting.shared.application.generator.reporter_factory.DefaultVisualizationProvider") as viz, \
+         patch("nibandha.reporting.shared.application.generator.reporter_factory.ReferenceCollector") as ref:
         
         yield {
             "intro": intro, "unit": unit, "e2e": e2e, "qual": qual, 
@@ -36,7 +37,8 @@ def test_init_with_app_config(mock_reporters):
     gen = ReportGenerator(config=config)
     
     assert gen.project_name == "MyApp"
-    assert "custom/report" in str(gen.output_dir)
+    # Normalize path separators for comparison
+    assert str(Path("custom/report").resolve()) == str(gen.output_dir)
 
 def test_init_with_reporting_config(mock_reporters, tmp_path):
     # Ensure model is ready
@@ -59,89 +61,29 @@ def test_determine_source_root_defaults(mock_cwd, mock_reporters, tmp_path):
     mock_cwd.return_value = tmp_path
     gen = ReportGenerator()
     # Should fallback to cwd/src -> tmp_path/src
-    assert gen._determine_source_root() == tmp_path / "src"
+    assert gen.source_root == tmp_path / "src"
 
 @patch("pathlib.Path.cwd")
 def test_determine_source_root_nested(mock_cwd, mock_reporters):
-    # Simulate nested structure exists
+    # Logic moved to ConfigurationFactory, just ensure it runs without error
     mock_cwd.return_value = Path("/root")
-    
-    with patch("pathlib.Path.exists") as mock_exists:
-        # /root/src exists
-        # /root/src/nikhil/nibandha exists
-        def side_effect(self):
-            s = str(self)
-            return "src" in s # Simplify existence check
-        
-        # This is tricky to mock purely with pathlib objects without fs.
-        # Let's trust logic flow: if checks candidate exists, return it.
-        pass # Skipping complex path IO mock for now, reliance on defaults coverage.
+    gen = ReportGenerator()
+    assert gen.source_root is not None
 
-def test_run_unit_tests(mock_reporters, tmp_path):
-    with patch("nibandha.reporting.shared.infrastructure.utils.run_pytest") as mock_run, \
-         patch("nibandha.reporting.shared.infrastructure.utils.load_json") as mock_load:
-        
-        gen = ReportGenerator(output_dir=str(tmp_path))
-        gen.run_unit_Tests("tests", "timestamp")
-        
-        mock_run.assert_called_once()
-        # Verify coverage target default included
-        args = mock_run.call_args[0]
-        assert args[0] == "tests" # target
-        assert "unit.json" in str(args[1]) # json_path
-
-def test_generate_all_flow(mock_reporters, tmp_path):
+@patch("nibandha.reporting.shared.application.generator.report_generator.ReportingOrchestrator")
+def test_generate_all_flow(mock_orchestrator, mock_reporters, tmp_path):
     gen = ReportGenerator(output_dir=str(tmp_path))
     
-    # Mock internal methods to avoid execution
-    gen.run_unit_Tests = Mock(return_value={})
-    gen.run_e2e_Tests = Mock(return_value={})
-    gen.run_quality_checks = Mock(return_value={})
-    gen.run_dependency_checks = Mock(return_value={})
-    gen.run_package_checks = Mock(return_value={})
-    gen._generate_global_references = Mock()
-    gen._export_reports = Mock()
-    
-    # Mock doc reporter generate
-    gen.doc_reporter.generate.return_value = {}
-    
+    # Execute
     gen.generate_all()
     
-    gen.intro_reporter.generate.assert_called_once()
-    gen.run_unit_Tests.assert_called_once()
-    gen.run_e2e_Tests.assert_called_once()
-    gen._generate_global_references.assert_called_once()
-    gen._export_reports.assert_called_once()
+    # Verify Orchestrator initialized and run
+    mock_orchestrator.assert_called_once()
+    instance = mock_orchestrator.return_value
+    instance.run.assert_called_once()
 
-def test_export_reports_no_service(mock_reporters, tmp_path):
-    gen = ReportGenerator(output_dir=str(tmp_path))
-    gen.export_service = None
-    gen._export_reports() # Should return early safely
-    
-def test_export_reports_with_service(mock_reporters, tmp_path):
-    gen = ReportGenerator(output_dir=str(tmp_path))
-    gen.export_service = Mock()
-    gen.export_formats = ["html"]
-    
-    # Create fake detail file
-    (tmp_path / "details").mkdir()
-    (tmp_path / "details" / "01_introduction.md").touch()
-    
-    gen._export_reports()
-    
-    gen.export_service.export_unified_report.assert_called_once()
-
-def test_extract_project_info(mock_reporters, tmp_path):
-    gen = ReportGenerator(output_dir=str(tmp_path))
-    data_dir = tmp_path / "assets" / "data"
-    data_dir.mkdir(parents=True)
-    
-    # Missing file
-    info = gen._extract_project_info()
-    assert info["name"] == "Nibandha"
-    
-    # Existing file
-    (data_dir / "summary_data.json").write_text('{"display_grade": "A", "overall_status": "Good"}', encoding="utf-8")
-    info = gen._extract_project_info()
-    assert info["grade"] == "A"
-    assert info["status"] == "Good"
+    # Verify context and steps passed to orchestrator
+    args, _ = mock_orchestrator.call_args
+    context, steps = args
+    assert context.project_name == "Nibandha"
+    assert len(steps) > 0

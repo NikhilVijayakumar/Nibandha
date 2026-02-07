@@ -10,7 +10,7 @@ import logging
 logger = logging.getLogger("nibandha.export.dashboard")
 
 
-from .base_exporter import BaseHTMLExporter
+from nibandha.export.infrastructure.base_exporter import BaseHTMLExporter
 
 class ModernDashboardExporter(BaseHTMLExporter):
     """Exports markdown to modern sidebar-based dashboard HTML."""

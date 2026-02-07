@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 from typing import Optional, List
 
-from ..domain.protocols.exporter import ExporterProtocol
+from nibandha.export.domain.protocols.exporter import ExporterProtocol
 
 logger = logging.getLogger("nibandha.export.docx")
 
