@@ -21,3 +21,20 @@ class AppConfig(BaseModel):
     log_dir: Optional[str] = Field(None, description="Override default logs directory")
     report_dir: Optional[str] = Field(None, description="Override default report directory")
     config_dir: Optional[str] = Field(None, description="Override default config directory")
+    
+    # Root Configuration
+    root: Optional['RootConfig'] = Field(None, description="Configuration for the Unified Root")
+    
+    # Reporting Configuration
+    reporting: Optional['ReportingConfig'] = Field(None, description="Configuration for Reporting")
+    
+    # Logging Configuration
+    logging: Optional['LogRotationConfig'] = Field(None, description="Configuration for Log Rotation")
+
+from nibandha.configuration.domain.models.root_config import RootConfig
+from nibandha.configuration.domain.models.reporting_config import ReportingConfig
+from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
+from nibandha.reporting.shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
+
+ReportingConfig.model_rebuild()
+AppConfig.model_rebuild()

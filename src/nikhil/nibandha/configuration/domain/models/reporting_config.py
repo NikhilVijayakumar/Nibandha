@@ -10,8 +10,10 @@ class ReportingConfig(BaseModel):
     Configuration for the Reporting Module.
     """
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
-    output_dir: Path = Field(..., description="Directory where reports will be generated")
-    docs_dir: Path = Field(..., description="Directory containing test documentation scenarios")
+    
+    # Directories (Can be inferred from App Context if None)
+    output_dir: Optional[Path] = Field(None, description="Directory where reports will be generated")
+    docs_dir: Optional[Path] = Field(None, description="Directory containing test documentation scenarios")
     template_dir: Optional[Path] = Field(None, description="Optional directory for custom templates")
     
     # Project Metadata
@@ -19,7 +21,9 @@ class ReportingConfig(BaseModel):
     
     # Analysis Targets
     quality_target: str = Field("src", description="Target directory/package for quality checks")
-    package_roots: List[str] = Field(default=[], description="List of package roots for dependency analysis (e.g. ['nikhil', 'nibandha'])")
+    package_roots: List[str] = Field(default=[], description="List of package roots for dependency analysis")
+    unit_target: str = Field("tests/unit", description="Target directory for unit tests")
+    e2e_target: str = Field("tests/e2e", description="Target directory for E2E tests")
     
     doc_paths: Dict[str, Path] = Field(
         default_factory=lambda: {
@@ -31,7 +35,7 @@ class ReportingConfig(BaseModel):
     )
     module_discovery: Optional["ModuleDiscoveryProtocol"] = Field(
         None,
-        description="Optional custom module discovery protocol for flexible architecture support"
+        description="Optional custom module discovery protocol"
     )
     export_formats: List[str] = Field(
         default=["md"],

@@ -219,13 +219,19 @@ class DocumentationReporter:
         return ", ".join(missing)
 
     def _resolve_doc_path(self, root: Path, module: str, category: str) -> Path:
-        """Resolves documentation path, checking 'docs/features' then 'docs/modules'."""
-        features_path = root / "docs" / "features" / module.lower() / category
-        modules_path = root / "docs" / "modules" / module.lower() / category
+        """
+        Resolves documentation path using configured base paths.
+        Logic: {doc_path_for_category} / {module}
+        Example: If functional="docs/features", looks in "docs/features/{module}"
+        """
+        base_path = self.doc_paths.get(category)
+        if base_path:
+             # Handle relative paths by prepending root, absolute paths remain absolute
+             full_base = root / base_path if not base_path.is_absolute() else base_path
+             return full_base / module.lower()
         
-        if features_path.exists():
-            return features_path
-        return modules_path
+        # Fallback to legacy default if key missing (shouldn't happen with proper config defaults)
+        return root / "docs" / "modules" / module.lower() / category
 
     def _check_functional(self, root: Path, modules: List[str]) -> Dict[str, Any]:
         results = {}
@@ -235,7 +241,10 @@ class DocumentationReporter:
         
         for mod in modules:
             code_ts = self._get_code_timestamp(root, mod)
+            # Use configured path for "functional"
             mod_func_dir = self._resolve_doc_path(root, mod, "functional")
+            
+            # Check for README.md or generic content
             func_path = mod_func_dir / "README.md"
             
             exists = func_path.exists()

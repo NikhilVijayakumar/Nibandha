@@ -1,7 +1,7 @@
 import logging
 import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any, Union, List
+from typing import Optional, Dict, Any, Union, List, Tuple
 
 # Core
 from nibandha.reporting.shared.infrastructure import utils
@@ -135,6 +135,45 @@ class ReportGenerator:
         # 3. Create and Run Orchestrator
         orchestrator = ReportingOrchestrator(context, steps)
         orchestrator.run()
+
+    def verify_generation(self) -> Tuple[bool, List[str]]:
+        """
+        Verifies that all expected report artifacts have been generated.
+        Returns (True, []) if all exist, else (False, [missing_files]).
+        """
+        expected_details = [
+            "00_cover_page.md",
+            "01_introduction.md",
+            "03_unit_report.md",
+            "04_e2e_report.md",
+            "05_architecture_report.md",
+            "06_type_safety_report.md",
+            "07_complexity_report.md",
+            "08_code_hygiene_report.md",
+            "09_duplication_report.md",
+            "10_security_report.md",
+            "11_module_dependency_report.md",
+            "12_package_dependency_report.md",
+            "13_documentation_report.md",
+            "14_encoding_report.md",
+            "15_conclusion.md"
+        ]
+        
+        missing = []
+        details_dir = self.output_dir / "details"
+        
+        for filename in expected_details:
+            if not (details_dir / filename).exists():
+                missing.append(f"details/{filename}")
+                
+        # Also check for the unified report if export was requested (default is md)
+        # Assuming unified report is always generated? 
+        # The orchestrator logic suggests 'ExportStep' handles this.
+        # Usually it's in output_dir / "unified_report.md" or similar. 
+        # But looking at previous verify_system, it didn't check for unified.
+        # Let's stick to checking detailed reports as they are the source of truth for "15 reports".
+        
+        return (len(missing) == 0, missing)
 
     # Legacy methods removed for clean implementation
 

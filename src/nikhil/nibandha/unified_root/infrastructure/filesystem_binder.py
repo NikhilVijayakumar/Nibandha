@@ -12,8 +12,46 @@ class FileSystemBinder:
     def __init__(self, rotation_config: Optional[LogRotationConfig] = None):
         self.rotation_config = rotation_config
 
+    def _get_project_name_from_toml(self) -> str:
+        """Attempts to read the project name from pyproject.toml in the current working directory."""
+        try:
+            import toml
+            if Path("pyproject.toml").exists():
+                data = toml.load("pyproject.toml")
+                # Try poetry format
+                if "tool" in data and "poetry" in data["tool"]:
+                    return data["tool"]["poetry"]["name"]
+                # Try standard project format
+                if "project" in data:
+                    return data["project"]["name"]
+        except Exception:
+            pass # Fallback if toml library missing or file error
+        return "Nibandha" # Default fallback
+
+    def _create_custom_structure(self, base_path: Path, structure: dict):
+        """Recursively creates custom folder structure."""
+        for name, content in structure.items():
+            current_path = base_path / name
+            current_path.mkdir(parents=True, exist_ok=True)
+            if isinstance(content, dict):
+                self._create_custom_structure(current_path, content)
+
     def bind(self, config: AppConfig, root_name: str = ".Nibandha") -> RootContext:
-        root = Path(root_name)
+        # Resolve Root Name
+        resolved_root_name = root_name
+        
+        # Priority 1: explicitly passed root_name (legacy compat or override)
+        # Priority 2: config.root.name
+        # Priority 3: pyproject.toml name (prefixed with .)
+        # Priority 4: Default ".Nibandha"
+        
+        if config.root and config.root.name:
+            resolved_root_name = config.root.name
+        elif root_name == ".Nibandha": # Only override if it's the default
+            project_name = self._get_project_name_from_toml()
+            resolved_root_name = f".{project_name}"
+
+        root = Path(resolved_root_name)
         app_root = root / config.name
         
         # Path Resolution from Config or Defaults
@@ -33,13 +71,6 @@ class FileSystemBinder:
         # Calculate folders to create
         folders_to_create: List[Optional[Path]] = [
             context.config_dir,
-            context.report_dir, # Note: Pydantic models use dot notation usually, but keeping simple
-            context.log_base if not self.rotation_config else None
-        ]
-
-        # Use dot notation as standard pydantic access
-        folders_to_create = [
-            context.config_dir,
             context.report_dir
         ]
 
@@ -51,13 +82,17 @@ class FileSystemBinder:
              # Legacy logs folder
              folders_to_create.append(context.log_base / "logs")
              
-        # Custom Folders (always relative to app_root)
-        for cf in config.custom_folders:
-            folders_to_create.append(context.app_root / cf)
-            
-        # Create directories
+        # Create standard directories
         for folder in folders_to_create:
             if folder:
                 folder.mkdir(parents=True, exist_ok=True)
-                
+
+        # Custom Folders (Legacy List)
+        for cf in config.custom_folders:
+            (context.app_root / cf).mkdir(parents=True, exist_ok=True)
+            
+        # Custom Structure (New Recursive)
+        if config.root and config.root.custom_structure:
+            self._create_custom_structure(context.app_root, config.root.custom_structure)
+
         return context

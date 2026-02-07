@@ -1,8 +1,8 @@
 # Python Environment & Structure Rules
 
 ## Environment Management
-- **Virtual Environment:** Always use the local virtual environment located at `./.venv`. 
-- **Execution:** Before running any Python command (pytest, scripts, etc.), ensure it is executed via the venv (e.g., `./.venv/bin/python` or `source .venv/bin/activate`).
+- **Virtual Environment:** Always use the local virtual environment located at `./venv` (or `./.venv`). 
+- **Execution:** Before running any Python command (pytest, scripts, etc.), ensure it is executed via the venv (e.g., `./venv/Scripts/python.exe` or `source venv/bin/activate`).
 - **Dependencies:** DO NOT just install packages. Always update `pyproject.toml` first and then use your package manager (e.g., `pip`, `poetry`, or `pdm`) to sync.
 
 ## Project Structure
