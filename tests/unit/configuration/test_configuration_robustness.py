@@ -73,7 +73,8 @@ def test_bootstrap_interactive_setup(tmp_path, app_config):
     # Mock RotationManager to return None on load_config
     # And return valid config on prompt
     
-    with patch("nibandha.unified_root.bootstrap.RotationManager") as MockRM:
+    # Updated patch path to where RotationManager is actually used (LoggingCoordinator)
+    with patch("nibandha.logging.application.logging_coordinator.RotationManager") as MockRM:
         instance = MockRM.return_value
         instance.load_config.return_value = None
         
@@ -87,7 +88,7 @@ def test_bootstrap_interactive_setup(tmp_path, app_config):
         
         # Call bind with interactive=True
         # Need to mock setup_logger to avoid real file issues?
-        with patch("nibandha.unified_root.bootstrap.setup_logger"):
+        with patch("nibandha.logging.application.logging_coordinator.setup_logger"):
             root.bind(interactive_setup=True)
         
         # Verify prompt called
@@ -96,13 +97,13 @@ def test_bootstrap_interactive_setup(tmp_path, app_config):
 
 def test_bootstrap_default_setup_no_rot(tmp_path, app_config):
     # Case where load fails/None, interactive=False -> enabled=False
-    with patch("nibandha.unified_root.bootstrap.RotationManager") as MockRM:
+    with patch("nibandha.logging.application.logging_coordinator.RotationManager") as MockRM:
         instance = MockRM.return_value
         instance.load_config.return_value = None
         
         root = Nibandha(app_config, root_name=str(tmp_path))
         
-        with patch("nibandha.unified_root.bootstrap.setup_logger"):
+        with patch("nibandha.logging.application.logging_coordinator.setup_logger"):
             root.bind(interactive_setup=False)
             
         instance.save_config.assert_called()

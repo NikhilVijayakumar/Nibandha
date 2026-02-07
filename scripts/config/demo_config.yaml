@@ -1,9 +1,26 @@
 app:
   name: "VerificationApp"
-  log_level: "DEBUG"
-  custom_folders:
-    - "data"
-    - "temp"
-
-reporting:
-  docs_dir: "docs"
+  log_level: "INFO"
+  
+  # New Logging Configuration
+  logging:
+    enabled: true
+    max_size_mb: 5
+    rotation_interval_hours: 24
+    archive_retention_days: 7
+    backup_count: 3
+    # Unified Root Structure implied: .Nibandha/VerificationApp/logs/data/
+    
+  # Reporting Configuration
+  reporting:
+    quality_target: "src/nikhil/nibandha"
+    package_roots: ["nikhil", "nibandha"]
+    unit_target: "tests/unit"
+    e2e_target: "tests/e2e/reporting"
+    export_formats: ["md", "html"]
+    
+    # Custom Documentation Paths (as requested)
+    doc_paths:
+      functional: "docs/specs/functional"
+      technical: "docs/specs/technical"
+      test: "docs/specs/test"

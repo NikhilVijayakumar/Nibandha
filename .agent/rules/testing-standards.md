@@ -24,5 +24,14 @@ Before creating or modifying a test:
 - **OS Agnostic:** Use `pathlib` for all paths. Ensure compatibility with Windows, Linux, and macOS.
 
 ## 5. Isolation & Cleanup
-- **Filesystem:** Always use the `tmp_path` fixture. Never write to the real project root.
+- **File System:** Always use the `tmp_path` fixture. Never write to the real project root.
 - **State:** Use fixtures to reset logs/handlers after every test run.
+
+## 6. Coverage Requirements
+- **Unit Tests:**
+    - **Happy Path:** Verify the function works with valid input.
+    - **Corner Cases:** Verify behavior with edge cases (empty lists, None, max values).
+    - **Validation:** Verify it raises expected exceptions for invalid input.
+- **E2E Tests:**
+    - **Full Validation:** Test ALL user-facing validation scenarios.
+    - **Integration:** Verify the flow from entry point to exit.

@@ -27,6 +27,11 @@ For every identified sub-module `{sub}`, and the final integration layer, create
 - `tests/unit/{module}/integration/test_glue_unit.py`: Tests the wiring/contracts between sub-modules.
 - `tests/e2e/{module}/integration/test_full_flow_e2e.py`: End-to-end lifecycle from trigger to final output.
 
+## 3. Coverage Mandate
+Tests MUST strictly follow `testing-standards.md`:
+- **Unit:** Happy Path + Corner Cases + Validation (Errors).
+- **E2E:** Full user validation + Integration flow.
+
 ## 3. Physical Requirements
 - **Traceability:** Every test function must be decorated or commented with the Blueprint ID (e.g., `# ID: AR-UT-001`).
 - **Fail-by-Default:** Tests should contain `pytest.fail("Implementation Pending")` or a failing `assert` until the Clean-Implementation agent builds the logic.

@@ -14,9 +14,11 @@ from nibandha.reporting.shared.infrastructure.visualizers.plotters.documentation
 from nibandha.reporting.shared.infrastructure.visualizers.plotters.performance_plotter import PerformancePlotter
 from nibandha.reporting.shared.infrastructure.visualizers.plotters.conclusion_plotter import ConclusionPlotter
 
+from nibandha.reporting.shared.domain.protocols.visualization_protocol import VisualizationProvider
+
 logger = logging.getLogger("nibandha.reporting")
 
-class DefaultVisualizationProvider:
+class DefaultVisualizationProvider(VisualizationProvider):
     """
     Default implementation of visualization generation.
     Uses modular plotters via composition.

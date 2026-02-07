@@ -21,7 +21,7 @@ class TestLoggingConfiguration:
         # Verify default timestamp format is daily
         assert nb.rotation_config.timestamp_format == "%Y-%m-%d"
         
-    @patch('nibandha.unified_root.bootstrap.datetime')
+    @patch('nibandha.logging.application.logging_coordinator.datetime')
     @patch('nibandha.logging.infrastructure.rotation_manager.datetime')
     def test_daily_log_consolidation(self, mock_rm_dt, mock_boot_dt, temp_root, sample_app_config):
         """Test that logs consolidate into same daily file on restart"""

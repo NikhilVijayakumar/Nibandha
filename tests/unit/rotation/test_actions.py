@@ -56,6 +56,7 @@ class TestRotationActions:
             base_time = datetime(2035, 1, 1, 12, 0, 0)
             mock_dt.now.return_value = base_time
             mock_dt.fromtimestamp = datetime.fromtimestamp # Keep valid
+            mock_dt.strptime = datetime.strptime
             mock_dt.strftime = datetime.strftime
             
             # Need to ensure that when rotate_logs calls now(), it gets NEW time
