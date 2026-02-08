@@ -27,19 +27,44 @@ class FileConfigLoader:
             ValueError: If the file format is not supported or invalid.
             ValidationError: If the data does not match the model schema.
         """
-        if not path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {path}")
+        try:
+            if not path.exists():
+                raise FileNotFoundError(f"Configuration file not found: {path}")
+                
+            content = path.read_text(encoding="utf-8")
             
-        content = path.read_text(encoding="utf-8")
-        
-        if path.suffix in (".yaml", ".yml"):
-            data = yaml.safe_load(content)
-        elif path.suffix == ".json":
-            data = json.loads(content)
-        else:
-            raise ValueError(f"Unsupported configuration format: {path.suffix}")
+            if path.suffix in (".yaml", ".yml"):
+                data = yaml.safe_load(content)
+            elif path.suffix == ".json":
+                data = json.loads(content)
+            else:
+                raise ValueError(f"Unsupported configuration format: {path.suffix}")
+                
+            # Validate and sanitize robustly
+            from nibandha.configuration.infrastructure.robust_validator import RobustConfigValidator
+            validator = RobustConfigValidator()
+            clean_data = validator.validate_and_sanitize(model, data or {})
             
-        return model(**(data or {}))
+            # Log audit trail (info/debug level)
+            for log_entry in validator.audit_log:
+                 # Using print for visibility in sandbox reports, can use logger later
+                 # print(log_entry) 
+                 pass # Or log.info(log_entry) if logger configured
+                 
+            return model(**clean_data)
+
+        except (FileNotFoundError, ValueError, yaml.YAMLError, json.JSONDecodeError, OSError) as e:
+            # Observability: Log the specific error details but fall back to defaults
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"❌ Failed to load configuration from {path}: {type(e).__name__}: {str(e)}")
+            logger.warning("⚠️  Application starting with DEFAULT configuration due to load failure.")
+            
+            # Additional detail for debugging (simulated detailed observability)
+            print(f"ERROR: Configuration Load Failure: {e}") 
+            print("INFO: Falling back to default configuration.")
+            
+            return model()
 
     def save(self, path: Path, config: BaseModel) -> None:
         """

@@ -1,26 +1,32 @@
-app:
-  name: "VerificationApp"
-  log_level: "INFO"
-  
-  # New Logging Configuration
-  logging:
-    enabled: true
-    max_size_mb: 5
-    rotation_interval_hours: 24
-    archive_retention_days: 7
-    backup_count: 3
-    # Unified Root Structure implied: .Nibandha/VerificationApp/logs/data/
-    
-  # Reporting Configuration
-  reporting:
-    quality_target: "src/nikhil/nibandha"
-    package_roots: ["nikhil", "nibandha"]
-    unit_target: "tests/unit"
-    e2e_target: "tests/e2e/reporting"
-    export_formats: ["md", "html"]
-    
-    # Custom Documentation Paths (as requested)
-    doc_paths:
-      functional: "docs/specs/functional"
-      technical: "docs/specs/technical"
-      test: "docs/specs/test"
+name: "VerificationApp"
+mode: "production"
+
+logging:
+  level: "INFO"
+  enabled: true
+  rotation_enabled: true
+  max_size_mb: 5
+  rotation_interval_hours: 24
+  archive_retention_days: 7
+  backup_count: 3
+  log_dir: "logs"
+
+reporting:
+  project_name: "VerificationApp"
+  quality_target: "src/nikhil/nibandha"
+  package_roots: ["nikhil", "nibandha"]
+  unit_target: "tests/unit"
+  e2e_target: "tests/e2e/reporting"
+  export_formats: ["md", "html"]
+  doc_paths:
+    functional: "docs/specs/functional"
+    technical: "docs/specs/technical"
+    test: "docs/specs/test"
+
+unified_root:
+  name: ".Nibandha"
+  custom_structure: {}
+
+export:
+  formats: ["md", "html"]
+  style: "default"

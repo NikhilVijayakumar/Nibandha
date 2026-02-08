@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project_name }}</title>
+    <style>
+{{ css }}
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1>{{ project_name }}</h1>
+                <div class="header-meta">
+                    <span class="status">{{ status }}</span>
+                    <span class="grade grade-{{ grade|lower }}">{{ grade }}</span>
+                </div>
+            </div>
+        </header>
+        
+        <nav class="navigation">
+            <div class="tabs">
+            {%- for section in sections %}
+                <button class="tab{% if loop.first %} active{% endif %}" data-tab="{{ section.id }}">{{ section.title }}</button>
+            {%- endfor %}
+            </div>
+        </nav>
+        
+        <main class="content">
+            <div class="tab-contents">
+            {%- for section in sections %}
+                <div class="tab-content{% if loop.first %} active{% endif %}" id="{{ section.id }}">
+                    {{ section.content }}
+                </div>
+            {%- endfor %}
+            </div>
+        </main>
+    </div>
+    
+    <script>
+{{ javascript }}
+    </script>
+</body>
+</html>

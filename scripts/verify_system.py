@@ -11,8 +11,9 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 try:
-    from nibandha import Nibandha
+    from nibandha.core.nibandha_app import Nibandha
     from nibandha.configuration.domain.models.app_config import AppConfig
+    from nibandha.configuration.application.configuration_manager import ConfigurationManager
 except ImportError as e:
     print(f"❌ Import Error: {e}")
     sys.exit(1)
@@ -22,14 +23,20 @@ def main():
 
     # 1. Load Config
     config_path = Path(__file__).parent / "config" / "demo_config.yaml"
-    with open(config_path, 'r', encoding='utf-8') as f:
-        app_config = AppConfig(**yaml.safe_load(f).get('app', {}))
+    
+    # Use ConfigurationManager
+    try:
+        app_config = ConfigurationManager.load_from_yaml(config_path)
+    except Exception as e:
+        print(f"❌ Configuration Load Error: {e}")
+        sys.exit(1)
 
     print(f"✅ App Config Loaded: {app_config.name}")
     
     # Verify Logging Config
     if app_config.logging:
-        print(f"   [Logging] Enabled: {app_config.logging.enabled}")
+        print(f"   [Logging] Level: {app_config.logging.level}")
+        print(f"   [Logging] Rotation Enabled: {app_config.logging.rotation_enabled}")
         print(f"   [Logging] Retention: {app_config.logging.archive_retention_days} days")
     else:
         print("   ❌ Logging config missing!")
@@ -42,29 +49,30 @@ def main():
         print("   ❌ Reporting config missing!")
 
     # 2. Initialize & Bind
-    # Should use the logging config from AppConfig
-    app = Nibandha(app_config).bind()
+    # Using Builder Method
+    app = Nibandha.from_config(app_config).bind()
     print(f"✅ Bound to: {app.app_root}")
     
     # Verify app actually used the logging config
+    # Nibandha.rotation_config accesses internal coordinator's rotation config (LogRotationConfig)
     if app.rotation_config and app.rotation_config.backup_count == 3:
          print(f"   ✅ App applied logging config correctly (Backup Count: 3)")
     else:
          print(f"   ❌ App failed to apply logging config. Current: {app.rotation_config}")
 
-    # 3. Generate Reports (Zero Args)
+    # 3. Generate Reports
     print("\n[3] Generating Reports...")
-    # Generate report using correct config
-    # Note: verification might fail since 'docs/specs/functional' doesn't exist, but generation logic should run.
-    # We expect missing artifacts because the doc paths are fake, but the *configuration* passing is what we test.
-    
-    # We can handle missing docs gracefully, verification just checks report existence.
     try:
-        success, missing = app.generate_report()
+        # Note: We rely on the config to set targets, but we can override if needed.
+        # Here we trust the loaded config.
+        success, missing = app.generate_report(project_root=str(project_root))
+        
+        # We expect failure in "success" because doc paths in demo_config don't exist, 
+        # but if we get here, the ENGINE is working.
         if success:
             print("✅ Reports Generated & Verified Successfully!")
         else:
-            print(f"❌ Verification Failed (Expected if docs missing). Missing: {missing}")
+            print(f"⚠️  Verification checks failed (Expected for demo paths). Missing/Issues: {len(missing)}")
             
     except Exception as e:
         print(f"❌ Generation crashed: {e}")

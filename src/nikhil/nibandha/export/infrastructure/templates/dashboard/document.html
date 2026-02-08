@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project_name }}</title>
+    <style>
+{{ css }}
+    </style>
+</head>
+<body data-theme="light">
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="logo">Nibandha</h1>
+                <div class="grade-badge grade-{{ grade|lower }}">
+                    {{ grade }}
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+            {%- for section in sections %}
+                <a href="#{{ section.id }}" class="nav-link" data-section="{{ section.id }}">
+                    <span class="nav-icon">{{ section.icon }}</span>
+                    <span class="nav-text">{{ section.title }}</span>
+                </a>
+            {%- endfor %}
+            </nav>
+            <div class="sidebar-footer">
+                <button class="theme-toggle" onclick="toggleTheme()">
+                    <span class="icon">🌙</span>
+                    <span class="text">Dark Mode</span>
+                </button>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <div class="breadcrumb">
+                    <span class="status-badge status-{{ status|lower|replace(' ', '-') }}">
+                        {{ status }}
+                    </span>
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn btn-secondary" onclick="window.print()">
+                        <span>📄 Print</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="exportPDF()">
+                        <span>📥 Export PDF</span>
+                    </button>
+                </div>
+            </header>
+            
+            <div class="content-wrapper">
+            {%- for section in sections %}
+                <section id="{{ section.id }}" class="content-section">
+                    {%- if section.metrics_cards %}
+                    <div class="metrics-grid">
+                    {%- for card in section.metrics_cards %}
+                        <div class="metric-card card-{{ card.color|default('blue') }}">
+                            <div class="card-icon">{{ card.icon|default('📊') }}</div>
+                            <div class="card-content">
+                                <div class="card-title">{{ card.title|default('') }}</div>
+                                <div class="card-value">{{ card.value|default('') }}</div>
+                            </div>
+                        </div>
+                    {%- endfor %}
+                    </div>
+                    {%- endif %}
+                    <div class="section-content">
+                        {{ section.content }}
+                    </div>
+                </section>
+            {%- endfor %}
+            </div>
+        </main>
+    </div>
+    
+    <script>
+{{ javascript }}
+    </script>
+</body>
+</html>

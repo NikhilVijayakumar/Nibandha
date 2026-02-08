@@ -1,19 +1,13 @@
 from pathlib import Path
-from typing import Optional, Dict, TYPE_CHECKING, List
-from pydantic import BaseModel, Field, ConfigDict
-
-if TYPE_CHECKING:
-    from nibandha.reporting.shared.domain.protocols.module_discovery import ModuleDiscoveryProtocol
+from typing import Optional, Dict, List, Any, Union
+from pydantic import BaseModel, Field, ConfigDict, field_serializer
 
 class ReportingConfig(BaseModel):
-    """
-    Configuration for the Reporting Module.
-    """
-    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+    """Configuration for the Reporting Module."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     
-    # Directories (Can be inferred from App Context if None)
+    # Directories
     output_dir: Optional[Path] = Field(None, description="Directory where reports will be generated")
-    docs_dir: Optional[Path] = Field(None, description="Directory containing test documentation scenarios")
     template_dir: Optional[Path] = Field(None, description="Optional directory for custom templates")
     
     # Project Metadata
@@ -33,11 +27,18 @@ class ReportingConfig(BaseModel):
         },
         description="Map of documentation categories to paths"
     )
-    module_discovery: Optional["ModuleDiscoveryProtocol"] = Field(
+    module_discovery: Optional[Union[List[str], Any]] = Field(
         None,
-        description="Optional custom module discovery protocol"
+        description="Optional custom module discovery protocol (Object) or static list of modules (List[str])"
     )
-    export_formats: List[str] = Field(
-        default=["md"],
-        description="List of formats to export reports to (e.g. ['md', 'html', 'docx'])"
-    )
+
+    # Serialize all Path fields to POSIX format (forward slashes) for cross-platform compatibility
+    @field_serializer('output_dir', 'template_dir')
+    def serialize_path(self, path: Optional[Path], _info) -> Optional[str]:
+        """Convert Path to POSIX-style string (forward slashes)."""
+        return path.as_posix() if path else None
+    
+    @field_serializer('doc_paths')
+    def serialize_doc_paths(self, paths: Dict[str, Path], _info) -> Dict[str, str]:
+        """Convert all doc_paths to POSIX-style strings."""
+        return {key: val.as_posix() for key, val in paths.items()}

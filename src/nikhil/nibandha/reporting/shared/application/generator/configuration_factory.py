@@ -55,18 +55,30 @@ class ConfigurationResolver:
         return resolved
 
     def _configure_from_app_config(self, config: "AppConfig", resolved: Any) -> None:
-        raw_out = config.report_dir or ".Nibandha/Report"
-        resolved.output_dir = Path(raw_out).resolve()
-        resolved.docs_dir = Path("docs/test").resolve() # Default for AppConfig
-        resolved.templates_dir = self.default_templates_dir
-        resolved.project_name = config.name
+        # Delegate to reporting config logic
+        self._configure_from_reporting_config(config.reporting, resolved)
+        # Override project name if present in AppConfig
+        if config.name:
+            resolved.project_name = config.name
 
     def _configure_from_reporting_config(self, config: "ReportingConfig", resolved: Any) -> None:
         resolved.output_dir = config.output_dir
         resolved.docs_dir = config.docs_dir
         resolved.templates_dir = config.template_dir or self.default_templates_dir
-        resolved.module_discovery = config.module_discovery # type: ignore
-        resolved.project_name = config.project_name
+        
+        # Handle Module Discovery (Static List vs Protocol)
+        if isinstance(config.module_discovery, list):
+             from nibandha.reporting.shared.infrastructure.static_module_discovery import StaticModuleDiscovery
+             resolved.module_discovery = StaticModuleDiscovery(config.module_discovery)
+        else:
+             resolved.module_discovery = config.module_discovery # type: ignore
+             
+        # Use ReportingConfig.project_name if AppConfig didn't set it (logic order matters)
+        # But AppConfig delegate calls this first, so AppConfig name overrides correctly if we set it AFTER.
+        # Wait, if AppConfig sets it after, then ReportingConfig settings here are fine.
+        if hasattr(config, "project_name") and config.project_name != "Nibandha": # Specific check?
+             resolved.project_name = config.project_name
+             
         resolved.quality_target_default = config.quality_target
         resolved.package_roots_default = config.package_roots if config.package_roots else None # type: ignore
 

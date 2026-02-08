@@ -41,12 +41,12 @@ class FileSystemBinder:
         resolved_root_name = root_name
         
         # Priority 1: explicitly passed root_name (legacy compat or override)
-        # Priority 2: config.root.name
+        # Priority 2: config.unified_root.name
         # Priority 3: pyproject.toml name (prefixed with .)
         # Priority 4: Default ".Nibandha"
         
-        if config.root and config.root.name:
-            resolved_root_name = config.root.name
+        if config.unified_root and config.unified_root.name:
+            resolved_root_name = config.unified_root.name
         elif root_name == ".Nibandha": # Only override if it's the default
             project_name = self._get_project_name_from_toml()
             resolved_root_name = f".{project_name}"
@@ -54,10 +54,20 @@ class FileSystemBinder:
         root = Path(resolved_root_name)
         app_root = root / config.name
         
+        # Determine Single/Multi App Mode
+        # Same logic as AppConfig.resolve_paths
+        is_single_app = resolved_root_name.lower().lstrip(".") == config.name.lower()
+
+        if is_single_app:
+            base_dir = root
+        else:
+            base_dir = app_root
+        
         # Path Resolution from Config or Defaults
-        config_dir = Path(config.config_dir) if config.config_dir else (root / "config")
-        report_dir = Path(config.report_dir) if config.report_dir else (app_root / "Report")
-        log_base = Path(config.log_dir) if config.log_dir else app_root
+        # Config dir should be namespaced to the App (base_dir), not shared at Root
+        config_dir = base_dir / "config"
+        report_dir = config.reporting.output_dir if config.reporting.output_dir else (base_dir / "Report")
+        log_base = Path(config.logging.log_dir) if config.logging.log_dir else base_dir
         
         # Prepare context
         context = RootContext(
@@ -87,12 +97,8 @@ class FileSystemBinder:
             if folder:
                 folder.mkdir(parents=True, exist_ok=True)
 
-        # Custom Folders (Legacy List)
-        for cf in config.custom_folders:
-            (context.app_root / cf).mkdir(parents=True, exist_ok=True)
-            
-        # Custom Structure (New Recursive)
-        if config.root and config.root.custom_structure:
-            self._create_custom_structure(context.app_root, config.root.custom_structure)
+        # Custom Structure from unified_root config
+        if config.unified_root and config.unified_root.custom_structure:
+            self._create_custom_structure(context.root, config.unified_root.custom_structure)
 
         return context

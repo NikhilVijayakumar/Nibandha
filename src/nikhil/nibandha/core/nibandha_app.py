@@ -1,12 +1,13 @@
 from pathlib import Path
 from datetime import datetime
 import logging
-from typing import Optional, List, Tuple, TYPE_CHECKING
+from typing import Optional, List, Tuple, TYPE_CHECKING, Union
 if TYPE_CHECKING:
     from nibandha.reporting import ReportGenerator
 
 from nibandha.configuration.domain.models.app_config import AppConfig
-from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
+# RotationConfig is now part of LoggingConfig, but logging coordinator might still need specific type if strict
+from nibandha.configuration.domain.models.rotation_config import LogRotationConfig 
 from nibandha.logging.infrastructure.rotation_manager import RotationManager
 from nibandha.logging.infrastructure.logger_factory import setup_logger
 
@@ -14,6 +15,7 @@ from nibandha.unified_root.domain.models.root_context import RootContext
 from nibandha.unified_root.domain.protocols.root_binder import RootBinderProtocol
 from nibandha.unified_root.infrastructure.filesystem_binder import FileSystemBinder
 from nibandha.logging.application.logging_coordinator import LoggingCoordinator
+from nibandha.configuration.application.configuration_manager import ConfigurationManager
 
 class Nibandha:
     """
@@ -29,6 +31,35 @@ class Nibandha:
         self.logging_coordinator = LoggingCoordinator(config)
         self.context: Optional[RootContext] = None
         
+    @classmethod
+    def from_config(cls, config_source: Union[str, Path, dict, AppConfig]) -> "Nibandha":
+        """
+        Builder method to create Nibandha instance from various config sources.
+        
+        Args:
+            config_source: Can be a dictionary, path to JSON/YAML, or existing AppConfig.
+            
+        Returns:
+            Nibandha: Configured instance.
+        """
+        if isinstance(config_source, AppConfig):
+            return cls(config=config_source)
+            
+        if isinstance(config_source, dict):
+            config = ConfigurationManager.load_from_dict(config_source)
+            return cls(config=config)
+            
+        # Assume path
+        path = Path(config_source)
+        if path.suffix in ['.yaml', '.yml']:
+            config = ConfigurationManager.load_from_yaml(path)
+        elif path.suffix == '.json':
+            config = ConfigurationManager.load_from_json(path)
+        else:
+            raise ValueError(f"Unsupported config file extension: {path.suffix}")
+            
+        return cls(config=config)
+
     @property
     def root(self) -> Path:
         return self.context.root if self.context else Path(self.root_name)
@@ -43,11 +74,21 @@ class Nibandha:
             return self.context.config_dir
         # Default fallback logic matching bind()
         root = Path(self.root_name)
-        return Path(self.config.config_dir) if self.config.config_dir else (root / "config")
+        # Using .core for new structure if overrides exist in CoreConfig or similar, 
+        # but currently AppConfig has .config_dir (deprecated?) or we check overrides.
+        # However, checking config structure, we removed direct config_dir from AppConfig root.
+        # It's not in CoreConfig either. Let's rely on standard structure or overrides in UnifiedRootConfig if added?
+        # For now, fallback to standard:
+        return root / "config"
         
     @property
     def log_base(self) -> Path:
-        return self.context.log_base if self.context else (self.app_root / "logs")  # Fallback?
+        if self.context:
+            return self.context.log_base
+        # Fallback using logging config
+        if self.config.logging.log_dir:
+             return self.app_root / self.config.logging.log_dir
+        return self.app_root / "logs"
 
     # Delegated Properties for Backward Compatibility
     @property
@@ -87,7 +128,7 @@ class Nibandha:
         
         # 1. Initialize Rotation Configuration (needed for Binder)
         temp_root = Path(self.root_name)
-        temp_config_dir = Path(self.config.config_dir) if self.config.config_dir else (temp_root / "config")
+        temp_config_dir = temp_root / "config" # Simplified
         temp_config_dir.mkdir(parents=True, exist_ok=True) 
 
         rotation_config = self.logging_coordinator.initialize_rotation_manager(
@@ -146,15 +187,8 @@ class Nibandha:
             raise RuntimeError("Application must be bound before generating reports. Call .bind() first.")
 
         # Lazy imports
-        from nibandha.configuration.domain.models.reporting_config import ReportingConfig
         from nibandha.reporting import ReportGenerator
         
-        # Ensure proper Pydantic initialization
-        try:
-             ReportingConfig.model_rebuild()
-        except ImportError:
-             pass 
-
         # 1. Base Config from AppConfig (if valid)
         base_config = self.config.reporting
         
@@ -162,7 +196,7 @@ class Nibandha:
         # Project Root
         proj_root = Path(project_root) if project_root else self.app_root.parent
         
-        # Output Directory (always derived from Context unless overridden? No, context is king)
+        # Output Directory
         report_dir = self.context.app_root / "Report"
         docs_dir = proj_root / "docs"
         
@@ -182,8 +216,6 @@ class Nibandha:
         final_e2e = resolve(e2e_target, 'e2e_target', "tests/e2e")
         final_formats = resolve(export_formats, 'export_formats', ["md", "html"])
         
-        # Explicit paths (Arguments can't easily override these complex objects via CLI-like args, so we trust config or context)
-        # However, we must ensure output_dir and docs_dir are set for the Generator
         final_output = base_config.output_dir if (base_config and base_config.output_dir) else report_dir
         final_docs = base_config.docs_dir if (base_config and base_config.docs_dir) else docs_dir
         
@@ -193,7 +225,12 @@ class Nibandha:
             "test": Path("docs/test")
         }
 
-        # Create Configuration Object
+        # Create Configuration Object (Must import ReportingConfig if we are creating a new one, 
+        # or maybe ReportGenerator accepts the object directly?
+        # Ideally we use the existing config object if overrides are minimal or update it.)
+        # But ReportingConfig is frozen. So we create a new one.
+        from nibandha.reporting.shared.domain.config import ReportingConfig
+
         config = ReportingConfig(
             output_dir=final_output,
             docs_dir=final_docs,
@@ -212,8 +249,6 @@ class Nibandha:
         self.logger.info(f"Targets: Unit={final_unit}, E2E={final_e2e}, Quality={final_quality}")
         
         # 5. Generate
-        # generator.generate_all now uses config mainly, but accepts overrides.
-        # We pass overrides that are redundant but ensures generator uses what we resolved.
         generator.generate_all(
             unit_target=str(config.unit_target),
             e2e_target=str(config.e2e_target),
@@ -223,4 +258,3 @@ class Nibandha:
         
         # 6. Verify
         return generator.verify_generation()
-

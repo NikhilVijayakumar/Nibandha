@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from nibandha.configuration.domain.models.app_config import AppConfig
+# LogRotationConfig is defined in rotation_config.py
 from nibandha.configuration.domain.models.rotation_config import LogRotationConfig
 from nibandha.logging.infrastructure.rotation_manager import RotationManager
 from nibandha.logging.infrastructure.logger_factory import setup_logger
@@ -37,16 +38,28 @@ class LoggingCoordinator:
 
         self.rotation_manager = RotationManager(config_dir, app_root, temp_logger)
         
-        # 1. Prefer AppConfig (Unified YAML)
-        if hasattr(self.config, 'logging') and self.config.logging:
-            self.rotation_config = self.config.logging
-            # Also save it to ensure consistency? Maybe not needed if wholly config driven.
-            # But RotationManager expects a config file sometimes.
-            self.rotation_manager.save_config(self.rotation_config)
+        # 1. Prefer AppConfig (Unified YAML) - ADAPTED for LoggingConfig
+        if self.config.logging:
+            # Convert LoggingConfig to LogRotationConfig if rotation enabled
+            # or simply extract the fields since LoggingConfig is a superset/wrapper
+            if self.config.logging.rotation_enabled:
+                 self.rotation_config = LogRotationConfig(
+                     enabled=True,
+                     max_size_mb=self.config.logging.max_size_mb,
+                     rotation_interval_hours=self.config.logging.rotation_interval_hours,
+                     archive_retention_days=self.config.logging.archive_retention_days,
+                     backup_count=self.config.logging.backup_count,
+                     log_data_dir="logs/data", # Fixed structure or add to config?
+                     archive_dir=self.config.logging.archive_dir,
+                     timestamp_format=self.config.logging.timestamp_format
+                 )
             
-        # 2. Fallback to RotationManager loading from file
+        # 2. Fallback to RotationManager loading from file (legacy check)
         if not self.rotation_config:
-            self.rotation_config = self.rotation_manager.load_config()
+            # We might still want to check if a file exists, but AppConfig is primary now.
+            loaded = self.rotation_manager.load_config()
+            if loaded:
+                self.rotation_config = loaded
 
         # 3. Interactive Setup or Default Disable
         if not self.rotation_config:
@@ -54,13 +67,15 @@ class LoggingCoordinator:
                 self.rotation_config = self.rotation_manager.prompt_and_cache_config()
             else:
                 self.rotation_config = LogRotationConfig(enabled=False)
-                self.rotation_manager.save_config(self.rotation_config)
+                # self.rotation_manager.save_config(self.rotation_config) # Do not autosave disabled config if relying on main config
         
         return self.rotation_config
 
     def setup_logging(self, root_context: RootContext):
         """Sets up the main logger and rotation based on the resolved context."""
         self.context = root_context
+        
+        log_level = self.config.logging.level if self.config.logging else "INFO"
         
         if self.rotation_config and self.rotation_config.enabled:
             timestamp = datetime.now().strftime(self.rotation_config.timestamp_format)
@@ -75,11 +90,12 @@ class LoggingCoordinator:
                 self.rotation_manager.app_root = self.context.log_base # Anchor rotation to log base
             
         else:
-            log_file = self.context.log_base / "logs" / f"{self.config.name}.log"
+            log_dir_name = self.config.logging.log_dir if self.config.logging else "logs"
+            log_file = self.context.log_base / log_dir_name / f"{self.config.name}.log"
             self.current_log_file = log_file
 
         # Setup Logger
-        self.logger = setup_logger(self.config.name, self.config.log_level, log_file)
+        self.logger = setup_logger(self.config.name, log_level, log_file)
         
         # Connect Logger to Rotation Manager
         if self.rotation_manager:
@@ -100,7 +116,8 @@ class LoggingCoordinator:
         if not self.logger: return
 
         internal_logger = logging.getLogger("nibandha")
-        internal_logger.setLevel(self.config.log_level)
+        log_level = self.config.logging.level if self.config.logging else "INFO"
+        internal_logger.setLevel(log_level)
         for handler in self.logger.handlers:
             if handler not in internal_logger.handlers:
                 internal_logger.addHandler(handler)

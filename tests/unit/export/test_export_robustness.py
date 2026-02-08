@@ -46,8 +46,33 @@ def test_docx_conversion_error(tmp_path):
 # --- Export Service Robustness ---
 
 @pytest.fixture
-def service():
-    return ExportService()
+def export_config(tmp_path):
+    """Create a test ExportConfig."""
+    from nibandha.configuration.domain.models.export_config import ExportConfig
+    
+    template_dir = tmp_path / "templates"
+    template_dir.mkdir()
+    (template_dir / "html").mkdir()
+    (template_dir / "dashboard").mkdir()
+    
+    styles_dir = tmp_path / "styles"
+    styles_dir.mkdir()
+    
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    
+    return ExportConfig(
+        formats=["html", "docx"],
+        style="default",
+        template_dir=template_dir,
+        styles_dir=styles_dir,
+        output_dir=output_dir,
+        output_filename="report"
+    )
+
+@pytest.fixture
+def service(export_config):
+    return ExportService(export_config)
 
 def test_export_service_missing_html_fail(service, tmp_path):
     # If HTML export fails, DOCX should abort
@@ -56,52 +81,46 @@ def test_export_service_missing_html_fail(service, tmp_path):
     
     service.html_exporter.export = MagicMock(return_value=None) # Fail
     
-    res = service.export_document(src, formats=["html", "docx"])
+    res = service.export_document(src)
     
     # HTML fail -> return what we have (empty list)
     assert res == []
     # Verify DOCX not attempted
-    # (impl detail: if html_path is None, docx logic normally skipped or logs error)
 
 def test_export_service_intermediate_missing(service, tmp_path):
     # HTML succeeds returning path, but file somehow deleted before DOCX?
     src = tmp_path / "report.md"
     src.write_text("content")
     
-    html_path = tmp_path / "report.html"
+    html_path = service.config.output_dir / "report.html"
     # Don't create the file
     service.html_exporter.export = MagicMock(return_value=html_path)
     
-    res = service.export_document(src, formats=["docx"])
+    res = service.export_document(src)
     
-    # HTML logic runs (docx requires html), returns path.
-    # Then docx logic checks if html_path.exists(). It doesn't.
-    assert res == []
+    # HTML logic runs (both formats configured), returns path.
+    # HTML is in results since config specifies "html" format
+    # DOCX logic checks if html_path.exists() - it doesn't, so DOCX skipped
+    assert len(res) == 1  # Only HTML in results
+    assert res[0] == html_path
 
 def test_export_cleanup_error(service, tmp_path):
-    # HTML not requested, but needed for DOCX. Cleanup triggers.
+    # Both HTML and DOCX are configured. Test cleanup logic.
     src = tmp_path / "report.md"
     src.write_text("content")
     
-    html_path = (tmp_path / "report.html")
+    html_path = service.config.output_dir / "report.html"
     html_path.touch()
     
     service.html_exporter.export = MagicMock(return_value=html_path)
-    service.docx_exporter.export = MagicMock(return_value=tmp_path / "report.docx")
+    service.docx_exporter.export = MagicMock(return_value=service.config.output_dir / "report.docx")
     
     # Mock unlink to raise Error logic in cleanup block
-    # Logic: if "html" not in formats and "docx" in formats and html_path
-    
-    # We patch Path.unlink? But patching built-ins is tricky.
-    # Actually, export_service just passes 'pass' in except block line 98
-    # So we just verify it doesn't crash.
     
     with patch("pathlib.Path.unlink", side_effect=PermissionError):
-         # formats=["docx"] -> implies validation HTML needed but not kept
-         res = service.export_document(src, formats=["docx"])
-         assert len(res) == 1 # DOCX generated
-         # HTML should still exist if unlink failed?
-         # Or mock unlink is called.
+         res = service.export_document(src)
+         # Both HTML and DOCX generated since config specifies both
+         assert len(res) == 2
 
 # --- TabBasedHTMLExporter (Unused module) ---
 

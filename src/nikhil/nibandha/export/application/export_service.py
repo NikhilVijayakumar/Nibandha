@@ -2,37 +2,121 @@ import logging
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
+from nibandha.configuration.domain.models.export_config import ExportConfig
 from nibandha.export.domain.protocols.exporter import ExportFormat
 from nibandha.export.infrastructure.html_exporter import HTMLExporter
 from nibandha.export.infrastructure.docx_exporter import DOCXExporter
 from nibandha.export.infrastructure.modern_dashboard_exporter import ModernDashboardExporter
+from nibandha.export.application.helpers import (
+    MarkdownProcessor,
+    MetricsCardLoader,
+    UnifiedReportBuilder
+)
 
 logger = logging.getLogger("nibandha.export")
 
 class ExportService:
     """
     Orchestrates report export to multiple formats (HTML, DOCX).
-    Handles dependencies between formats (e.g., DOCX requires HTML).
+    
+    Responsibilities:
+    - Validate configuration
+    - Coordinate exporter infrastructure
+    - Delegate processing to helper classes
     """
 
-    def __init__(self) -> None:
-        self.html_exporter = HTMLExporter()
-        self.docx_exporter = DOCXExporter()
-        self.dashboard_exporter = ModernDashboardExporter()
-
-    def export_document(
-        self,
-        markdown_path: Path,
-        formats: List[str],  # "html", "docx"
-        style: str = "default"
-    ) -> List[Path]:
+    def __init__(
+        self, 
+        config: ExportConfig,
+        markdown_processor: Optional[MarkdownProcessor] = None,
+        metrics_loader: Optional[MetricsCardLoader] = None
+    ) -> None:
         """
-        Export a markdown document to specified formats.
+        Initialize ExportService with dependencies.
+        
+        Args:
+            config: ExportConfig with all necessary paths and settings
+            markdown_processor: Optional custom markdown processor
+            metrics_loader: Optional custom metrics loader
+            
+        Raises:
+            ValueError: If critical configuration is missing or invalid
+        """
+        self._validate_config(config)
+        self.config = config
+        
+        # Initialize exporters with configuration paths (or None for defaults)
+        # Strategy: Try to use the configured path. If it doesn't exist, fall back to internal default.
+        # This handles the case where "src/nikhil/..." is in config but user is running as installed package.
+        
+        template_html = None
+        template_dash = None
+        
+        if config.template_dir:
+            # Check if explicit path exists
+            if config.template_dir.exists():
+                template_html = config.template_dir / "html"
+                template_dash = config.template_dir / "dashboard"
+            else:
+                 # It might be a relative path that doesn't exist in CWD (e.g. installed package)
+                 # We log a warning but let the exporter handle the fallback (by passing None)
+                 # Wait, Exporter handles None by using internal path.
+                 # So if config.template_dir is set but invalid, we passing None is the right fallback.
+                 logger.debug(f"Configured template_dir {config.template_dir} not found, using internal defaults")
+                 template_html = None
+                 template_dash = None
+        
+        # Styles
+        style_dir = None
+        if config.styles_dir:
+            if config.styles_dir.exists():
+                style_dir = config.styles_dir
+            else:
+                logger.debug(f"Configured styles_dir {config.styles_dir} not found, using internal defaults")
+                style_dir = None
+
+        self.html_exporter = HTMLExporter(
+            template_dir=template_html,
+            style_dir=style_dir
+        )
+        self.docx_exporter = DOCXExporter()
+        self.dashboard_exporter = ModernDashboardExporter(
+            template_dir=template_dash
+        )
+        
+        logger.info(f"ExportService initialized with formats: {config.formats}, style: {config.style}")
+
+    def _validate_config(self, config: ExportConfig) -> None:
+        """
+        Validate critical configuration.
+        
+        Args:
+            config: Configuration to validate
+            
+        Raises:
+            ValueError: If validation fails
+        """
+        # Template and Styles dirs are optional (internal defaults used if None or invalid)
+        # We don't raise error if they don't exist, we just log warning and fallback (handled in __init__)
+        if config.template_dir and not config.template_dir.exists():
+             logger.warning(f"Template directory not found: {config.template_dir}. Will try to use internal defaults.")
+        
+        if config.styles_dir and not config.styles_dir.exists():
+             logger.warning(f"Styles directory not found: {config.styles_dir}. Will try to use internal defaults.")
+        
+        if not config.output_dir:
+            logger.error("Export configuration missing output_dir")
+            raise ValueError("Invalid export configuration: output_dir is required")
+        
+        # Ensure output directory exists
+        config.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def export_document(self, markdown_path: Path) -> List[Path]:
+        """
+        Export a markdown document to configured formats.
         
         Args:
             markdown_path: Path to source markdown file
-            formats: List of target formats ("html", "docx")
-            style: Style name for HTML/DOCX
             
         Returns:
             List of paths to generated files
@@ -44,20 +128,19 @@ class ExportService:
         generated_files = []
         content = markdown_path.read_text(encoding="utf-8")
         
-        # Determine strict dependencies
-        # DOCX requires HTML generation first
+        # Use configuration
+        formats = self.config.formats
+        style = self.config.style
+        
+        # Determine dependencies (DOCX requires HTML)
         needs_html = "html" in formats or "docx" in formats
         
         html_path = None
         
         if needs_html:
-            # Output path logic: same directory and name as markdown
-            # e.g. report.md -> report.html
-            target_html_path = markdown_path.with_suffix(".html")
-            
-            # DOCX conversion works best with "docx_friendly" HTML
-            # If the user specifically asked for HTML, they get the friendly version too.
-            # This is generally fine as it just avoids some complex CSS that pandoc hates.
+            # Generate HTML
+            output_filename = self.config.output_filename or markdown_path.stem
+            target_html_path = self.config.output_dir / f"{output_filename}.html"
             docx_friendly = "docx" in formats
             
             html_path = self.html_exporter.export(
@@ -76,7 +159,8 @@ class ExportService:
 
         if "docx" in formats:
             if html_path and html_path.exists():
-                target_docx_path = markdown_path.with_suffix(".docx")
+                output_filename = self.config.output_filename or markdown_path.stem
+                target_docx_path = self.config.output_dir / f"{output_filename}.docx"
                 docx_path = self.docx_exporter.export(
                     html_path,
                     target_docx_path,
@@ -87,82 +171,128 @@ class ExportService:
             else:
                 logger.error("Cannot export DOCX: Intermediate HTML missing.")
 
-        # Cleanup if HTML wasn't requested but was generated for DOCX
-        if "html" not in formats and "docx" in formats and html_path:
-            try:
-                # Optional: Delete intermediate HTML?
-                # Usually users might want to debug, but for cleanness we could delete.
-                # Let's keep it for now or make it a hidden temp file. 
-                # Keeping it is safer for debugging.
-                # Or renaming it to .tmp.
-                pass
-            except Exception as e:
-                logger.warning(f"Failed to cleanup temp HTML: {e}")
-
         return generated_files
+
+    def export_batch(self) -> Dict[str, List[Path]]:
+        """
+        Export all markdown files from configured input_dir.
+        
+        Uses FileDiscovery to find files, apply exclusions, and order them.
+        Each file is exported to all configured formats with consistent ordering.
+        
+        Returns:
+            Dictionary mapping source file stem to list of generated export paths
+            
+        Raises:
+            ValueError: If input_dir is not configured
+        """
+        from nibandha.export.application.helpers import FileDiscovery
+        
+        # Discover files using config
+        discovery = FileDiscovery(self.config)
+        markdown_files = discovery.discover_files()
+        
+        if not markdown_files:
+            logger.warning("No files to export")
+            return {}
+        
+        logger.info(f"Batch exporting {len(markdown_files)} markdown files")
+        
+        results: Dict[str, List[Path]] = {}
+        
+        for markdown_file in markdown_files:
+            logger.info(f"Exporting: {markdown_file.name}")
+            
+            # Set output filename for this specific file
+            original_filename = self.config.output_filename
+            self.config.output_filename = markdown_file.stem
+            
+            try:
+                exported_files = self.export_document(markdown_file)
+                results[markdown_file.stem] = exported_files
+            except Exception as e:
+                logger.error(f"Failed to export {markdown_file.name}: {e}")
+                results[markdown_file.stem] = []
+            finally:
+                # Restore original filename
+                self.config.output_filename = original_filename
+        
+        logger.info(f"Batch export complete: {len(results)} files processed")
+        return results
 
     def export_unified_report(
         self,
         summary_path: Path,
         detail_paths: List[Path],
-        output_dir: Path,
-        formats: List[str],
-        project_info: Optional[Dict[str, Any]] = None
+        project_info: Optional[Dict[str, Any]] = None,
+        metrics_loader: Optional[MetricsCardLoader] = None
     ) -> List[Path]:
         """
-        Export unified report combining summary and details into single HTML/DOCX.
+        Export unified report combining summary and details.
         
         Args:
-            summary_path: Path to summary.md
-            detail_paths: List of paths to detail reports  
-            output_dir: Directory where to save unified reports
-            formats: List of formats to export ("html", "docx")
-            project_info: Dict with project metadata (name, grade, status)
+            summary_path: Path to summary markdown file
+            detail_paths: List of paths to detail report markdown files
+            project_info: Optional project metadata
+            metrics_loader: Optional custom metrics loader (overrides instance loader)
             
         Returns:
             List of paths to generated unified files
         """
         logger.info(f"Exporting unified report with {len(detail_paths) + 1} sections")
         
+        # Use provided loader or instance loader
+        loader = metrics_loader or self.metrics_loader
+        if not loader:
+            logger.warning("No metrics loader provided, metrics cards will be empty")
+        
+        # Build sections using helper
+        builder = UnifiedReportBuilder(self.markdown_processor, loader)
+        sections = builder.build_sections(summary_path, detail_paths)
+        
+        # Export sections to configured formats
+        return self._export_sections(sections, project_info)
+    
+    def _export_sections(
+        self,
+        sections: List[Any],  # List[UnifiedReportSection]
+        project_info: Optional[Dict[str, Any]]
+    ) -> List[Path]:
+        """
+        Export sections to configured formats.
+        
+        Args:
+            sections: List of report sections
+            project_info: Optional project metadata
+            
+        Returns:
+            List of generated file paths
+        """
         generated_files = []
+        formats = self.config.formats
+        output_dir = self.config.output_dir
+        output_filename = self.config.output_filename
         
-        # Read and prepare sections
-        sections: List[Dict[str, Any]] = []
-        
-        # Add summary
-        if summary_path.exists():
-            content = summary_path.read_text(encoding="utf-8")
-            content = self._remove_frontmatter(content)
-            sections.append({"title": "Summary", "content": content, "metrics_cards": []})
-        
-        # Add details with metrics cards extraction from JSON
-        for detail_path in detail_paths:
-            if detail_path.exists():
-                content = detail_path.read_text(encoding="utf-8")
-                content = self._remove_frontmatter(content)
-                title = detail_path.stem.replace('_', ' ').title()
-                
-                # Try to load metrics cards from corresponding JSON
-                metrics_cards = self._load_metrics_cards(detail_path)
-                
-                sections.append({"title": title, "content": content, "metrics_cards": metrics_cards})
+        # Convert sections to dicts for exporters
+        section_dicts = [
+            {"title": s.title, "content": s.content, "metrics_cards": s.metrics_cards}
+            for s in sections
+        ]
         
         # Export to HTML with modern dashboard
-        if "html" in formats and sections:
-            html_path = output_dir / "complete_report.html"
+        if "html" in formats and section_dicts:
+            html_path = output_dir / f"{output_filename}.html"
             try:
-                self.dashboard_exporter.export(sections, html_path, project_info)
+                self.dashboard_exporter.export(section_dicts, html_path, project_info)
                 generated_files.append(html_path)
                 logger.info(f"Modern dashboard HTML exported: {html_path}")
             except Exception as e:
                 logger.error(f"Failed to export modern dashboard HTML: {e}")
         
-        
         # Export to DOCX
-        if "docx" in formats and sections:
-            # Create temporary unified markdown
+        if "docx" in formats and section_dicts:
             temp_md = output_dir / "temp_unified.md"
-            unified_content = self._build_unified_markdown(sections, project_info)
+            unified_content = self.markdown_processor.build_unified_markdown(section_dicts, project_info)
             temp_md.write_text(unified_content, encoding="utf-8")
             
             try:
@@ -171,13 +301,13 @@ class ExportService:
                 self.html_exporter.export(
                     unified_content,
                     temp_html,
-                    style="default",
+                    style=self.config.style,
                     docx_friendly=True
                 )
                 
                 # Convert HTML to DOCX
-                docx_path = output_dir / "complete_report.docx"
-                self.docx_exporter.export(temp_html, docx_path, style="default")
+                docx_path = output_dir / f"{output_filename}.docx"
+                self.docx_exporter.export(temp_html, docx_path, style=self.config.style)
                 
                 # Cleanup temp files
                 if temp_md.exists():
@@ -191,76 +321,3 @@ class ExportService:
                 logger.error(f"Failed to export unified DOCX: {e}")
         
         return generated_files
-    
-    def _remove_frontmatter(self, content: str) -> str:
-        """Remove YAML frontmatter from markdown."""
-        lines = content.split('\n')
-        if lines and lines[0].strip() == '---':
-            for i, line in enumerate(lines[1:], 1):
-                if line.strip() == '---':
-                    return '\n'.join(lines[i+1:])
-        return content
-    
-    def _load_metrics_cards(self, detail_path: Path) -> List[Dict[str, Any]]:
-        """Load metrics cards from corresponding JSON file."""
-        # Construct JSON path from detail markdown path
-        # detail_path like: output_dir/details/unit_report.md
-        # JSON would be: output_dir/assets/data/unit.json
-        
-        json_name_map = {
-            "unit_report": "unit",
-            "e2e_report": "e2e",
-            "type_safety_report": "type_safety",
-            "complexity_report": "complexity"
-        }
-        
-        detail_stem = detail_path.stem
-        # Strip numbering prefix if present (e.g. 03_unit_report -> unit_report)
-        import re
-        stripped_stem = re.sub(r'^\d+_', '', detail_stem)
-        
-        json_name = json_name_map.get(stripped_stem)
-        
-        if not json_name:
-            return []
-        
-        json_path = detail_path.parent.parent / "assets" / "data" / f"{json_name}.json"
-        
-        if not json_path.exists():
-            return []
-        
-        try:
-            import json
-            import json
-            with open(json_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                result: List[Dict[str, Any]] = data.get("metrics_cards", [])
-                return result
-        except Exception as e:
-            logger.warning(f"Failed to load metrics cards from {json_path}: {e}")
-            return []
-    
-    def _build_unified_markdown(self, sections: List[Dict[str, Any]], project_info: Optional[Dict[str, Any]] = None) -> str:
-        """Build unified markdown with proper frontmatter."""
-        from datetime import datetime
-        
-        if not project_info:
-            project_info = {}
-        
-        frontmatter = f"""---
-title: "Nibandha Quality Report"
-subtitle: "Complete Project Analysis"
-author: "Generated by Nibandha"
-date: "{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-toc: true
-lof: true
-lot: true
----
-
-"""
-        
-        content = frontmatter
-        for section in sections:
-            content += f"\n\n---\n\n{section['content']}\n"
-        
-        return content

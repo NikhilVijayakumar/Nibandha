@@ -213,3 +213,5 @@ __marimo__/
 /.idea/inspectionProfiles/Project_Default.xml
 /.idea/vcs.xml
 /.Nibandha/config/rotation_config.yaml
+
+.sandbox/

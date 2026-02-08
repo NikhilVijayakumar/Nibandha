@@ -96,16 +96,20 @@ class ReporterInitializer:
         return reporters
 
     def create_export_service(self, config: Optional[Any]) -> Any:
-        export_formats = ["md"]
-        if hasattr(config, 'export_formats') and config.export_formats:
-            export_formats = config.export_formats
+        """Create export service from configuration."""
+        if not config or not hasattr(config, 'export'):
+            logging.getLogger("nibandha.reporting.generator").warning("No export configuration provided")
+            return None, ["md"]
+        
+        export_config = config.export
+        export_formats = export_config.formats if export_config else ["md"]
             
         export_service = None
         if "html" in export_formats or "docx" in export_formats:
              try:
                  from nibandha.export import ExportService
-                 export_service = ExportService()
+                 export_service = ExportService(export_config)
              except Exception as e:
-                 logging.getLogger("nibandha.reporting.generator").warning(f"Failed to init ExportService: {e}")
+                 logging.getLogger("nibandha.reporting.generator").error(f"Failed to init ExportService: {e}")
                  
         return export_service, export_formats

@@ -6,18 +6,22 @@ This module provides reusable export functionality for:
 - Documentation (functional, technical, test scenarios)
 
 Usage:
-except ImportError:
-    # Optional export dependencies not present
-    ExportService = None # type: ignore
-    ExportFormat = None # type: ignore
-else:
-    from nibandha.export import ExportService, ExportFormat
+    from nibandha.configuration.domain.models.export_config import ExportConfig
+    from nibandha.export import ExportService
     
-    service = ExportService()
-    service.export_document(
-        Path("report.md"),
-        formats=[ExportFormat.HTML, ExportFormat.DOCX]
+    # Create configuration
+    config = ExportConfig(
+        formats=["html", "docx"],
+        style="default",
+        template_dir=Path("templates"),
+        styles_dir=Path("styles"),
+        output_dir=Path("output"),
+        output_filename="report"
     )
+    
+    # Create service with config
+    service = ExportService(config)
+    service.export_document(Path("report.md"))
 """
 
 from nibandha.export.application.export_service import ExportService

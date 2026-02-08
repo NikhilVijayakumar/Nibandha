@@ -9,6 +9,7 @@ import markdown2
 from pathlib import Path
 from typing import Optional
 import logging
+from jinja2 import Environment, FileSystemLoader
 
 logger = logging.getLogger("nibandha.export")
 
@@ -16,17 +17,26 @@ logger = logging.getLogger("nibandha.export")
 class HTMLExporter:
     """Converts Markdown to professionally styled, DOCX-friendly HTML."""
     
-    def __init__(self, style_dir: Optional[Path] = None):
+    def __init__(self, style_dir: Optional[Path] = None, template_dir: Optional[Path] = None):
         """
         Initialize HTML exporter.
         
         Args:
             style_dir: Directory containing CSS style files
                       Defaults to package styles directory
+            template_dir: Directory containing HTML templates
+                         Defaults to package templates/html directory
         """
         if style_dir is None:
             style_dir = Path(__file__).parent / "styles"
         self.style_dir = style_dir
+        
+        if template_dir is None:
+            template_dir = Path(__file__).parent / "templates" / "html"
+        self.template_dir = template_dir
+        
+        # Setup Jinja2 environment
+        self.jinja_env = Environment(loader=FileSystemLoader(str(template_dir)))
     
     def export(
         self,
@@ -124,78 +134,19 @@ class HTMLExporter:
         Uses semantic HTML5 elements and clean structure for optimal
         DOCX conversion via pandoc.
         """
-        return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="Nibandha Report System">
-    <title>{title}</title>
-    <style>
-{css}
-    </style>
-</head>
-<body>
-    <article class="document">
-{body}
-    </article>
-</body>
-</html>"""
+        template = self.jinja_env.get_template('document.html')
+        return template.render(title=title, css=css, body=body)
     
     def _get_inline_default_css(self) -> str:
         """
         Fallback inline CSS if no style files found.
         Uses only pandoc-compatible CSS properties.
         """
-        return """
-        body {
-            font-family: 'Calibri', 'Arial', sans-serif;
-            line-height: 1.6;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-            color: #000000;
-        }
+        fallback_css = self.template_dir / "styles" / "fallback.css"
+        if fallback_css.exists():
+            return fallback_css.read_text(encoding='utf-8')
         
-        h1, h2, h3, h4, h5, h6 {
-            color: #1a1a1a;
-            margin-top: 1.5em;
-            margin-bottom: 0.5em;
-        }
-        
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 1rem 0;
-        }
-        
-        th, td {
-            border: 1px solid #000000;
-            padding: 8px 12px;
-            text-align: left;
-        }
-        
-        th {
-            background-color: #f0f0f0;
-            font-weight: bold;
-        }
-        
-        code {
-            background-color: #f5f5f5;
-            padding: 2px 4px;
-            font-family: 'Consolas', 'Courier New', monospace;
-        }
-        
-        pre {
-            background-color: #f5f5f5;
-            padding: 1rem;
-            overflow-x: auto;
-            border: 1px solid #cccccc;
-        }
-        
-        img {
-            max-width: 100%;
-            height: auto;
-        }
-        """
+        # Ultimate fallback if even the template file is missing
+        logger.error("Fallback CSS template not found, using minimal inline CSS")
+        return "body { font-family: Arial, sans-serif; padding: 2rem; }"
 
