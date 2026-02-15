@@ -27,13 +27,33 @@ def mock_pypandoc(monkeypatch):
     return mock
 
 @pytest.fixture
-def export_sandbox(sandbox_root):
+def export_sandbox(request, sandbox_root):
     """
     Creates a dedicated export sandbox environment.
+    Uses a persistent path based on the test name to allow manual verification.
     """
-    export_dir = sandbox_root / "export_test"
-    export_dir.mkdir(parents=True, exist_ok=True)
-    return export_dir
+    # Use a persistent location relative to project root (or sandbox root)
+    # We want e:\Python\Nibandha\.sandbox\export\<test_name>
+    
+    # sandbox_root is usually .sandbox in project root
+    # We create a subfolder for export tests
+    export_root = sandbox_root / "export"
+    export_root.mkdir(parents=True, exist_ok=True)
+    
+    # Create specific test folder
+    test_name = request.node.name
+    # sanitize test name
+    safe_name = "".join(c for c in test_name if c.isalnum() or c in ('_', '-'))
+    
+    test_dir = export_root / safe_name / "export_test"
+    
+    # Clean up BEFORE test (if exists), but leave AFTER test
+    import shutil
+    if test_dir.exists():
+        shutil.rmtree(test_dir)
+    
+    test_dir.mkdir(parents=True, exist_ok=True)
+    return test_dir
 
 @pytest.fixture
 def sample_markdown(export_sandbox):

@@ -17,51 +17,54 @@ def test_export_service_validation_failure():
     with pytest.raises(ValueError, match="output_dir is required"):
         ExportService(invalid_config)
 
-from tests.sandbox.export.utils import create_sandbox_env
 
-def test_export_document_html_only(export_sandbox, sample_markdown):
+
+from tests.sandbox.export.utils import create_sandbox_env
+from nibandha.configuration.infrastructure.file_loader import FileConfigLoader
+from nibandha.configuration.domain.models.app_config import AppConfig
+
+def test_export_document_html_only(export_sandbox):
     """Test exporting only HTML."""
-    env = create_sandbox_env(export_sandbox, {"export": {"formats": ["html"]}})
-    output_dir = env['output'] / "html_out"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    config = ExportConfig(
-        formats=["html"],
-        output_dir=output_dir,
-        output_filename="doc"
-    )
-    service = ExportService(config)
+    # Only override filename, use defaults (absolute paths) for dirs
+    env = create_sandbox_env(export_sandbox, {"export": {"formats": ["html"], "output_filename": "doc"}})
     
-    generated = service.export_document(sample_markdown)
+    # Create input file IN the input directory for visibility
+    input_file = env['input'] / "test_doc.md"
+    input_file.write_text("# Test Document\n\nContent", encoding="utf-8")
+    
+    loader = FileConfigLoader()
+    app_config = loader.load(env['config_path'], AppConfig)
+    
+    service = ExportService(app_config.export)
+    
+    # Export specific file
+    generated = service.export_document(input_file)
     
     assert len(generated) == 1
     assert generated[0].name == "doc.html"
     assert generated[0].exists()
+    assert generated[0].parent.resolve() == env['output'].resolve()
     assert "Test Document" in generated[0].read_text(encoding="utf-8")
 
-def test_export_document_docx_mocked(export_sandbox, sample_markdown, mock_pypandoc):
+def test_export_document_docx_mocked(export_sandbox, mock_pypandoc):
     """Test exporting DOCX with mocked pypandoc."""
-    env = create_sandbox_env(export_sandbox, {"export": {"formats": ["docx", "html"]}}) # html required for docx
-    output_dir = env['output'] / "docx_out"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    config = ExportConfig(
-        formats=["docx", "html"], # HTML explicitly required now
-        output_dir=output_dir,
-        output_filename="doc"
-    )
-    service = ExportService(config)
+    env = create_sandbox_env(export_sandbox, {
+        "export": {
+            "formats": ["docx", "html"], 
+            "output_filename": "doc"
+        }
+    })
     
-    generated = service.export_document(sample_markdown)
+    # Create input file IN the input directory for visibility
+    input_file = env['input'] / "test_doc.md"
+    input_file.write_text("# Test Document\n\nContent", encoding="utf-8")
     
-    # improved: wait, formats=["docx"] might NOT implicitly create HTML in the output list returned?
-    # actually implementation logic: 
-    # if needs_html: generates HTML. 
-    # if "html" in formats: adds to generated_files.
-    # if "docx" in formats: adds docx to generated_files.
-    # So if formats=["docx"], list should contain 1 file (docx). HTML is temp intermediate unless requested.
+    loader = FileConfigLoader()
+    app_config = loader.load(env['config_path'], AppConfig)
     
-    # Wait, looking at implementation:
-    # if html_path: if "html" in formats: generated_files.append(html_path)
-    # So HTML is NOT returned if not requested? Correct.
+    service = ExportService(app_config.export)
+    
+    generated = service.export_document(input_file)
     
     assert len(generated) == 2
     filenames = {p.name for p in generated}
@@ -70,35 +73,98 @@ def test_export_document_docx_mocked(export_sandbox, sample_markdown, mock_pypan
     
     for p in generated:
         assert p.exists()
+        assert p.parent.resolve() == env['output'].resolve()
 
-def test_export_batch(export_sandbox):
-    """Test batch export of multiple files."""
-    env = create_sandbox_env(export_sandbox, {"export": {"formats": ["html"]}})
-    input_dir = env['input']
-    output_dir = env['output'] / "batch_out"
-    output_dir.mkdir()
+def test_export_unified_default_order(export_sandbox):
+    """Test unified export default file ordering (Alphabetical)."""
+    # Create env with default config first to ensure dirs exist
+    env = create_sandbox_env(export_sandbox, {
+        "export": {
+            "formats": ["html"], 
+            "output_filename": "unified_report"
+        }
+    })
     
-    # Create multiple MD files
-    (input_dir / "doc1.md").write_text("# Doc 1")
-    (input_dir / "doc2.md").write_text("# Doc 2")
+    # Setup multiple files
+    (env['input'] / "z_last.md").write_text("# Last\nContent", encoding="utf-8")
+    (env['input'] / "a_first.md").write_text("# First\nContent", encoding="utf-8")
     
-    config = ExportConfig(
-        formats=["html"],
-        output_dir=output_dir,
-        # input_dir logic uses FileDiscovery. If not set, might fail?
-        # FileDiscovery defaults?
-        # Let's see ExportService.export_batch implementation.
-        input_dir=input_dir 
-    )
-    service = ExportService(config)
+    loader = FileConfigLoader()
+    app_config = loader.load(env['config_path'], AppConfig)
     
-    # We need to mock FileDiscovery or set input_dir in config.
-    # AppConfig usually sets input_dir default. Here we manually set it.
+    service = ExportService(app_config.export)
     
-    results = service.export_batch()
+    # Run unified export
+    results = service.export_unified()
     
-    assert "doc1" in results
-    assert "doc2" in results
-    assert (output_dir / "doc1.html").exists()
-    assert (output_dir / "doc2.html").exists()
+    # Should create unified_report.html
+    html_path = env['output'] / "unified_report.html"
+    assert html_path.exists()
+    assert html_path in results
+    
+    # Check content order
+    content = html_path.read_text(encoding="utf-8")
+    # "First" should appear before "Last"
+    # Note: Depending on template, title might be used.
+    # a_first.md title is "First", z_last.md title is "Last".
+    # Alphabetical order of filenames: a_first.md -> z_last.md.
+    # So "First" content comes first.
+    assert content.find("First") < content.find("Last")
+
+def test_export_unified_custom_order(export_sandbox):
+    """Test unified export with custom export_order."""
+    # Order: 3 -> 1 -> 2
+    env = create_sandbox_env(export_sandbox, {
+        "export": {
+            "formats": ["html"],
+            "output_filename": "ordered_report",
+            "export_order": ["part3", "part1", "part2"]
+        }
+    })
+    
+    (env['input'] / "part1.md").write_text("# Part 1", encoding="utf-8")
+    (env['input'] / "part2.md").write_text("# Part 2", encoding="utf-8")
+    (env['input'] / "part3.md").write_text("# Part 3", encoding="utf-8")
+    
+    loader = FileConfigLoader()
+    app_config = loader.load(env['config_path'], AppConfig)
+    service = ExportService(app_config.export)
+    
+    service.export_unified()
+    
+    html_path = env['output'] / "ordered_report.html"
+    assert html_path.exists()
+    
+    content = html_path.read_text(encoding="utf-8")
+    p1 = content.find("Part 1")
+    p2 = content.find("Part 2")
+    p3 = content.find("Part 3")
+    
+    assert p3 < p1
+    assert p1 < p2
+
+def test_export_unified_exclusions(export_sandbox):
+    """Test unified export respects exclude_files."""
+    env = create_sandbox_env(export_sandbox, {
+        "export": {
+            "formats": ["html"],
+            "output_filename": "filtered_report",
+            "exclude_files": ["skip"]
+        }
+    })
+    
+    (env['input'] / "keep.md").write_text("# Keep", encoding="utf-8")
+    (env['input'] / "skip.md").write_text("# Skip", encoding="utf-8")
+    
+    loader = FileConfigLoader()
+    app_config = loader.load(env['config_path'], AppConfig)
+    service = ExportService(app_config.export)
+    
+    service.export_unified()
+    
+    html_path = env['output'] / "filtered_report.html"
+    content = html_path.read_text(encoding="utf-8")
+    
+    assert "Keep" in content
+    assert "Skip" not in content
 

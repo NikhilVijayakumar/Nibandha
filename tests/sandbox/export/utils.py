@@ -21,20 +21,20 @@ def create_sandbox_env(sandbox_path: Path, config_dict: Dict[str, Any] = None) -
     Returns:
         Dict with 'input', 'output' paths.
     """
-    input_dir = sandbox_path / "input"
+    input_dir = (sandbox_path / "input").resolve() # Force absolute
     input_dir.mkdir(parents=True, exist_ok=True)
     
-    output_dir = sandbox_path / "output"
+    output_dir = (sandbox_path / "output").resolve() # Force absolute
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Default Config
+    # Default Config matching Happy Path structure
     full_config = {
         "name": "ExportSandBoxApp",
         "mode": "dev",
         "logging": {
             "level": "INFO",
             "enabled": True,
-            "log_dir": ".ExportRoot/logs",
+            "log_dir": str((sandbox_path / ".ExportRoot/logs").resolve()), # Absolute
             "rotation_enabled": False,
             "max_size_mb": 5.0,
             "rotation_interval_hours": 24,
@@ -48,7 +48,7 @@ def create_sandbox_env(sandbox_path: Path, config_dict: Dict[str, Any] = None) -
             "custom_structure": {}
         },
         "reporting": {
-            "output_dir": ".ExportRoot/Report",
+            "output_dir": str((sandbox_path / ".ExportRoot/Report").resolve()), # Absolute
             "template_dir": "src/nikhil/nibandha/reporting/templates",
             "project_name": "ExportSandBoxApp",
             "quality_target": "src",
@@ -65,10 +65,10 @@ def create_sandbox_env(sandbox_path: Path, config_dict: Dict[str, Any] = None) -
         "export": {
             "formats": ["html"],
             "style": "default",
-            "input_dir": "input", # Relative to sandbox root
+            "input_dir": str(input_dir), # Absolute
             "template_dir": "src/nikhil/nibandha/export/infrastructure/templates",
             "styles_dir": "src/nikhil/nibandha/export/infrastructure/styles",
-            "output_dir": "output", # Relative to sandbox root
+            "output_dir": str(output_dir), # Absolute
             "output_filename": "report",
             "export_order": None,
             "exclude_files": [],
@@ -126,8 +126,15 @@ def run_export_test(
         "reporting": {"output_dir": ".ExportRoot/Report"},
         "export": {
             "formats": ["html"],
+            "style": "default",
             "input_dir": "../input",  # Relative to output/
+            "template_dir": "src/nikhil/nibandha/export/infrastructure/templates",
+            "styles_dir": "src/nikhil/nibandha/export/infrastructure/styles",
             "output_dir": "Exports",  # Relative to output/
+            "output_filename": "report",
+            "export_order": None,
+            "exclude_files": [],
+            "metrics_mapping": {},
             **export_config 
         }
     }
@@ -173,7 +180,8 @@ def run_export_test(
                 
             # Run Export
             service = ExportService(app_config.export)
-            results = service.export_batch()
+            # Use unified export for integration tests (combining inputs)
+            results = service.export_unified()
             
             return [str(p) for p in results]
             

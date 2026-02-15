@@ -10,12 +10,18 @@ def test_html_export_basic(export_sandbox):
     exporter = HTMLExporter()
     
     # Setup environment
-    env = create_sandbox_env(export_sandbox, {"export": {"formats": ["html"]}})
+    env = create_sandbox_env(export_sandbox, {"export": {"formats": ["html"], "output_filename": "basic"}})
     input_dir = env['input']
     output_dir = env['output']
 
+    import json
+    config_path = env['config_path']
+    with open(config_path, 'r') as f:
+        config_data = json.load(f)
+    fname = config_data['export']['output_filename']
+
     content = "# Hello\n\n* world"
-    output = output_dir / "basic.html"
+    output = output_dir / f"{fname}.html"
     
     result = exporter.export(content, output)
     
@@ -27,9 +33,15 @@ def test_html_export_basic(export_sandbox):
 def test_html_export_styling(export_sandbox):
     """Test that styling is injected."""
     # Setup environment
-    env = create_sandbox_env(export_sandbox, {"export": {"formats": ["html"]}})
+    env = create_sandbox_env(export_sandbox, {"export": {"formats": ["html"], "output_filename": "styled"}})
     input_dir = env['input']
     output_dir = env['output']
+    
+    import json
+    config_path = env['config_path']
+    with open(config_path, 'r') as f:
+        config_data = json.load(f)
+    fname = config_data['export']['output_filename']
     
     # Create a dummy style
     style_dir = input_dir / "styles"
@@ -39,7 +51,7 @@ def test_html_export_styling(export_sandbox):
     exporter = HTMLExporter(style_dir=style_dir)
     
     content = "# Styled"
-    output = output_dir / "styled.html"
+    output = output_dir / f"{fname}.html"
     
     result = exporter.export(content, output, style="custom")
     

@@ -45,6 +45,11 @@ class ExportService:
         self._validate_config(config)
         self.config = config
         
+        # Initialize helpers
+        from nibandha.export.application.helpers import MarkdownProcessor, MetricsCardLoader
+        self.markdown_processor = markdown_processor or MarkdownProcessor()
+        self.metrics_loader = metrics_loader or MetricsCardLoader(config)
+        
         # Initialize exporters with configuration paths (or None for defaults)
         # Strategy: Try to use the configured path. If it doesn't exist, fall back to internal default.
         # This handles the case where "src/nikhil/..." is in config but user is running as installed package.
@@ -219,6 +224,37 @@ class ExportService:
         
         logger.info(f"Batch export complete: {len(results)} files processed")
         return results
+
+    def export_unified(self) -> List[Path]:
+        """
+        Export all discovered files as a single unified report.
+        
+        Uses FileDiscovery to find, sort, and filter files.
+        Then combines them into one unified report using the configured output_filename.
+        
+        Returns:
+            List of generated unified report files (HTML/DOCX)
+        """
+        from nibandha.export.application.helpers import FileDiscovery
+        
+        # Discover files
+        discovery = FileDiscovery(self.config)
+        files = discovery.discover_files()
+        
+        if not files:
+            logger.warning("No files to export for unified report")
+            return []
+            
+        logger.info(f"Building unified report from {len(files)} files")
+        
+        # Use a dummy summary path that likely doesn't exist to skip summary section
+        # We only want to combine input files as detail sections
+        dummy_summary = (self.config.input_dir or Path(".")) / "__summary_dummy__.md"
+        
+        return self.export_unified_report(
+            summary_path=dummy_summary,
+            detail_paths=files
+        )
 
     def export_unified_report(
         self,

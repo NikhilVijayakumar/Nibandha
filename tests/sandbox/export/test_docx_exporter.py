@@ -42,10 +42,22 @@ def test_docx_export_success(export_sandbox, mock_pypandoc):
     input_dir = env['input']
     output_dir = env['output']
 
+    import json
+    
+    # Load the generated AppConfig
+    config_path = env['config_path']
+    with open(config_path, 'r') as f:
+        config_data = json.load(f)
+    
+    export_config = config_data['export']
+    output_filename = export_config['output_filename']
+    
     # Create dummy source
     source = input_dir / "source.html"
     source.touch()
-    output = output_dir / "final.docx"
+    
+    # Expectation based on CONFIG
+    output = output_dir / f"{output_filename}.docx"
     
     result = exporter.export(source, output)
     

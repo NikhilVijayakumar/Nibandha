@@ -15,8 +15,14 @@ def test_dashboard_export_rendering(export_sandbox):
     exporter = ModernDashboardExporter()
     
     # Setup environment
-    env = create_sandbox_env(export_sandbox)
+    env = create_sandbox_env(export_sandbox, {"export": {"formats": ["html"], "output_filename": "dashboard"}})
     output_dir = env['output']
+    
+    import json
+    config_path = env['config_path']
+    with open(config_path, 'r') as f:
+        config_data = json.load(f)
+    fname = config_data['export']['output_filename']
 
     sections = [
         {
@@ -26,10 +32,9 @@ def test_dashboard_export_rendering(export_sandbox):
         }
     ]
     
-    output_dir = export_sandbox / "output"
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # output_dir from env is correct
     
-    output = output_dir / "dashboard.html"
+    output = output_dir / f"{fname}.html"
     
     # This might fail if templates are missing in the environment or path resolution is wrong in sandbox.
     # If it fails, we know we need to copy templates or fix pathing.

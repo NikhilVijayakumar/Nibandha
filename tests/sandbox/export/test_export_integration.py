@@ -21,14 +21,8 @@ def test_export_full_cycle(sandbox_root, mock_pypandoc):
     }
     
     expected = [
-        "quality_report.html",
-        # "quality_report.docx", # Mock pypandoc might not actually generate file depending on implementation?
-        # The original test checked for docx. Let's include it.
-        # If mock_pypandoc is a fixture that patches subprocess, it might not create files unless handled.
-        # Let's assume for now we just want to match original expectations.
-        "quality_report.docx",
-        "security_scan.html",
-        "security_scan.docx"
+        "report.html",
+        "report.docx"
     ]
 
     run_export_test(
