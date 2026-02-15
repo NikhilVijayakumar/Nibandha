@@ -5,20 +5,22 @@ import textwrap
 from nibandha.unified_root.domain.models.root_context import RootContext
 from nibandha.unified_root.domain.models.root_context import RootContext
 from tests.sandbox.unified_root.utils import run_ur_test, BASE_CONFIG_TEMPLATE
+import copy
 
 def test_idempotency_strict(sandbox_root: Path):
     """
     Scenario: Directories already exist matching the strict config.
     Expectation: Binder succeeds, preserving files.
     """
-    config_data = BASE_CONFIG_TEMPLATE.copy()
+    config_data = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     config_data["name"] = "IdempotentApp"
     config_data["unified_root"]["name"] = ".IdempotentApp"
     config_data["logging"]["log_dir"] = ".IdempotentApp/logs"
     config_data["reporting"]["output_dir"] = ".IdempotentApp/Report"
     
-    # Pre-create
-    target_root = sandbox_root / ".IdempotentApp"
+    # Pre-create in OUTPUT directory (where binder will run)
+    output_dir = sandbox_root / "output"
+    target_root = output_dir / ".IdempotentApp"
     (target_root / "logs").mkdir(parents=True)
     (target_root / "logs" / "marker.txt").write_text("should stay")
     
@@ -41,7 +43,7 @@ def test_project_fallback_strict(sandbox_root: Path):
                  AND sets unified_root.name and paths accordingly.
                  Binder receives full config and creates it.
     """
-    config_data = BASE_CONFIG_TEMPLATE.copy()
+    config_data = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     config_data.pop("name") # Trigger fallback
     config_data["unified_root"]["name"] = None # Trigger fallback
     # Note: explicit log_dir in Base Template is ".Nibandha/logs". 

@@ -80,7 +80,6 @@ class FileSystemBinder:
         
         # Calculate folders to create
         folders_to_create: List[Optional[Path]] = [
-            context.config_dir,
             context.report_dir
         ]
 

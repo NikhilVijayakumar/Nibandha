@@ -59,7 +59,6 @@ def test_single_config_multi_library_organization(sandbox_root: Path):
         assert (root / "other_lib" / "data").exists()
         
         # Config stays at root level (standard behavior)
-        assert (root / "config").exists()
         
         print("\n[OK] Structure Created Successfully:")
         print(".Pravaha/")
@@ -74,7 +73,6 @@ def test_single_config_multi_library_organization(sandbox_root: Path):
         print("|   +-- cache/")
         print("|-- other_lib/")
         print("|   +-- data/")
-        print("+-- config/          (Pravaha's runtime config)")
 
     run_ur_test(
         sandbox_path=sandbox_root,
