@@ -215,3 +215,5 @@ __marimo__/
 /.Nibandha/config/rotation_config.yaml
 
 .sandbox/
+/.import_linter_cache/
+/.Nibandha/

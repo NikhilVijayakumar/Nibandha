@@ -80,7 +80,7 @@ class FileSystemBinder:
         
         # Calculate folders to create
         folders_to_create: List[Optional[Path]] = [
-            context.config_dir,
+            # context.config_dir,  # User requested removal of config folder
             context.report_dir
         ]
 

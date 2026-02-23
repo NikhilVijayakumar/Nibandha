@@ -84,6 +84,9 @@ class ExportService:
             template_dir=template_dash
         )
         
+        self.markdown_processor = markdown_processor or MarkdownProcessor()
+        self.metrics_loader = metrics_loader
+        
         logger.info(f"ExportService initialized with formats: {config.formats}, style: {config.style}")
 
     def _validate_config(self, config: ExportConfig) -> None:
@@ -219,6 +222,54 @@ class ExportService:
         
         logger.info(f"Batch export complete: {len(results)} files processed")
         return results
+
+    def export_combined(self) -> List[Path]:
+        """
+        Export all markdown files combined into a single document.
+        
+        Uses FileDiscovery to find and order files, then concatenates them
+        before exporting to configured formats.
+        
+        Returns:
+            List of generated file paths
+        """
+        from nibandha.export.application.helpers import FileDiscovery
+        
+        # Discover files using config
+        discovery = FileDiscovery(self.config)
+        markdown_files = discovery.discover_files()
+        
+        if not markdown_files:
+            logger.warning("No files to export combined")
+            return []
+            
+        logger.info(f"Combining {len(markdown_files)} markdown files for export")
+        
+        # Build sections structure to reuse unified export logic
+        from nibandha.export.application.helpers.unified_report_builder import UnifiedReportSection
+        
+        sections = []
+        for file_path in markdown_files:
+            content = file_path.read_text(encoding="utf-8")
+            # Strip frontmatter
+            content = self.markdown_processor.remove_frontmatter(content)
+            title = file_path.stem.replace('_', ' ').title()
+            
+            # Load metrics cards if configured mapping matches
+            metrics_cards = []
+            if self.metrics_loader:
+                try:
+                    metrics_cards = self.metrics_loader.load_cards(file_path)
+                except Exception as e:
+                    logger.debug(f"Could not load metrics cards for {file_path.name}: {e}")
+            
+            sections.append(UnifiedReportSection(
+                title=title,
+                content=content,
+                metrics_cards=metrics_cards
+            ))
+            
+        return self._export_sections(sections, project_info=None)
 
     def export_unified_report(
         self,

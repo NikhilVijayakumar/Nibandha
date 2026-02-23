@@ -3,6 +3,7 @@ import pytest
 import json
 from pathlib import Path
 from nibandha.unified_root.domain.models.root_context import RootContext
+import copy
 from tests.sandbox.unified_root.utils import run_ur_test, BASE_CONFIG_TEMPLATE
 
 def test_single_config_multi_library_organization(sandbox_root: Path):
@@ -15,7 +16,7 @@ def test_single_config_multi_library_organization(sandbox_root: Path):
     - Uses custom_structure for library folders
     - Uses explicit paths for main app organization
     """
-    config_data = BASE_CONFIG_TEMPLATE.copy()
+    config_data = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     config_data["name"] = "Pravaha"
     config_data["unified_root"] = {
         "name": ".Pravaha",
@@ -58,8 +59,8 @@ def test_single_config_multi_library_organization(sandbox_root: Path):
         # Other lib placeholder
         assert (root / "other_lib" / "data").exists()
         
-        # Config stays at root level (standard behavior)
-        assert (root / "config").exists()
+        # Config should NOT be created
+        assert not (root / "config").exists()
         
         print("\n[OK] Structure Created Successfully:")
         print(".Pravaha/")
@@ -74,7 +75,7 @@ def test_single_config_multi_library_organization(sandbox_root: Path):
         print("|   +-- cache/")
         print("|-- other_lib/")
         print("|   +-- data/")
-        print("+-- config/          (Pravaha's runtime config)")
+        print("+-- (config/ folder removed)")
 
     run_ur_test(
         sandbox_path=sandbox_root,
@@ -91,7 +92,7 @@ def test_akashvani_full_ecosystem_single_config(sandbox_root: Path):
     COMPLEX Scenario: Akashvani with 3 dependencies (Amsha, Pravaha, Nibandha)
     Uses ONLY Akashvani's AppConfig to create all folders
     """
-    config_data = BASE_CONFIG_TEMPLATE.copy()
+    config_data = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     config_data["name"] = "Akashvani"
     config_data["unified_root"] = {
         "name": ".Akashvani",
@@ -149,7 +150,7 @@ def test_akashvani_full_ecosystem_single_config(sandbox_root: Path):
         print("|-- nibandha/        (Nibandha library)")
         print("|   |-- logs/")
         print("|   +-- reports/")
-        print("+-- config/")
+        print("+-- (config/ folder removed)")
 
     run_ur_test(
         sandbox_path=sandbox_root,

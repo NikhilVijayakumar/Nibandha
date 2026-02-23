@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 from nibandha.unified_root.domain.models.root_context import RootContext
 from nibandha.unified_root.domain.models.root_context import RootContext
+import copy
 from tests.sandbox.unified_root.utils import run_ur_test, BASE_CONFIG_TEMPLATE
 
 def test_full_explicit_config(sandbox_root: Path):
@@ -10,7 +11,7 @@ def test_full_explicit_config(sandbox_root: Path):
     Scenario: Input is a FULLY RESOLVED, explicit configuration matching user spec.
     Expectation: FileSystemBinder creates directories exactly as specified in config paths.
     """
-    config_data = BASE_CONFIG_TEMPLATE.copy()
+    config_data = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     # Ensure JSON serializable (True/False ok, None ok)
     
     def validation(context: RootContext, root_path: Path):
@@ -26,8 +27,8 @@ def test_full_explicit_config(sandbox_root: Path):
         expected_report = expected_root / "Report"
         assert expected_report.exists(), f"Report dir {expected_report} should exist"
         
-        # 4. Config (Standard implied by Binder, usually under Root)
-        assert (expected_root / "config").exists()
+        # 4. Config (Removed per user request)
+        assert not (expected_root / "config").exists(), "Config dir should NOT exist"
 
     run_ur_test(
         sandbox_path=sandbox_root,
@@ -42,7 +43,7 @@ def test_custom_app_explicit(sandbox_root: Path):
     """
     Scenario: Custom App Name and Custom Paths explicitly defined in Full Config.
     """
-    config_data = BASE_CONFIG_TEMPLATE.copy()
+    config_data = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     config_data["name"] = "MyCustomApp"
     config_data["unified_root"]["name"] = ".MyCustomRoot"
     config_data["logging"]["log_dir"] = ".MyCustomRoot/custom_logs"
@@ -76,13 +77,13 @@ def test_multi_app_coexistence(sandbox_root: Path):
     Expectation: They coexist without conflict. Each gets its own subfolder for logs/config/report.
     """
     # Config for App A
-    config_a = BASE_CONFIG_TEMPLATE.copy()
+    config_a = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     config_a["name"] = "AppA"
     config_a["unified_root"]["name"] = ".SharedSystem"
     # Implicit/Default paths will resolve to .SharedSystem/AppA/...
     
     # Config for App B
-    config_b = BASE_CONFIG_TEMPLATE.copy()
+    config_b = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     config_b["name"] = "AppB"
     config_b["unified_root"]["name"] = ".SharedSystem"
     
@@ -94,13 +95,13 @@ def test_multi_app_coexistence(sandbox_root: Path):
         app_a = root / "AppA"
         assert app_a.exists()
         assert (app_a / "logs").exists()
-        assert (app_a / "config").exists() # Namespaced config!
+        assert not (app_a / "config").exists() # Config removed
         
         # Verify App B Isolation
         app_b = root / "AppB"
         assert app_b.exists()
         assert (app_b / "logs").exists()
-        assert (app_b / "config").exists() # Namespaced config!
+        assert not (app_b / "config").exists() # Config removed
         
         # Verify NO contamination or shared config at root
         assert not (root / "config").exists(), "Config should NOT be at shared root level"
@@ -126,7 +127,7 @@ def test_multi_app_integrity(sandbox_root: Path):
     Scenario: App Name != Root Name.
     Expectation: Config, Logs, Report are namespaced under App Folder.
     """
-    config_data = BASE_CONFIG_TEMPLATE.copy()
+    config_data = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     config_data["name"] = "ServiceModule"
     config_data["unified_root"]["name"] = ".EnterpriseRoot"
     # Ensure implicit paths are used (set to None or Defaults) 
@@ -148,7 +149,7 @@ def test_multi_app_integrity(sandbox_root: Path):
         # Integrity Checks
         assert (app_base / "logs").exists()
         assert (app_base / "Report").exists()
-        assert (app_base / "config").exists() # The key fix!
+        assert not (app_base / "config").exists() # Config removed
         
         # Negative Check
         assert not (root / "config").exists()

@@ -161,3 +161,29 @@ class TestExportService:
         cards = loader.load_cards(detail_md)
         assert len(cards) == 1
         assert cards[0]['title'] == "Cov"
+
+    def test_export_combined(self, mock_exporters, export_config, tmp_path):
+        """Test export_combined concatenates multiple files."""
+        _, _, MockDash = mock_exporters
+        mock_dash = MockDash.return_value
+        
+        # Setup files in input dir
+        input_dir = export_config.output_dir / "input"
+        input_dir.mkdir()
+        export_config.input_dir = input_dir
+        
+        (input_dir / "01_intro.md").write_text("# Intro")
+        (input_dir / "02_body.md").write_text("# Body")
+        
+        service = ExportService(export_config)
+        res = service.export_combined()
+        
+        mock_dash.export.assert_called_once()
+        args, _ = mock_dash.export.call_args
+        sections = args[0]
+        assert len(sections) == 2
+        
+        # Checking generated filenames matching output logic (which returns mock generated paths or logic inside mock)
+        # Because we mocked export methods returning paths:
+        # Actually export_sections inside export_combined might just use the mocked dash logic.
+

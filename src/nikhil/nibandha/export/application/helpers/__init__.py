@@ -6,11 +6,13 @@ from nibandha.export.application.helpers.unified_report_builder import (
     UnifiedReportSection
 )
 from nibandha.export.application.helpers.file_discovery import FileDiscovery
+from nibandha.export.application.helpers.mermaid_processor import MermaidProcessor
 
 __all__ = [
     "MarkdownProcessor",
     "MetricsCardLoader",
     "UnifiedReportBuilder",
     "UnifiedReportSection",
-    "FileDiscovery"
+    "FileDiscovery",
+    "MermaidProcessor"
 ]

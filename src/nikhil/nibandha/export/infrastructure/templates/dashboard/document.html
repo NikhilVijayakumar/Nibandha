@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ project_name }}</title>
-    <style>
-{{ css }}
-    </style>
+    <{{ 'style' }}>
+        {{ css }}
+    </{{ 'style' }}>
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 </head>
+
 <body data-theme="light">
     <div class="dashboard-layout">
         <!-- Sidebar -->
@@ -19,12 +23,12 @@
                 </div>
             </div>
             <nav class="sidebar-nav">
-            {%- for section in sections %}
+                {%- for section in sections %}
                 <a href="#{{ section.id }}" class="nav-link" data-section="{{ section.id }}">
                     <span class="nav-icon">{{ section.icon }}</span>
                     <span class="nav-text">{{ section.title }}</span>
                 </a>
-            {%- endfor %}
+                {%- endfor %}
             </nav>
             <div class="sidebar-footer">
                 <button class="theme-toggle" onclick="toggleTheme()">
@@ -33,7 +37,7 @@
                 </button>
             </div>
         </aside>
-        
+
         <!-- Main Content -->
         <main class="main-content">
             <header class="topbar">
@@ -51,13 +55,13 @@
                     </button>
                 </div>
             </header>
-            
+
             <div class="content-wrapper">
-            {%- for section in sections %}
+                {%- for section in sections %}
                 <section id="{{ section.id }}" class="content-section">
                     {%- if section.metrics_cards %}
                     <div class="metrics-grid">
-                    {%- for card in section.metrics_cards %}
+                        {%- for card in section.metrics_cards %}
                         <div class="metric-card card-{{ card.color|default('blue') }}">
                             <div class="card-icon">{{ card.icon|default('📊') }}</div>
                             <div class="card-content">
@@ -65,20 +69,27 @@
                                 <div class="card-value">{{ card.value|default('') }}</div>
                             </div>
                         </div>
-                    {%- endfor %}
+                        {%- endfor %}
                     </div>
                     {%- endif %}
                     <div class="section-content">
                         {{ section.content }}
                     </div>
                 </section>
-            {%- endfor %}
+                {%- endfor %}
             </div>
         </main>
     </div>
-    
-    <script>
-{{ javascript }}
-    </script>
+
+    <{{ 'script' }}>
+        {{ javascript }}
+
+        // Initialize Mermaid
+        document.addEventListener('DOMContentLoaded', () => {
+        const theme = document.body.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+        mermaid.initialize({ startOnLoad: true, theme: theme });
+        });
+    </{{ 'script' }}>
 </body>
+
 </html>

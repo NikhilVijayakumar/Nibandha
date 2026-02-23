@@ -5,6 +5,8 @@ import logging
 import re
 from abc import ABC, abstractmethod
 
+from nibandha.export.application.helpers.mermaid_processor import MermaidProcessor
+
 class BaseHTMLExporter(ABC):
     """Base class for HTML exporters to prevent duplication."""
     
@@ -40,8 +42,10 @@ class BaseHTMLExporter(ABC):
         # Convert markdown sections to HTML
         html_sections = []
         for section in markdown_sections:
+            content, mermaid_store = MermaidProcessor.pre_process(section["content"])
+            
             html_content = markdown2.markdown(
-                section["content"],
+                content,
                 extras=[
                     "tables",
                     "fenced-code-blocks",
@@ -50,6 +54,8 @@ class BaseHTMLExporter(ABC):
                     "metadata"
                 ]
             )
+            
+            html_content = MermaidProcessor.post_process(html_content, mermaid_store)
             
             # Unified ID generation: strip leading numbers, slugify
             clean_title = re.sub(r'^\d+[\s_-]*', '', section["title"])

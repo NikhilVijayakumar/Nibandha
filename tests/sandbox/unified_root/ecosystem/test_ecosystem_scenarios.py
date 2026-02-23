@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 from typing import List, Dict, Callable
+import copy
 from nibandha.configuration.infrastructure.file_loader import FileConfigLoader
 from nibandha.configuration.domain.models.app_config import AppConfig
 from nibandha.unified_root.infrastructure.filesystem_binder import FileSystemBinder
@@ -69,7 +70,7 @@ def test_scenario_1_nibandha_standalone(sandbox_root: Path):
     Scenario 1: Nibandha (Single App/Lib) with no dependencies.
     Root: .Nibandha
     """
-    cfg = BASE_CONFIG_TEMPLATE.copy()
+    cfg = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     cfg["name"] = "Nibandha"
     cfg["unified_root"]["name"] = ".Nibandha"
     
@@ -79,7 +80,7 @@ def test_scenario_1_nibandha_standalone(sandbox_root: Path):
         # Logs directly under .Nibandha/logs
         assert (root / "logs").exists()
         assert (root / "headers.txt").exists() if (root/"headers.txt").exists() else True # placeholder
-        assert (root / "config").exists()
+        assert not (root / "config").exists(), "Config should not exist"
 
     run_ecosystem_test(
         sandbox_path=sandbox_root,
@@ -97,13 +98,13 @@ def test_scenario_2_pravaha_with_nibandha(sandbox_root: Path):
     Nibandha configured to share: .Pravaha
     """
     # Pravaha Config
-    pravaha = BASE_CONFIG_TEMPLATE.copy()
+    pravaha = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     pravaha["name"] = "Pravaha"
     pravaha["unified_root"]["name"] = ".Pravaha"
     
     # Nibandha Config (Library Mode)
     # It must know to use .Pravaha root.
-    nibandha = BASE_CONFIG_TEMPLATE.copy()
+    nibandha = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     nibandha["name"] = "Nibandha"
     nibandha["unified_root"]["name"] = ".Pravaha"
     
@@ -122,7 +123,7 @@ def test_scenario_2_pravaha_with_nibandha(sandbox_root: Path):
         # So Nibandha NESTS into .Pravaha/Nibandha
         assert (root / "Nibandha").exists()
         assert (root / "Nibandha" / "logs").exists()
-        assert (root / "Nibandha" / "config").exists()
+        assert not (root / "Nibandha" / "config").exists()
 
     run_ecosystem_test(
         sandbox_path=sandbox_root,
@@ -138,11 +139,11 @@ def test_scenario_3_amsha_with_nibandha(sandbox_root: Path):
     Scenario 3: Amsha (Main App) depends on Nibandha.
     Root: .Amsha
     """
-    amsha = BASE_CONFIG_TEMPLATE.copy()
+    amsha = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     amsha["name"] = "Amsha"
     amsha["unified_root"]["name"] = ".Amsha"
     
-    nibandha = BASE_CONFIG_TEMPLATE.copy()
+    nibandha = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     nibandha["name"] = "Nibandha"
     nibandha["unified_root"]["name"] = ".Amsha"
     
@@ -169,20 +170,20 @@ def test_scenario_4_akashvani_ecosystem(sandbox_root: Path):
     Root: .Akashvani
     """
     # Main
-    akashvani = BASE_CONFIG_TEMPLATE.copy()
+    akashvani = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     akashvani["name"] = "Akashvani"
     akashvani["unified_root"]["name"] = ".Akashvani"
     
     # Libs
-    amsha = BASE_CONFIG_TEMPLATE.copy()
+    amsha = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     amsha["name"] = "Amsha"
     amsha["unified_root"]["name"] = ".Akashvani"
     
-    pravaha = BASE_CONFIG_TEMPLATE.copy()
+    pravaha = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     pravaha["name"] = "Pravaha"
     pravaha["unified_root"]["name"] = ".Akashvani"
     
-    nibandha = BASE_CONFIG_TEMPLATE.copy()
+    nibandha = copy.deepcopy(BASE_CONFIG_TEMPLATE)
     nibandha["name"] = "Nibandha"
     nibandha["unified_root"]["name"] = ".Akashvani"
     
@@ -198,11 +199,11 @@ def test_scenario_4_akashvani_ecosystem(sandbox_root: Path):
         assert (root / "Pravaha" / "logs").exists()
         assert (root / "Nibandha" / "logs").exists()
         
-        # Verify Config Isolation
-        assert (root / "config").exists() # Main Config (Flattened)
-        assert (root / "Amsha" / "config").exists()
-        assert (root / "Pravaha" / "config").exists()
-        assert (root / "Nibandha" / "config").exists()
+        # Verify Config Isolation (None should exist)
+        assert not (root / "config").exists() 
+        assert not (root / "Amsha" / "config").exists()
+        assert not (root / "Pravaha" / "config").exists()
+        assert not (root / "Nibandha" / "config").exists()
 
     run_ecosystem_test(
         sandbox_path=sandbox_root,

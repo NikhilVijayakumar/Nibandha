@@ -11,6 +11,8 @@ from typing import Optional
 import logging
 from jinja2 import Environment, FileSystemLoader
 
+from nibandha.export.application.helpers.mermaid_processor import MermaidProcessor
+
 logger = logging.getLogger("nibandha.export")
 
 
@@ -59,6 +61,9 @@ class HTMLExporter:
         """
         logger.info(f"Exporting HTML: {output_path.name} with style '{style}'")
         
+        # Pre-process mermaid blocks
+        content, mermaid_store = MermaidProcessor.pre_process(content)
+        
         # Convert MD to HTML with semantic structure
         html_body = markdown2.markdown(
             content,
@@ -74,8 +79,12 @@ class HTMLExporter:
             ]
         )
         
+        # Restore mermaid blocks
+        html_body = MermaidProcessor.post_process(html_body, mermaid_store)
+        
         # Post-process for DOCX compatibility
         if docx_friendly:
+            html_body = MermaidProcessor.convert_to_image_tags(html_body)
             html_body = self._make_docx_friendly(html_body)
         
         # Load CSS style
