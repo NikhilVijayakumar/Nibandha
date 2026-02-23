@@ -6,6 +6,7 @@ import re
 from abc import ABC, abstractmethod
 
 from nibandha.export.application.helpers.mermaid_processor import MermaidProcessor
+from nibandha.export.application.helpers.math_processor import MathProcessor
 
 class BaseHTMLExporter(ABC):
     """Base class for HTML exporters to prevent duplication."""
@@ -42,7 +43,8 @@ class BaseHTMLExporter(ABC):
         # Convert markdown sections to HTML
         html_sections = []
         for section in markdown_sections:
-            content, mermaid_store = MermaidProcessor.pre_process(section["content"])
+            content, math_store = MathProcessor.pre_process(section["content"])
+            content, mermaid_store = MermaidProcessor.pre_process(content)
             
             html_content = markdown2.markdown(
                 content,
@@ -55,7 +57,9 @@ class BaseHTMLExporter(ABC):
                 ]
             )
             
+            
             html_content = MermaidProcessor.post_process(html_content, mermaid_store)
+            html_content = MathProcessor.post_process(html_content, math_store)
             
             # Unified ID generation: strip leading numbers, slugify
             clean_title = re.sub(r'^\d+[\s_-]*', '', section["title"])
