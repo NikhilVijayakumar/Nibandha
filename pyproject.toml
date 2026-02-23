@@ -52,8 +52,12 @@ package-dir = { "" = "src/nikhil" }
 where = ["src/nikhil"]
 
 [tool.setuptools.package-data]
-nibandha = ["reporting/templates/*.md", "py.typed"]
-
+nibandha = [
+    "reporting/templates/*.md",
+    "export/infrastructure/styles/*.css",
+    "export/infrastructure/templates/*/*",
+    "py.typed"
+]
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true

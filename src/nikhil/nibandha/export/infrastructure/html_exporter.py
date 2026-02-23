@@ -12,6 +12,7 @@ import logging
 from jinja2 import Environment, FileSystemLoader
 
 from nibandha.export.application.helpers.mermaid_processor import MermaidProcessor
+from nibandha.export.application.helpers.math_processor import MathProcessor
 
 logger = logging.getLogger("nibandha.export")
 
@@ -61,7 +62,8 @@ class HTMLExporter:
         """
         logger.info(f"Exporting HTML: {output_path.name} with style '{style}'")
         
-        # Pre-process mermaid blocks
+        # Pre-process math and mermaid blocks
+        content, math_store = MathProcessor.pre_process(content)
         content, mermaid_store = MermaidProcessor.pre_process(content)
         
         # Convert MD to HTML with semantic structure
@@ -79,8 +81,9 @@ class HTMLExporter:
             ]
         )
         
-        # Restore mermaid blocks
+        # Restore mermaid and math blocks
         html_body = MermaidProcessor.post_process(html_body, mermaid_store)
+        html_body = MathProcessor.post_process(html_body, math_store)
         
         # Post-process for DOCX compatibility
         if docx_friendly:
@@ -144,7 +147,8 @@ class HTMLExporter:
         DOCX conversion via pandoc.
         """
         template = self.jinja_env.get_template('document.html')
-        return template.render(title=title, css=css, body=body)
+        style_tag = f"<style>\n{css}\n</style>"
+        return template.render(title=title, style_tag=style_tag, body=body)
     
     def _get_inline_default_css(self) -> str:
         """

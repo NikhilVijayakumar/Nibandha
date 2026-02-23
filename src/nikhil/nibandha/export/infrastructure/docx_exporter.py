@@ -82,9 +82,11 @@ class DOCXExporter:
             
         try:
             # Pypandoc convert_file
-            # Format is 'html' to 'docx'
+            # Format is 'html+tex_math_single_backslash+tex_math_dollars' to 'docx'
+            # This enables native math rendering in Word
             output = self.pypandoc.convert_file(
                 source_file=str(content_path),
+                format='html+tex_math_single_backslash+tex_math_dollars',
                 to='docx',
                 outputfile=str(output_path),
                 extra_args=extra_args
