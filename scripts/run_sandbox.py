@@ -40,7 +40,7 @@ def get_available_modules() -> List[str]:
     
     modules = []
     for item in TESTS_SANDBOX_DIR.iterdir():
-        if item.is_dir() and not item.name.startswith((".", "__")):
+        if item.is_dir() and not item.name.startswith((".", "__")) and item.name != "core":
             # Check if it contains tests (rough check)
             if list(item.glob("test_*.py")) or list(item.glob("**/test_*.py")):
                 modules.append(item.name)
@@ -53,6 +53,7 @@ def clean_sandbox(module: str = None):
 
     if module:
         target = SANDBOX_OUTPUT_DIR / module
+        # Only clean if it exists
         if target.exists():
             print(f"Cleaning artifacts for module: {module}...")
             shutil.rmtree(target)
@@ -71,17 +72,34 @@ def run_tests(modules: List[str]):
         print(f"\n{'='*20} Running Sandbox Module: {module} {'='*20}")
         target_path = TESTS_SANDBOX_DIR / module
         
+        # We need to run pytest as a module to ensure imports work correctly
+        # But we are calling it via subprocess.
+        # "python -m pytest tests/sandbox/module"
+        
         cmd = [sys.executable, "-m", "pytest", str(target_path), "-v", "--tb=short"]
         
         try:
             result = subprocess.run(cmd, cwd=PROJECT_ROOT, check=False)
             if result.returncode != 0:
                 print(f"❌ Module '{module}' failed check output above.")
-                # We continue to next module even if one fails
             else:
                 print(f"✅ Module '{module}' passed.")
         except Exception as e:
             print(f"Error running tests for {module}: {e}")
+
+def run_reporting():
+    """Run the aggregation reporter."""
+    print(f"\n{'='*20} Generating Summary Report {'='*20}")
+    reporter_script = TESTS_SANDBOX_DIR / "reporter.py"
+    if not reporter_script.exists():
+        print(f"Reporter script not found at {reporter_script}")
+        return
+
+    cmd = [sys.executable, str(reporter_script)]
+    try:
+        subprocess.run(cmd, cwd=PROJECT_ROOT, check=False)
+    except Exception as e:
+        print(f"Error running reporter: {e}")
 
 def main():
     parser = argparse.ArgumentParser(description="Run sandbox tests for Nibandha.")
@@ -114,7 +132,7 @@ def main():
         print("No sandbox modules found to run.")
         return
 
-    # Clean if requested (or maybe always for specific module runs? User prompt implied manual clean)
+    # Clean if requested
     if args.clean:
         if args.module:
             clean_sandbox(args.module)
@@ -124,7 +142,11 @@ def main():
     print(f"Starting Sandbox Run for: {', '.join(target_modules)}")
     run_tests(target_modules)
     
+    # Run reporting
+    run_reporting()
+    
     print(f"\nArtifacts generated in: {SANDBOX_OUTPUT_DIR}")
+    print(f"Summary Report: {SANDBOX_OUTPUT_DIR / 'summary.md'}")
 
 if __name__ == "__main__":
     main()

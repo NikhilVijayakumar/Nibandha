@@ -36,6 +36,23 @@ class ExportConfig(BaseModel):
         """Convert Path to POSIX-style string (forward slashes)."""
         return path.as_posix() if path else None
     
+    @field_validator('formats')
+    @classmethod
+    def validate_formats(cls, v):
+        """Ensure formats are supported and dependencies met."""
+        valid_formats = {'md', 'html', 'docx', 'pdf'}
+        for fmt in v:
+            if fmt not in valid_formats:
+                raise ValueError(f"Unsupported format: {fmt}. Valid formats: {valid_formats}")
+        
+        if 'docx' in v and 'html' not in v:
+             # Option 1: Auto-add html (friendlier)
+             # v.append('html')
+             # Option 2: Raise error (stricter)
+             raise ValueError("Exporting to 'docx' requires 'html' format to be present as intermediate step.")
+             
+        return v
+
     @field_validator('export_order', mode='before')
     @classmethod
     def validate_export_order(cls, v):

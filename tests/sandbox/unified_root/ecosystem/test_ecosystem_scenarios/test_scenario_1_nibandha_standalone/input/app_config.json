@@ -1,0 +1,52 @@
+{
+  "name": "Nibandha",
+  "mode": "production",
+  "logging": {
+    "level": "INFO",
+    "enabled": true,
+    "log_dir": ".Nibandha/logs",
+    "rotation_enabled": false,
+    "max_size_mb": 5.0,
+    "rotation_interval_hours": 24,
+    "archive_retention_days": 30,
+    "backup_count": 10,
+    "archive_dir": "logs/archive",
+    "timestamp_format": "%Y-%m-%d"
+  },
+  "reporting": {
+    "output_dir": ".Nibandha/Report",
+    "template_dir": "src/nikhil/nibandha/reporting/templates",
+    "project_name": "Nibandha",
+    "quality_target": "src/nikhil",
+    "package_roots": [
+      "nibandha"
+    ],
+    "unit_target": "tests/unit",
+    "e2e_target": "tests/e2e",
+    "doc_paths": {
+      "functional": "docs/features",
+      "technical": "docs/technical",
+      "test": "docs/test"
+    },
+    "module_discovery": null
+  },
+  "unified_root": {
+    "name": ".Nibandha",
+    "custom_structure": {}
+  },
+  "export": {
+    "formats": [
+      "md",
+      "html"
+    ],
+    "style": "default",
+    "input_dir": ".Nibandha/Report/details",
+    "template_dir": "src/nikhil/nibandha/export/infrastructure/templates",
+    "styles_dir": "src/nikhil/nibandha/export/infrastructure/styles",
+    "output_dir": ".Nibandha/Report",
+    "output_filename": "report",
+    "export_order": null,
+    "exclude_files": [],
+    "metrics_mapping": {}
+  }
+}

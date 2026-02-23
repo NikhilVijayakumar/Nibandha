@@ -3,11 +3,12 @@ import os
 import shutil
 import pytest
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Any
 from nibandha.configuration.domain.models.app_config import AppConfig
 from nibandha.configuration.infrastructure.file_loader import FileConfigLoader
 from nibandha.unified_root.infrastructure.filesystem_binder import FileSystemBinder
 from nibandha.unified_root.domain.models.root_context import RootContext
+from tests.sandbox.core.runner import SandboxRunner, SandboxTestSpec, SandboxTestResult
 
 # Base Template provided by User
 BASE_CONFIG_TEMPLATE = {
@@ -17,15 +18,13 @@ BASE_CONFIG_TEMPLATE = {
         "level": "INFO",
         "enabled": True,
         "log_dir": ".Nibandha/logs",
-        "rotation": {  # Nested rotation structure
-            "enabled": False,
-            "max_size_mb": 5.0,
-            "rotation_interval_hours": 24,
-            "archive_retention_days": 30,
-            "backup_count": 10,
-            "archive_dir": "logs/archive",
-            "timestamp_format": "%Y-%m-%d"
-        }
+        "rotation_enabled": False,
+        "max_size_mb": 5.0,
+        "rotation_interval_hours": 24,
+        "archive_retention_days": 30,
+        "backup_count": 10,
+        "archive_dir": "logs/archive",
+        "timestamp_format": "%Y-%m-%d"
     },
     "reporting": {
         "output_dir": ".Nibandha/Report",
@@ -54,6 +53,7 @@ BASE_CONFIG_TEMPLATE = {
         "styles_dir": "src/nikhil/nibandha/export/infrastructure/styles",
         "output_dir": ".Nibandha/Nibandha/Report",
         "output_filename": "report",
+        "export_order": None,
         "exclude_files": [],
         "metrics_mapping": {}
     }
@@ -67,73 +67,68 @@ def run_ur_test(
     expected_output_desc: str,
     validation_fn: Callable[[RootContext, Path], None],
     use_rotation: bool = False,
-    pyproject_content: Optional[str] = None
+    pyproject_content: Optional[str] = None,
+    expect_error: bool = False
 ):
     """
-    Runs a Unified Root sandbox test case.
-    
-    Args:
-        sandbox_path: The root directory for this test (provided by fixture).
-        test_name: Name of the test case.
-        description: Description of what is being tested.
-        input_config_content: Content of the app config (YAML/JSON).
-        expected_output_desc: Description of expected outcome.
-        validation_fn: Function to validate the resulting directory structure.
-                       Receives (root_context, sandbox_path).
-        use_rotation: Whether to enable log rotation in binder.
-        pyproject_content: Optional content for pyproject.toml to mock project context.
+    Runs a Unified Root sandbox test case using SandboxRunner.
     """
-    print(f"\n--- Unified Root Test: {test_name} ---")
-    print(f"Description: {description}")
+    runner = SandboxRunner(sandbox_path)
     
-    # 1. Setup Input Config
-    config_file = sandbox_path / "app_config.json" # Use JSON by default for realism
-    config_file.write_text(input_config_content, encoding="utf-8")
-    
-    if pyproject_content:
-        (sandbox_path / "pyproject.toml").write_text(pyproject_content, encoding="utf-8")
-    
-    # 3. Execute Unified Root Creation
-    # We MUST switch CWD to sandbox_path so relative paths in config are created inside sandbox
-    # AND so that AppConfig defaults (like reading pyproject.toml) use the sandbox context.
-    original_cwd = os.getcwd()
-    binder = FileSystemBinder() 
-    
-    try:
-        os.chdir(sandbox_path)
-        print(f"Changed CWD to {sandbox_path}")
+    spec = SandboxTestSpec(
+        name=test_name,
+        description=description,
+        input_filename="app_config.json",
+        input_content=input_config_content,
+        expected_output_desc=expected_output_desc,
+        should_fail=expect_error
+    )
+
+    def action(input_file: Path) -> RootContext:
+        output_dir = sandbox_path / "output"
+        output_dir.mkdir(parents=True, exist_ok=True) # Ensure it exists
+
+        # 1. Additional Setup (pyproject.toml)
+        if pyproject_content:
+            (output_dir / "pyproject.toml").write_text(pyproject_content, encoding="utf-8")
+
+        # 2. Execute within Sandbox Context
+        original_cwd = os.getcwd()
+        binder = FileSystemBinder()
         
-        # 2. Load Config (Moved inside CWD context)
-        loader = FileConfigLoader()
         try:
-            # We must use filename relative to CWD (which is now sandbox_path)
-            # Or absolute path. config_file is likely absolute.
-            app_config = loader.load(config_file, AppConfig)
+            os.chdir(output_dir)
+            # Load config from the input file (which SandboxRunner created)
+            loader = FileConfigLoader()
+            # input_file is absolute, so load it directly
+            # BUT we need to ensure app execution uses the CWD for potential relative paths in logic
+            app_config = loader.load(input_file, AppConfig)
+            
+            # Bind!
+            context = binder.bind(app_config)
+            return context
+            
         except Exception as e:
-            pytest.fail(f"Setup failed: Could not load app config in sandbox: {e}")
-            return
+            raise e
+        finally:
+            os.chdir(original_cwd)
 
-        # Bind! This creates the directories
-        context = binder.bind(app_config)
-        
-        print(f"Unified Root created at: {context.root}")
-        
-    except Exception as e:
-        print(f"Action Failed: {e}")
-        # Allow validation to assert on failure if needed, or re-raise
-        raise e
-    finally:
-        os.chdir(original_cwd)
-        print("Restored CWD")
+    def validation(context: Any, root: Path):
+        # Adapt signature
+        if isinstance(context, RootContext):
+            validation_fn(context, root)
+        elif not expect_error:
+            # If we didn't expect errors, context should be valid
+            raise ValueError(f"Expected RootContext, got {type(context)}")
+        # If expect_error is True, and Action succeeded (and returned context), 
+        # SandboxRunner calls validation. 
+        # Then SandboxRunner checks spec.should_fail.
+        # If should_fail is True, it marks as FAIL "Expected failure didn't occur".
+        # So validation logic allows us to verify the "Success" state if needed, 
+        # but here we just pass through.
+        pass
 
-    # 4. Validation
-    print(f"Expected: {expected_output_desc}")
-    try:
-        validation_fn(context, sandbox_path)
-        print("✅ Validation Passed")
-    except AssertionError as e:
-        print(f"❌ Validation Failed: {e}")
-        raise e
-    except Exception as e:
-        print(f"❌ Validation Error: {e}")
-        raise e
+    result = runner.run_test(spec, action, validation)
+
+    if result.result.startswith("FAIL"):
+        pytest.fail(result.result)
